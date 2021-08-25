@@ -1,5 +1,7 @@
 # K3D: Rodando Kubernetes localmente com Docker
 
+Tip from Full Cycle
+
 > ```https://www.youtube.com/watch?v=q1811odFfKM```
 
 ## Creating the cluster
