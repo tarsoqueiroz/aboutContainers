@@ -8,7 +8,7 @@ Sample KubApp from:
 
 > ```git clone https://github.com/KubeDev/k8s-api-produto.git```
 
-# Install current latest release
+## Install current latest release
 
 Get instructions on ```k3d.io```:
 
