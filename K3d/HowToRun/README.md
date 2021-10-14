@@ -10,7 +10,7 @@ GitHub source:
 
 ## A cluster from a file configuration
 
-```
+```s
 k3d cluster create --config ./viktorFarcic-k3d.yaml
 k3d cluster list
 k3d node list
@@ -19,7 +19,7 @@ kubectl get nodes -o wide
 
 ## Sample app deployment
 
-```
+```s
 kubectl apply --filename ./k8s/
 kubectl get pods,deployments,services,ingress
 ```
