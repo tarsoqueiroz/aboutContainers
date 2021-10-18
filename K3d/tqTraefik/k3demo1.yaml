@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3demo1
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: k3demo1
+  template:
+    metadata:
+      labels:
+        app: k3demo1
+    spec:
+      containers:
+      - name: k3demo1
+        image: brendanburns/node-hostname:latest
+        ports:
+        - containerPort: 80
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3demo1
+  namespace: default
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    targetPort: 80
+    port: 80
+  selector:
+    app: k3demo1

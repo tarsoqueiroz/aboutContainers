@@ -1,0 +1,33 @@
+apiVersion: k3d.io/v1alpha2
+kind: Simple
+
+name: tqTraefik
+servers: 1
+agents: 2
+image: rancher/k3s:v1.22.2-k3s2
+
+kubeAPI:
+  hostIP: "0.0.0.0"
+  hostPort: "6443" # Kubernetes API via localhost:6443
+
+ports:
+  - port: 8081:80 # http via localhost:8081
+    nodeFilters:
+      - loadbalancer
+  - port: 8443:443 # https via localhost:8443
+    nodeFilters:
+      - loadbalancer
+
+options:
+  k3d:
+    wait: true
+    timeout: "360s"
+    disableLoadbalancer: false
+    disableImageVolume: false
+  k3s:
+    extraServerArgs:
+      - --tls-san=127.0.0.1
+    extraAgentArgs: []
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
