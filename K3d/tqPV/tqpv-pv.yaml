@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-pathhost
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+#  claimRef:
+#    name: pvc-pathhost
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/vol/host"
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-pathrule
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+#  claimRef:
+#    name: pvc-pathrule
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/vol/rule"
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-pathcluster
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+#  claimRef:
+#    name: pvc-pathcluster
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/vol/cluster"
