@@ -1,0 +1,24 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hostname1-deployment
+spec:
+  selector:
+    matchLabels:
+      app: hostname1
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: hostname1
+    spec:
+      containers:
+      - name: hostname1
+        image: ruanbekker/hostname:latest
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8080

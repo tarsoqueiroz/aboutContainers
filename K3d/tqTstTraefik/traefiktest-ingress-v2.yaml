@@ -1,0 +1,34 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: v2-ingress
+  labels:
+    name: v2-myingress
+  annotations:
+    ingress.kubernetes.io/ingress.class: "traefik"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hostname0-service
+            port: 
+              number: 80
+      - path: /brendan
+        pathType: Prefix
+        backend:
+          service:
+            name: hostname0-service
+            port: 
+              number: 80
+      - path: /ruan
+        pathType: Prefix
+        backend:
+          service:
+            name: hostname1-service
+            port: 
+              number: 80

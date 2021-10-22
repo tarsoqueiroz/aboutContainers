@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hostname1-html
+data:
+  index.html: |-
+    <html>
+    <head><title>Hello App1 World!</title>
+      <style>
+        html {
+          font-size: 200.0%;
+        }
+        div {
+          text-align: center;
+        }
+        p {
+          text-align: left;
+          font-size: 150.0%;
+        }
+      </style>
+    </head>
+    <body>
+      <div>Hello App1 Traefik World!</div>
+      <p>Test is another necessary experiment to this feature!!!</p>
+    </body>
+    </html>

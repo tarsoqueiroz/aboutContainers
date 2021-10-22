@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hostname1-service
+  labels:
+    run: hostname1
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: hostname1

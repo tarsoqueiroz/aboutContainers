@@ -1,0 +1,20 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hostname0-deployment
+spec:
+  selector:
+    matchLabels:
+      app: hostname0
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: hostname0
+    spec:
+      containers:
+      - name: hostname0
+        image: brendanburns/node-hostname:latest
+        ports:
+        - containerPort: 80
