@@ -1,0 +1,29 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app1-ingress
+  labels:
+    name: app1-myingress
+  annotations:
+    ingress.kubernetes.io/ingress.class: "traefik"
+#    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: tarso.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: app1-service
+            port: 
+              number: 80
+      - path: /app0
+        pathType: Exact
+        backend:
+          service:
+            name: app0-service
+            port: 
+              number: 80
