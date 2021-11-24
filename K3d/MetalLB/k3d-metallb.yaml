@@ -1,0 +1,40 @@
+apiVersion: k3d.io/v1alpha2
+kind: Simple
+name: tqMetalLB
+servers: 1
+agents: 3
+kubeAPI:
+  hostIP: "0.0.0.0"
+  hostPort: "6443" # Kubernetes API via localhost:6443
+image: rancher/k3s:v1.22.2-k3s2
+# ports:
+#   - port: 10080:80 # http via localhost:10080
+#     nodeFilters:
+#       - loadbalancer
+#   - port: 10443:443 # https via localhost:10443
+#     nodeFilters:
+#       - loadbalancer
+#   - port: 18080:8080 # http via localhost:18080
+#     nodeFilters:
+#       - loadbalancer
+#   - port: 18843:8443 # https via localhost:18443
+#     nodeFilters:
+#       - loadbalancer
+# env:
+#   - envVar: cluster=tqBasic
+#     nodeFilters:
+#       - all
+
+options:
+  k3d:
+    wait: true
+    timeout: "360s"
+#    disableLoadbalancer: false
+#    disableImageVolume: false
+  k3s:
+    extraServerArgs:
+      - --tls-san=127.0.0.1
+    extraAgentArgs: []
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
