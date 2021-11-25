@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx8080
+  namespace: default
+  labels:
+    app: nginx8080
+spec:
+  ports:
+    - name: 8080-8080
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: nginx8080
+  type: ClusterIP
+  sessionAffinity: None
