@@ -1,0 +1,113 @@
+apiVersion: k3d.io/v1alpha3
+kind: Simple
+
+name: k8singress
+servers: 3
+agents: 3
+image: rancher/k3s:v1.22.2-k3s2
+
+kubeAPI:
+  hostIP: "10.15.18.44" # "192.168.100.101"
+  hostPort: "6443" # Kubernetes API via localhost:6443
+
+ports:
+  - port: 80:80 # http via localhost:80
+    nodeFilters:
+      - loadbalancer
+  - port: 443:443 # https via localhost:443
+    nodeFilters:
+      - loadbalancer
+  - port: 8080:8080 # http via localhost:8080
+    nodeFilters:
+      - loadbalancer
+  - port: 8443:443 # https via localhost:8443
+    nodeFilters:
+      - loadbalancer
+  - port: 3000:3000 # http via localhost:3000
+    nodeFilters:
+      - loadbalancer
+  - port: 5984:5984 # http via localhost:5984
+    nodeFilters:
+      - loadbalancer
+
+options:
+  k3d:
+    wait: true
+    timeout: "360s"
+    disableLoadbalancer: false
+    disableImageVolume: false
+
+  k3s: # options passed on to K3s itself
+    extraArgs: # additional arguments passed to the `k3s server|agent` command; same as `--k3s-arg`
+      - arg: --tls-san=10.15.18.44 # - --tls-san=192.168.100.101
+        nodeFilters:
+          - server:*    
+    nodeLabels:
+      - label: nodename=server0 # same as `--k3s-node-label 'foo=bar@agent:1'` -> this results in a Kubernetes node label
+        nodeFilters:
+          - server:0
+      - label: nodename=server1
+        nodeFilters:
+          - server:1
+      - label: nodename=server2
+        nodeFilters:
+          - server:2
+      - label: nodename=agent0
+        nodeFilters:
+          - agent:0
+      - label: nodename=agent1
+        nodeFilters:
+          - agent:1
+      - label: nodename=agent2
+        nodeFilters:
+          - agent:2
+      
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
+
+#volumes:
+#  - volume: /tmp/tqpv/volserver0:/vol/host
+#    nodeFilters:
+#      - server[0]
+#  - volume: /tmp/tqpv/volserver1:/vol/host
+#    nodeFilters:
+#      - server[1]
+#  - volume: /tmp/tqpv/volservers:/vol/rule
+#    nodeFilters:
+#      - server[*]
+#  - volume: /tmp/tqpv/volagent0:/vol/host
+#    nodeFilters:
+#      - agent[0]
+#  - volume: /tmp/tqpv/volagent1:/vol/host
+#    nodeFilters:
+#      - agent[1]
+#  - volume: /tmp/tqpv/volagents:/vol/rule
+#    nodeFilters:
+#      - agent[*]
+#  - volume: /tmp/tqpv/volcluster:/vol/cluster
+#    nodeFilters:
+#      - all
+
+#env:
+#  - envVar: ENV_VAR_NAME=server0
+#    nodeFilters:
+#      - server[0]
+#  - envVar: ENV_VAR_NAME=server1
+#    nodeFilters:
+#      - server[1]
+#  - envVar: ENV_VAR_SERVER=true
+#    nodeFilters:
+#      - server[*]
+#  - envVar: ENV_VAR_NAME=agent0
+#    nodeFilters:
+#      - agent[0]
+#  - envVar: ENV_VAR_NAME=agent1
+#    nodeFilters:
+#      - agent[1]
+#  - envVar: ENV_VAR_SERVER=false
+#    nodeFilters:
+#      - agent[*]
+#  - envVar: ENV_VAR_CLUSTER=tqpv
+#    nodeFilters:
+#      - all

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod3000
+  labels:
+    app: pod3000
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pod3000
+  template:
+    metadata:
+      labels:
+        app: pod3000
+    spec:
+      containers:
+      - name: pod3000
+        image: nginxdemos/hello
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: "125Mi"
+            cpu: "125m"
+          requests:
+            memory: "100Mi"
+            cpu: "100m"

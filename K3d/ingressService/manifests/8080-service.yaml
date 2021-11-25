@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc8080
+spec:
+  selector:
+    app: pod8080
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 80

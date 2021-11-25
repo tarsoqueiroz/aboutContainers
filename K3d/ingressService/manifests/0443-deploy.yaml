@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod0443
+  labels:
+    app: pod0443
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pod0443
+  template:
+    metadata:
+      labels:
+        app: pod0443
+    spec:
+      containers:
+      - name: pod0443
+        image: nginxdemos/hello
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: "125Mi"
+            cpu: "125m"
+          requests:
+            memory: "100Mi"
+            cpu: "100m"
