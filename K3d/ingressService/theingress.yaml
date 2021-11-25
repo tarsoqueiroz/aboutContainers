@@ -15,21 +15,23 @@ spec:
             name: svc0080
             port:
               number: 80
-  - http:
+  - host: svc0080.tarso.io
+    http:
       paths:
-      - path: /secure
+      - path: /
         pathType: Prefix
         backend:
           service:
-            name: svc0443
+            name: svc0080
             port:
-              number: 443
-  - http:
+              number: 80
+  - host: svc8080.tarso.io
+    http:
       paths:
-      - path: /threethousand
+      - path: /
         pathType: Prefix
         backend:
           service:
-            name: svc3000
+            name: svc8080
             port:
-              number: 3000
+              number: 8080

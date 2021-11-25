@@ -7,7 +7,7 @@ agents: 3
 image: rancher/k3s:v1.22.2-k3s2
 
 kubeAPI:
-  hostIP: "10.15.18.44" # "192.168.100.101"
+  hostIP: "192.168.100.207"  # "10.15.18.44" or "192.168.100.101" or "192.168.100.207"
   hostPort: "6443" # Kubernetes API via localhost:6443
 
 ports:
@@ -39,7 +39,7 @@ options:
 
   k3s: # options passed on to K3s itself
     extraArgs: # additional arguments passed to the `k3s server|agent` command; same as `--k3s-arg`
-      - arg: --tls-san=10.15.18.44 # - --tls-san=192.168.100.101
+      - arg: --tls-san=192.168.100.207  # 10.15.18.44 or 192.168.100.101 or 192.168.100.207
         nodeFilters:
           - server:*    
     nodeLabels:
