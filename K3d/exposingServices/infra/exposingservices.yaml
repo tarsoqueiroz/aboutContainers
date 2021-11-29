@@ -7,20 +7,20 @@ agents: 2
 image: rancher/k3s:v1.22.2-k3s2
 
 kubeAPI:
-  hostIP: "10.15.18.44"  # "10.15.18.44" or "192.168.100.101" or "192.168.100.207"
+  hostIP: "192.168.100.207"  # "10.15.18.44" or "192.168.100.101" or "192.168.100.207"
   hostPort: "6443" # Kubernetes API via localhost:6443
 
 ports:
+  - port: 80:80 # http via localhost:80
+    nodeFilters:
+      - loadbalancer
   - port: 8080:8080 # http via localhost:8080
     nodeFilters:
       - loadbalancer
-  # - port: 80:80 # http via localhost:80
-  #   nodeFilters:
-  #     - loadbalancer
+  - port: 8443:8443 # https via localhost:8443
+    nodeFilters:
+      - loadbalancer
   # - port: 443:443 # https via localhost:443
-  #   nodeFilters:
-  #     - loadbalancer
-  # - port: 8443:8443 # https via localhost:8443
   #   nodeFilters:
   #     - loadbalancer
 
@@ -33,7 +33,7 @@ options:
 
   k3s: # options passed on to K3s itself
     extraArgs: # additional arguments passed to the `k3s server|agent` command; same as `--k3s-arg`
-      - arg: --tls-san=10.15.18.44  # 10.15.18.44 or 192.168.100.101 or 192.168.100.207
+      - arg: --tls-san=192.168.100.207  # 10.15.18.44 or 192.168.100.101 or 192.168.100.207
         nodeFilters:
           - server:*    
     nodeLabels:

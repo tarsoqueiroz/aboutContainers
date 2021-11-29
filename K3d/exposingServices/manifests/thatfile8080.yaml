@@ -7,7 +7,8 @@ metadata:
     ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   rules:
-  - http:
+  - host: svc8080.tarso.io
+    http:
       paths:
       - path: /
         pathType: Prefix
