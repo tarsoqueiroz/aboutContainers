@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bysubdirectory
+  # labels:
+  #   name: bysubdirectory
+spec:
+  rules:
+  - host: tarso.io
+    http:
+      paths:
+      - pathType: Prefix
+        path: /blue
+        backend:
+          service:
+            name: blue-service
+            port: 
+              number: 80
+      - pathType: Prefix
+        path: /green
+        backend:
+          service:
+            name: green-service
+            port: 
+              number: 80
