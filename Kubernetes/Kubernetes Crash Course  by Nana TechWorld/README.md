@@ -2,15 +2,35 @@
 
 > ```https://www.youtube.com/watch?v=s_o8dwzRlu4```
 
-em `https://www.youtube.com/watch?v=s_o8dwzRlu4` estou em 0:00
-
 ## 0:00:00 - Intro and Course Overview
+
+- GitLab [K8s-in-1-hour](https://gitlab.com/nanuchi/k8s-in-1-hour)
+
+```Shell
+kind get clusters
+kind create cluster --config ./infra/nanacrashcourse.yaml
+kind get clusters
+kubectl get nodes 
+```
 
 ## 0:01:44 - What is Kubernetes
 
+- Container orchestration
+
+Main features:
+
+- High avlilability or no downtime
+- Scalabilty or high performance
+- Disaster recovery
+
 ## 0:04:33 - Kubernetes Architecture
 
+- Control Plane Nodes
+- Worker Nodes
+
 ## 0:09:29 - Node and Pod
+
+Estou em `https://www.youtube.com/watch?v=s_o8dwzRlu4` estou em 9:00
 
 ## 0:08:58 - Main K8s Components
 
