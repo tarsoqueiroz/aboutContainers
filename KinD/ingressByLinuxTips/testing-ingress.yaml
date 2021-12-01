@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: giropops-deploy
+spec:
+  selector:
+    matchLabels:
+      app: giropops
+  template:
+    metadata:
+      labels:
+        app: giropops
+    spec:
+      containers:
+      - name: giropops
+        image: hashicorp/http-echo:0.2.3
+        args:
+        - "-text=GiroPops"
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: giropops-service
+spec:
+  selector:
+    app: giropops
+  # type: LoadBalancer
+  ports:
+  - port: 5678
+    targetPort: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strigus-deploy
+spec:
+  selector:
+    matchLabels:
+      app: strigus
+  template:
+    metadata:
+      labels:
+        app: strigus
+    spec:
+      containers:
+      - name: strigus
+        image: hashicorp/http-echo:0.2.3
+        args:
+        - "-text=Strigus"
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: strigus-service
+spec:
+  selector:
+    app: strigus
+  # type: LoadBalancer
+  ports:
+  - port: 5678
+    targetPort: 5678
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: girostrigus-ingress
+  labels:
+    name: girostrigus
+spec:
+  rules:
+  # - host: <Host>
+  - http:
+      paths:
+      - pathType: Prefix
+        path: "/giropops"
+        backend:
+          service:
+            name: giropops-service
+            port: 
+              number: 5678
+      - pathType: Prefix
+        path: "/strigus"
+        backend:
+          service:
+            name: strigus-service
+            port: 
+              number: 5678
