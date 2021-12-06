@@ -20,6 +20,7 @@ apiVersion: v1
 metadata:
   name: foo-service
 spec:
+  # type: LoadBalancer
   selector:
     app: foo
   ports:
@@ -48,6 +49,7 @@ apiVersion: v1
 metadata:
   name: bar-service
 spec:
+  # type: LoadBalancer
   selector:
     app: bar
   ports:
@@ -63,14 +65,14 @@ spec:
   - http:
       paths:
       - pathType: Prefix
-        path: "/foo"
+        path: "/fooo"
         backend:
           service:
             name: foo-service
             port:
               number: 5678
       - pathType: Prefix
-        path: "/bar"
+        path: "/barr"
         backend:
           service:
             name: bar-service
