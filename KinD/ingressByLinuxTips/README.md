@@ -115,6 +115,10 @@ kind get clusters
 kubectl config get-contexts 
 ```
 
+## NGINX controller install 
+
+> `https://kind.sigs.k8s.io/docs/user/ingress/`
+
 ## LINUXtips Ingress tests
 
 - `testing-ingress.yaml` file
