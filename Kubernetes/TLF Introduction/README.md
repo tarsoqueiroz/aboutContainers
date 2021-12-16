@@ -1432,11 +1432,815 @@ By the end of this chapter, you should be able to:
   - Namespaces.
   - Discuss Labels and Selectors.
 
+### Kubernetes Object Model
+
+Kubernetes has a very rich object model, representing different persistent entities in the Kubernetes cluster. Those entities describe:
+
+  - What containerized applications we are running
+  - The nodes where the containerized applications are deployed
+  - Application resource consumption
+  - Policies attached to applications, like restart/upgrade policies, fault tolerance, etc.
+
+With each object, we declare our intent, or the desired state of the object, in the `spec` section. The Kubernetes system manages the `status` section for objects, where it records the actual state of the object. At any given point in time, the Kubernetes Control Plane tries to match the object's actual state to the object's desired state.
+
+Examples of Kubernetes objects are Pods, ReplicaSets, Deployments, Namespaces, etc. We will explore them next.
+
+When creating an object, the object's configuration data section from below the `spec` field has to be submitted to the Kubernetes API server. The API request to create an object must have the `spec` section, describing the desired state, as well as other details. Although the API server accepts object definition files in a JSON format, most often we provide such files in a YAML format which is converted by `kubectl` in a JSON payload and sent to the API server.
+
+Below is an example of a [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) object's configuration manifest in YAML format:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.15.11
+        ports:
+        - containerPort: 80
+```
+
+The `apiVersion` field is the first required field, and it specifies the API endpoint on the API server which we want to connect to; it must match an existing version for the object type defined. The second required field is `kind`, specifying the object type - in our case it is `Deployment`, but it can be Pod, Replicaset, Namespace, Service, etc. The third required field `metadata`, holds the object's basic information, such as name, labels, namespace, etc. Our example shows two `spec` fields (`spec` and `spec.template.spec`). The fourth required field `spec` marks the beginning of the block defining the desired state of the Deployment object. In our example, we are requesting that 3 replicas, or 3 instances of the Pod, are running at any given time. The Pods are created using the Pod Template defined in `spec.template`. A nested object, such as the Pod being part of a Deployment, retains its `metadata` and `spec` and loses the `apiVersion` and `kind` - both being replaced by `template`. In `spec.template.spec`, we define the desired state of the Pod. Our Pod creates a single container running the `nginx:1.15.11` image from [Docker Hub](https://hub.docker.com/_/nginx).
+
+Once the Deployment object is created, the Kubernetes system attaches the `status` field to the object and populates it with all necessary status fields.
+
+### Pods
+
+A [Pod](https://kubernetes.io/docs/concepts/workloads/pods/) is the smallest and simplest Kubernetes object. It is the unit of deployment in Kubernetes, which represents a single instance of the application. A Pod is a logical collection of one or more containers, which:
+
+  - Are scheduled together on the same host with the Pod
+  - Share the same network namespace, meaning that they share a single IP address originally assigned to the Pod
+  - Have access to mount the same external storage (volumes).
+
+
+![Single- and Multi-Container Pods](./images/pods-1-2-3-4.svg)
+
+Pods are ephemeral in nature, and they do not have the capability to self-heal themselves. That is the reason they are used with controllers which handle Pods' replication, fault tolerance, self-healing, etc. Examples of controllers are Deployments, ReplicaSets, ReplicationControllers, etc. We attach a nested Pod's specification to a controller object using the Pod Template, as we have seen in the previous section.
+
+Below is an example of a Pod object's configuration manifest in `YAML` format:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.15.11
+    ports:
+    - containerPort: 80
+```
+
+The `apiVersion` field must specify `v1` for the `Pod` object definition. The second required field is `kind` specifying the `Pod` object type. The third required field `metadata`, holds the object's name and label. The fourth required field `spec` marks the beginning of the block defining the desired state of the Pod object - also named the `PodSpec`. Our Pod creates a single container running the `nginx:1.15.11` image from [Docker Hub](https://hub.docker.com/_/nginx). The `containerPort` field specifies the container port to be exposed by Kubernetes resources for inter-application access or external client access.
+
+### Labels
+
+[Labels]() are **key-value** pairs attached to Kubernetes objects (e.g. Pods, ReplicaSets, Nodes, Namespaces, Persistent Volumes). Labels are used to organize and select a subset of objects, based on the requirements in place. Many objects can have the same Label(s). Labels do not provide uniqueness to objects. Controllers use Labels to logically group together decoupled objects, rather than using objects' names or IDs.
+
+![Labels](./images/Labels.png)
+
+In the image above, we have used two Label keys: `app` and `env`. Based on our requirements, we have given different values to our four Pods. The Label `env=dev` logically selects and groups the top two Pods, while the Label `app=frontend` logically selects and groups the left two Pods. We can select one of the four Pods - bottom left, by selecting two Labels: **`app=frontend` AND `env=qa`**.
+
+### Label Selectors
+
+Controllers use [Label Selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors) to select a subset of objects. Kubernetes supports two types of Selectors:
+
+  - **Equality-Based Selectors**
+
+Equality-Based Selectors allow filtering of objects based on Label keys and values. Matching is achieved using the `=`, `==` (equals, used interchangeably), or `!=` (not equals) operators. For example, with `env==dev` or `env=dev` we are selecting the objects where the `env` Label key is set to value `dev`. 
+
+  - **Set-Based Selectors**
+
+Set-Based Selectors allow filtering of objects based on a set of values. We can use `in`, `notin` operators for Label values, and `exist/does not exist` operators for Label keys. For example, with `env` in `(dev,qa)` we are selecting objects where the `env` Label is set to either `dev` or `qa`; with `!app` we select objects with no Label key `app`.
+
+![Selectors.png](./images/Selectors.png)
+
+### ReplicationControllers
+
+Although no longer a recommended controller, a [ReplicationController](https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller/) ensures a specified number of replicas of a Pod is running at any given time, by constantly comparing the actual state with the desired state of the managed application. If there are more Pods than the desired count, the replication controller randomly terminates the number of Pods exceeding the desired count, and, if there are fewer Pods than the desired count, then the replication controller requests additional Pods to be created until the actual count matches the desired count. Generally, we do not deploy a Pod independently, as it would not be able to re-start itself if terminated in error because a Pod misses the much desired self-healing feature that Kubernetes otherwise promises. The recommended method is to use some type of a controller to run and manage Pods. 
+
+The default recommended controller is the [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) which configures a [ReplicaSet](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/) controller to manage Pods' lifecycle.
+
+### ReplicaSets I
+
+A [ReplicaSet](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/) is, in part, the next-generation ReplicationController, as it implements the replication and self-healing aspects of the ReplicationController. ReplicaSets support both equality- and set-based Selectors, whereas ReplicationControllers only support equality-based Selectors. 
+
+With the help of a ReplicaSet, we can scale the number of Pods running a specific application container image. Scaling can be accomplished manually or through the use of an [autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
+
+Below we graphically represent a ReplicaSet, with the replica count set to 3 for a specific Pod template. Pod-1, Pod-2, and Pod-3 are identical, running the same application container image, being cloned from the same Pod template. For now, the current state matches the desired state. 
+
+![Replica_Set1.png](./images/Replica_Set1.png)
+
+### ReplicaSets II
+
+Let's continue with the same ReplicaSet example and assume that one of the Pods is forced to unexpectedly terminate (due to insufficient resources, timeout, etc.), causing the current state to no longer match the desired state.
+
+![ReplicaSet2.png](./images/ReplicaSet2.png)
+
+### ReplicaSets III
+
+The ReplicaSet detects that the current state is no longer matching the desired state and triggers a request for an additional Pod to be created, thus ensuring that the current state matches the desired state. 
+
+![ReplicaSet (Creating a Pod to Match Current State with Desired State)](./images/ReplicaSet3.png)
+
+ReplicaSets can be used independently as Pod controllers but they only offer a limited set of features. A set of complementary features are provided by Deployments, the recommended controllers for the orchestration of Pods. Deployments manage the creation, deletion, and updates of Pods. A Deployment automatically creates a ReplicaSet, which then creates a Pod. There is no need to manage ReplicaSets and Pods separately, the Deployment will manage them on our behalf.
+
+We will take a closer look at Deployments next.
+
+### Deployments I
+
+[Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) objects provide declarative updates to Pods and ReplicaSets. The `DeploymentController` is part of the master node's controller manager, and as a controller it also ensures that the current state always matches the desired state. It allows for seamless application updates and rollbacks through `rollouts` and `rollbacks`, and it directly manages its `ReplicaSets` for application scaling. 
+
+In the following example, a new `Deployment` creates `ReplicaSet A` which then creates `3 Pods`, with each Pod Template configured to run one `nginx:1.7.9` container image. In this case, the `ReplicaSet A` is associated with `nginx:1.7.9` representing a state of the Deployment. This particular state is recorded as `Revision 1`.
+
+![Deployment (ReplicaSet A Created)](./images/Deployment_Updated.png)
+
+### Deployments II
+
+In time, we need to push updates to the application managed by the Deployment object. Let's change the Pods' Template and update the container image from `nginx:1.7.9` to `nginx:1.9.1`. The `Deployment` triggers a new `ReplicaSet B` for the new container image versioned 1.9.1 and this association represents a new recorded state of the `Deployment, Revision 2`. The seamless transition between the two ReplicaSets, from `ReplicaSet A` with 3 Pods versioned 1.7.9 to the new `ReplicaSet B` with 3 new Pods versioned 1.9.1, or from `Revision 1` to `Revision 2`, is a Deployment `rolling update`. 
+
+A `rolling update` is triggered when we update specific properties of the Pod Template for a deployment. While updating the container image, container port, volumes, and mounts would trigger a new Revision, other operations like scaling or labeling the deployment do not trigger a rolling update, thus do not change the Revision number.
+
+Once the rolling update has completed, the `Deployment` will show both `ReplicaSets A` and `B`, where `A` is scaled to 0 (zero) Pods, and `B` is scaled to 3 Pods. This is how the Deployment records its prior state configuration settings, as `Revisions`. 
+
+![Deployment (ReplicaSet B Created)](./images/ReplikaSet_B.png)
+
+### Deployments III
+
+Once `ReplicaSet B` and its 3 Pods versioned 1.9.1 are ready, the `Deployment` starts actively managing them. However, the Deployment keeps its prior configuration states saved as Revisions which play a key factor in the `rollback` capability of the Deployment - returning to a prior known configuration state. In our example, if the performance of the new `nginx:1.9.1` is not satisfactory, the Deployment can be rolled back to a prior Revision, in this case from `Revision 2` back to `Revision 1` running `nginx:1.7.9` once again.
+
+![Deployment Points to ReplicaSet B](./images/Deployment_points_to_ReplikaSet.png)
+
+### Namespaces
+
+If multiple users and teams use the same Kubernetes cluster we can partition the cluster into virtual sub-clusters using [Namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/). The names of the resources/objects created inside a Namespace are unique, but not across Namespaces in the cluster.
+
+To list all the Namespaces, we can run the following command:
+
+```Shell
+$ kubectl get namespaces
+NAME              STATUS       AGE
+default           Active       11h
+kube-node-lease   Active       11h
+kube-public       Active       11h
+kube-system       Active       11h
+```
+
+Generally, Kubernetes creates four Namespaces out of the box: `kube-system, kube-public, kube-node-lease`, and `default`. The `kube-system` Namespace contains the objects created by the Kubernetes system, mostly the control plane agents. The `default` Namespace contains the objects and resources created by administrators and developers, and objects are assigned to it by default unless another Namespace name is provided by the user. `kube-public` is a special Namespace, which is unsecured and readable by anyone, used for special purposes such as exposing public (non-sensitive) information about the cluster. The newest Namespace is `kube-node-lease` which holds node lease objects used for node heartbeat data. Good practice, however, is to create additional Namespaces, as desired, to virtualize the cluster and isolate users, developer teams, applications, or tiers.
+
+Namespaces are one of the most desired features of Kubernetes, securing its lead against competitors, as it provides a solution to the multi-tenancy requirement of today's enterprise development teams. 
+
+[Resource Quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/) help users limit the overall resources consumed within Namespaces, while [LimitRanges](https://kubernetes.io/docs/concepts/policy/limit-range/) help limit the resources consumed by Pods or Containers in a Namespace. We will briefly cover quota management in a later chapter.
+
+### Learning Objectives (Review)
+
+You should now be able to:
+
+  - Describe the Kubernetes object model.
+  - Discuss Kubernetes building blocks, e.g. Pods, ReplicaSets, Deployments, Namespaces.
+  - Discuss Labels and Selectors.
+
 ## Chapter 9. Authentication, Authorization, Admission Control
+
+### Introduction
+
+Every API request reaching the API server has to go through several control stages before being accepted by the server and acted upon. In this chapter, we will learn about the Authentication, Authorization, and Admission Control stages of the Kubernetes API access control.
+
+### Learning Objectives
+
+By the end of this chapter, you should be able to:
+
+  - Discuss the authentication, authorization, and access control stages of the Kubernetes API access.
+  - Understand the different kinds of Kubernetes users.
+  - Explore the different modules for authentication and authorization.
+
+### Authentication, Authorization, and Admission Control - Overview
+
+To access and manage Kubernetes resources or objects in the cluster, we need to access a specific API endpoint on the API server. Each access request goes through the following access control stages:
+
+  - **Authentication**: Logs in a user.
+  - **Authorization**: Authorizes the API requests submitted by the authenticated user.
+  - **Admission Control**: Software modules that validate and/or modify user requests based.
+
+The following image depicts the above stages:
+
+![Controlling Access to the API](./images/access-k8s.png)
+(Retrieved from [kubernetes.io](https://kubernetes.io/docs/admin/accessing-the-api/))
+
+### Authentication I
+
+Kubernetes does not have an object called user, nor does it store usernames or other related details in its object store. However, even without that, Kubernetes can use usernames for the [Authentication](https://kubernetes.io/docs/reference/access-authn-authz/authentication/) phase of the API access control, and to request logging as well. 
+
+Kubernetes supports two kinds of [users](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#users-in-kubernetes):
+
+  - **Normal Users**: They are managed outside of the Kubernetes cluster via independent services like User/Client Certificates, a file listing usernames/passwords, Google accounts, etc.
+  - **Service Accounts**: Service Accounts allow in-cluster processes to communicate with the API server to perform various operations. Most of the Service Accounts are created automatically via the API server, but they can also be created manually. The Service Accounts are tied to a particular Namespace and mount the respective credentials to communicate with the API server as Secrets.
+
+If properly configured, Kubernetes can also support [anonymous requests](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#anonymous-requests), along with requests from Normal Users and Service Accounts. [User impersonation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation) is also supported allowing a user to act as another user, a helpful feature for administrators when troubleshooting authorization policies.
+
+### Authentication II
+
+For authentication, Kubernetes uses a series of [authentication modules](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#authentication-strategies):
+
+  - **X509 Client Certificates**: To enable client certificate authentication, we need to reference a file containing one or more certificate authorities by passing the --client-ca-file=SOMEFILE option to the API server. The certificate authorities mentioned in the file would validate the client certificates presented by users to the API server. A demonstration video covering this topic can be found at the end of this chapter.
+  - **Static Token File**: We can pass a file containing pre-defined bearer tokens with the --token-auth-file=SOMEFILE option to the API server. Currently, these tokens would last indefinitely, and they cannot be changed without restarting the API server.
+  - **Bootstrap Tokens**: Tokens used for bootstrapping new Kubernetes clusters.
+  - **Service Account Tokens**: Automatically enabled authenticators that use signed bearer tokens to verify requests. These tokens get attached to Pods using the ServiceAccount Admission Controller, which allows in-cluster processes to talk to the API server.
+  - **OpenID Connect Tokens**: OpenID Connect helps us connect with OAuth2 providers, such as Azure Active Directory, Salesforce, and Google, to offload the authentication to external services.
+  - **Webhook Token Authentication**: With Webhook-based authentication, verification of bearer tokens can be offloaded to a remote service.
+  - **Authenticating Proxy**: Allows for the programming of additional authentication logic.
+
+We can enable multiple authenticators, and the first module to successfully authenticate the request short-circuits the evaluation. To ensure successful user authentication, we should enable at least two methods: the service account tokens authenticator and one of the user authenticators. 
+
+### Authorization I
+
+After a successful authentication, users can send the API requests to perform different operations. Here, these API requests get [authorized](https://kubernetes.io/docs/reference/access-authn-authz/authorization/) by Kubernetes using various authorization modules, that allow or deny the requests.
+
+Some of the API request attributes that are reviewed by Kubernetes include user, group, extra, Resource, Namespace, or API group, to name a few. Next, these attributes are evaluated against policies. If the evaluation is successful, then the request is allowed, otherwise it is denied. Similar to the Authentication step, Authorization has multiple modules, or authorizers. More than one module can be configured for one Kubernetes cluster, and each module is checked in sequence. If any authorizer approves or denies a request, then that decision is returned immediately.
+
+### Authorization II
+
+Authorization modes (Part 1):
+
+  - **Node**: Node authorization is a special-purpose authorization mode which specifically authorizes API requests made by kubelets. It authorizes the kubelet's read operations for services, endpoints, or nodes, and writes operations for nodes, pods, and events. For more details, please review the [Node authorization](https://kubernetes.io/docs/reference/access-authn-authz/node/).
+  - **Attribute-Based Access Control (ABAC)**: With the ABAC authorizer, Kubernetes grants access to API requests, which combine policies with attributes. In the following example, user student can only read Pods in the Namespace `lfs158`.
+
+```yaml
+{
+  "apiVersion": "abac.authorization.kubernetes.io/v1beta1",
+  "kind": "Policy",
+  "spec": {
+    "user": "student",
+    "namespace": "lfs158",
+    "resource": "pods",
+    "readonly": true
+  }
+}
+```
+
+To enable ABAC mode, we start the API server with the `--authorization-mode=ABAC` option, while specifying the authorization policy with `--authorization-policy-file=PolicyFile.json`. For more details, please review the [ABAC authorization](https://kubernetes.io/docs/reference/access-authn-authz/abac/).
+
+  - **Webhook**: In Webhook mode, Kubernetes can request authorization decisions to be made by third-party services, which would return true for successful authorization, and false for failure. In order to enable the Webhook authorizer, we need to start the API server with the `--authorization-webhook-config-file=SOME_FILENAME` option, where `SOME_FILENAME` is the configuration of the remote authorization service. For more details, please see the [Webhook mode](https://kubernetes.io/docs/reference/access-authn-authz/webhook/).
+
+### Authorization III
+
+Authorization modes (Part 2):
+
+  - **Role-Based Access Control (RBAC)**: In general, with RBAC we regulate the access to resources based on the Roles of individual users. In Kubernetes, multiple Roles can be attached to subjects like users, service accounts, etc. While creating the Roles, we restrict resource access by specific operations, such as `create, get, update, patch`, etc. These operations are referred to as verbs.
+
+In RBAC, we can create two kinds of Roles:
+
+**Role**: A Role grants access to resources within a specific Namespace.
+
+**ClusterRole**: A ClusterRole grants the same permissions as Role does, but its scope is cluster-wide.
+
+In this course, we will focus on the first kind, **Role**. Below you will find an example:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: lfs158
+  name: pod-reader
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+```
+
+The manifest defines a `pod-reader` role, which has access only to read the Pods of `lfs158` Namespace. Once the role is created, we can bind it to users with a RoleBinding object.
+
+There are two kinds of RoleBindings:
+
+**RoleBinding**: It allows us to bind users to the same namespace as a Role. We could also refer a ClusterRole in RoleBinding, which would grant permissions to Namespace resources defined in the ClusterRole within the RoleBinding’s Namespace.
+
+**ClusterRoleBinding**: It allows us to grant access to resources at a cluster-level and to all Namespaces.
+
+In this course, we will focus on the first kind, `RoleBinding`. Below, you will find an example:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-read-access
+  namespace: lfs158
+subjects:
+- kind: User
+  name: student
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+```
+
+The manifest defines a bind between the `pod-reader` Role and the `student` user, to restrict the user to only read the Pods of the `lfs158` Namespace.
+
+To enable the RBAC mode, we start the API server with the --authorization-mode=RBAC option, allowing us to dynamically configure policies. For more details, please review the [RBAC mode](https://kubernetes.io/docs/reference/access-authn-authz/rbac/). 
+
+### Admission Control
+
+[Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/) are used to specify granular access control policies, which include allowing privileged containers, checking on resource quota, etc. We force these policies using different admission controllers, like ResourceQuota, DefaultStorageClass, AlwaysPullImages, etc. They come into effect only after API requests are authenticated and authorized.
+
+To use admission controls, we must start the Kubernetes API server with the `--enable-admission-plugins`, which takes a comma-delimited, ordered list of controller names:
+
+  `--enable-admission-plugins=NamespaceLifecycle,ResourceQuota,PodSecurityPolicy,DefaultStorageClass`
+
+Kubernetes has some admission controllers enabled by default. For more details, please review the [list of Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#what-does-each-admission-controller-do). 
+
+Kubernetes admission control can also be implemented though custom plugins, for a [Dynamic Admission Control](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) method. These plugins are developed as extensions and run as admission webhooks. 
+
+### Authentication and Authorization Demo Guide
+
+This exercise guide assumes the following environment, which by default uses the certificate and key from `/var/lib/minikube/certs/`, and `RBAC` mode for authorization:
+
+  - Minikube v1.13.1
+  - Kubernetes v1.19.2
+  - Docker 19.03.12-ce
+
+This exercise guide was prepared for the video demonstration following on the next page. 
+
+Start Minikube:
+
+```Shell
+$ minikube start
+```
+
+View the content of the `kubectl` client's configuration manifest, observing the only context `minikube` and the only user `minikube`, created by default:
+
+```Shell
+$ kubectl config view
+
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: /home/student/.minikube/ca.crt
+    server: https://192.168.99.100:8443
+  name: minikube
+contexts:
+- context:
+    cluster: minikube
+    user: minikube
+  name: minikube
+current-context: minikube
+kind: Config
+preferences: {}
+users:
+- name: minikube
+  user:
+    client-certificate: /home/student/.minikube/profiles/minikube/client.crt
+    client-key: /home/student/.minikube/profiles/minikube/client.key
+```
+
+Create `lfs158` namespace:
+
+```Shell
+$ kubectl create namespace lfs158
+
+namespace/lfs158 created
+```
+
+Create the `rbac` directory and cd into it:
+
+```Shell
+$ mkdir rbac
+
+$ cd rbac/
+```
+
+Create a `private key` for the `student` user with `openssl` tool, then create a `certificate signing request` for the `student` user with `openssl` tool:
+
+```Shell
+~/rbac$ openssl genrsa -out student.key 2048
+
+Generating RSA private key, 2048 bit long modulus (2 primes)
+.................................................+++++
+.........................+++++
+e is 65537 (0x010001)
+
+~/rbac$ openssl req -new -key student.key -out student.csr -subj "/CN=student/O=learner"
+```
+
+Create a YAML manifest for a `certificate signing request` object, and save it with a blank value for the `request` field: 
+
+```Shell
+~/rbac$ vim signing-request.yaml
+
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: student-csr
+spec:
+  groups:
+  - system:authenticated
+  request: <assign encoded value from next cat command>
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - digital signature
+  - key encipherment
+  - client auth
+```
+
+View the `certificate`, encode it in `base64`, and assign it to the `request` field in the `signing-request.yaml` file:
+
+```Shell
+~/rbac$ cat student.csr | base64 | tr -d '\n','%'
+
+LS0tLS1CRUd...1QtLS0tLQo=
+
+~/rbac$ vim signing-request.yaml
+
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: student-csr
+spec:
+  groups:
+  - system:authenticated
+  request: LS0tLS1CRUd...1QtLS0tLQo=
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - digital signature
+  - key encipherment
+  - client auth
+```
+
+Create the `certificate signing request` object, then list the certificate signing request objects. It shows a `pending` state:
+
+```Shell
+~/rbac$ kubectl create -f signing-request.yaml
+
+certificatesigningrequest.certificates.k8s.io/student-csr created
+
+~/rbac$ kubectl get csr
+
+NAME          AGE   SIGNERNAME                            REQUESTOR       CONDITION
+
+student-csr   12s   kubernetes.io/kube-apiserver-client   minikube-user   Pending
+```
+
+Approve the `certificate signing request` object, then list the certificate signing request objects again. It shows both `approved` and `issued` states:
+
+```Shell
+~/rbac$ kubectl certificate approve student-csr
+
+certificatesigningrequest.certificates.k8s.io/student-csr approved
+
+~/rbac$ kubectl get csr
+
+NAME          AGE   SIGNERNAME                            REQUESTOR       CONDITION
+
+student-csr   57s   kubernetes.io/kube-apiserver-client   minikube-user   Approved,Issued
+```
+
+Extract the approved `certificate` from the `certificate signing request`, decode it with `base64` and save it as a `certificate file`. Then view the certificate in the newly created certificate file:
+
+```Shell
+~/rbac$ kubectl get csr student-csr -o jsonpath='{.status.certificate}' | base64 --decode > student.crt
+
+~/rbac$ cat student.crt
+
+-----BEGIN CERTIFICATE-----
+MIIDGzCCA...
+...
+...NOZRRZBVunTjK7A==
+-----END CERTIFICATE-----
+```
+
+Configure the `kubectl` client's configuration manifest with the `student` user's credentials by assigning the `key` and `certificate`: 
+
+```Shell
+~/rbac$ kubectl config set-credentials student --client-certificate=student.crt --client-key=student.key
+
+User "student" set.
+```
+
+Create a new `context` entry in the `kubectl` client's configuration manifest for the `student` user, associated with the `lfs158` namespace in the `minikube` cluster:
+
+```Shell
+~/rbac$ kubectl config set-context student-context --cluster=minikube --namespace=lfs158 --user=student
+
+Context "student-context" created.
+```
+
+View the contents of the `kubectl` client's configuration manifest again, observing the new `context` entry `student-context`, and the new `user` entry `student`:
+
+```Shell
+~/rbac$ kubectl config view
+
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: /home/student/.minikube/ca.crt
+    server: https://192.168.99.100:8443
+  name: minikube
+contexts:
+- context:
+    cluster: minikube
+    user: minikube
+  name: minikube
+- context:
+    cluster: minikube
+    namespace: lfs158
+    user: student
+  name: student-context
+current-context: minikube
+kind: Config
+preferences: {}
+users:
+- name: minikube
+  user:
+    client-certificate: /home/student/.minikube/profiles/minikube/client.crt
+    client-key: /home/student/.minikube/profiles/minikube/client.key
+- name: student
+  user:
+    client-certificate: /home/student/rbac/student.crt
+    client-key: /home/student/rbac/student.key
+```
+
+While in the default `minikube context`, create a new `deployment` in the `lfs158` namespace:
+
+```Shell
+~/rbac$ kubectl -n lfs158 create deployment nginx --image=nginx:alpine
+
+deployment.apps/nginx created
+```
+
+From the new `context student-context` try to list pods. The attempt fails because the `student` user has no permissions configured for the `student-context`:
+
+```Shell
+~/rbac$ kubectl --context=student-context get pods
+
+Error from server (Forbidden): pods is forbidden: User "student" cannot list resource "pods" in API group "" in the namespace "lfs158"
+```
+
+The following steps will assign a limited set of permissions to the `student` user in the `student-context`. 
+
+Create a YAML configuration manifest for a `pod-reader` Role object, which allows only `get, watch, list` actions in the `lfs158` namespace against `pod` objects. Then create the `role` object and list it from the default `minikube context`, but from the `lfs158` namespace:
+
+```Shell
+~/rbac$ vim role.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: lfs158
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+
+~/rbac$ kubectl create -f role.yaml
+
+role.rbac.authorization.k8s.io/pod-reader created
+
+~/rbac$ kubectl -n lfs158 get roles
+
+NAME         CREATED AT
+pod-reader   2020-10-07T03:47:45Z
+```
+
+Create a YAML configuration manifest for a `rolebinding` object, which assigns the permissions of the `pod-reader` Role to the `student` user. Then create the `rolebinding` object and list it from the default `minikube context`, but from the `lfs158` namespace:
+
+```Shell
+~/rbac$ vim rolebinding.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-read-access
+  namespace: lfs158
+subjects:
+- kind: User
+  name: student
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+~/rbac$ kubectl create -f rolebinding.yaml 
+
+rolebinding.rbac.authorization.k8s.io/pod-read-access created
+
+~/rbac$ kubectl -n lfs158 get rolebindings
+
+NAME              ROLE              AGE
+pod-read-access   Role/pod-reader   28s
+```
+
+Now that we have assigned permissions to the student user, we can successfully list `pods` from the new `context student-context`.
+
+```Shell
+~/rbac$ kubectl --context=student-context get pods
+
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-565785f75c-kl25r   1/1     Running   0          7m41s
+```
+
+### Learning Objectives (Review)
+
+You should now be able to:
+
+  - Discuss the authentication, authorization, and access control stages of the Kubernetes API access.
+  - Understand the different kinds of Kubernetes users.
+  - Explore the different modules for authentication and authorization.
 
 ## Chapter 10. Services
 
+### Introduction 
+
+Although the microservices driven architecture aims to decouple the components of an application, microservices still need agents to logically tie or group them together for management purposes, or to load balance traffic to the ones that are part of such a logical set.
+
+In this chapter, we will learn about [Service](https://kubernetes.io/docs/concepts/services-networking/service/) objects used to abstract the communication between cluster internal microservices, or with the external world. A Service offers a single DNS entry for a containerized application managed by the Kubernetes cluster, regardless of the number of replicas, by providing a common load balancing access point to a set of pods logically grouped and managed by a controller such as a Deployment, ReplicaSet, or DaemonSet. 
+
+We will also learn about the `kube-proxy` daemon, which runs on each master and worker node to implement the services' configuration and to provide access to services. In addition we will discuss `service discovery` and `service types`, which decide the access scope of a service. 
+
+### Learning Objectives
+
+By the end of this chapter, you should be able to:
+
+  - Discuss the benefits of logically grouping Pods with Services to access an application.
+  - Explain the role of the `kube-proxy` daemon running on each node.
+  - Explore the Service discovery options available in Kubernetes.
+  - Discuss different Service types.
+
+### Connecting Users or Applications to Pods
+
+To access the application, a user or another application need to connect to the Pods. As Pods are ephemeral in nature, resources like IP addresses allocated to them cannot be static. Pods could be terminated abruptly or be rescheduled based on existing requirements.
+
+Let's take, for example, a scenario where a user/client is connected to Pods using their IP addresses. 
+
+![A Scenario Where a User Is Connected to Pods via their IP Addresses](./images/service-1.png)
+
+Unexpectedly, one of the Pods the user/client is connected to is terminated, and a new Pod is created by the controller. The new Pod will have a new IP address, that will not be immediately known by the user/client of the earlier Pod.
+
+![A New Pod Is Created After an Old One Terminated Unexpectedly](./images/service-2.png)
+
+To overcome this situation, Kubernetes provides a higher-level abstraction called `Service`, which logically groups Pods and defines a policy to access them. This grouping is achieved via `Labels` and `Selectors`.
+
+### Services
+
+Labels and Selectors use a `key/value` pair format. In the following graphical representation, `app` is the Label `key`, frontend and `db` are Label `values` for different Pods. 
+
+![Grouping of Pods using Labels and Selectors](./images/service1.png)
+
+Using the selectors `app==frontend` and `app==db`, we group Pods into two logical sets: one set with 3 Pods, and one set with a single Pod.
+
+We assign a name to the logical grouping, referred to as a `Service`. The Service name also is registered with the cluster's internal DNS service. In our example, we create two Services, `frontend-svc`, and `db-svc`, and they have the `app==frontend` and the `app==db` Selectors, respectively. 
+
+![Grouping of Pods using the Service object](./images/Services2.png)
+
+Services can expose single Pods, ReplicaSets, Deployments, DaemonSets, and StatefulSets.
+
+### Service Object Example
+
+The following is an example of a Service object definition:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+spec:
+  selector:
+    app: frontend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+```
+
+In this example, we are creating a `frontend-svc` Service by selecting all the Pods that have the Label `key=app` set to `value=frontend`. By default, each Service receives an IP address routable only inside the cluster, known as `ClusterIP`. In our example, we have `172.17.0.4` and `172.17.0.5` as `ClusterIP`s assigned to our `frontend-svc` and `db-svc` Services, respectively. 
+
+![Accessing the Pods using Service Object](./images/SOE.png)
+
+The user/client now connects to a Service via its `ClusterIP`, which forwards traffic to one of the Pods attached to it. A Service provides load balancing by default while selecting the Pods for traffic forwarding.
+
+While the Service forwards traffic to Pods, we can select the `targetPort` on the Pod which receives the traffic. In our example, the `frontend-svc` Service receives requests from the user/client on `port: 80` and then forwards these requests to one of the attached Pods on the `targetPort: 5000`. If the `targetPort` is not defined explicitly, then traffic will be forwarded to Pods on the `port` on which the Service receives traffic. It is very important to ensure that the value of the `targetPort`, which is `5000` in this example, matches the value of the `containerPort` property of the Pod `spec` section. 
+
+A logical set of a Pod's IP address, along with the `targetPort` is referred to as a `Service endpoint`. In our example, the `frontend-svc` Service has 3 endpoints: `10.0.1.3:5000`, `10.0.1.4:5000`, and `10.0.1.5:5000`. Endpoints are created and managed automatically by the Service, not by the Kubernetes cluster administrator.
+
+### kube-proxy
+
+Each cluster node runs a daemon called [kube-proxy](https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies), that watches the API server on the master node for the addition, updates, and removal of Services and endpoints. `kube-proxy` is responsible for implementing the Service configuration on behalf of an administrator or developer, in order to enable traffic routing to an exposed application running in Pods. In the example below, for each new Service, on each node, `kube-proxy` configures `iptables` rules to capture the traffic for its `ClusterIP` and forwards it to one of the Service's endpoints. Therefore any node can receive the external traffic and then route it internally in the cluster based on the `iptables` rules. When the Service is removed, `kube-proxy` removes the corresponding `iptables` rules on all nodes as well.
+
+![kube-proxy, Services, and Endpoints](./images/kubeproxy.png)
+
+### Service Discovery
+
+As Services are the primary mode of communication between containerized applications managed by Kubernetes, it is helpful to be able to discover them at runtime. Kubernetes supports two methods for discovering Services:
+
+  - **Environment Variables**
+
+As soon as the Pod starts on any worker node, the `kubelet` daemon running on that node adds a set of environment variables in the Pod for all active Services. For example, if we have an active Service called `redis-master`, which exposes port `6379`, and its `ClusterIP` is `172.17.0.6`, then, on a newly created Pod, we can see the following environment variables:
+
+```Shell
+REDIS_MASTER_SERVICE_HOST=172.17.0.6
+REDIS_MASTER_SERVICE_PORT=6379
+REDIS_MASTER_PORT=tcp://172.17.0.6:6379
+REDIS_MASTER_PORT_6379_TCP=tcp://172.17.0.6:6379
+REDIS_MASTER_PORT_6379_TCP_PROTO=tcp
+REDIS_MASTER_PORT_6379_TCP_PORT=6379
+REDIS_MASTER_PORT_6379_TCP_ADDR=172.17.0.6
+```
+
+With this solution, we need to be careful while ordering our Services, as the Pods will not have the environment variables set for Services which are created after the Pods are created.
+
+  - **DNS**
+
+Kubernetes has an add-on for DNS, which creates a [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) record for each Service and its format is `my-svc.my-namespace.svc.cluster.local`. Services within the same Namespace find other Services just by their names. If we add a Service `redis-master` in `my-ns` Namespace, all Pods in the same `my-ns` Namespace lookup the Service just by its name, `redis-master`. Pods from other Namespaces, such as `test-ns`, lookup the same Service by adding the respective Namespace as a suffix, such as `redis-master.my-ns` or providing the **FQDN** of the service as `redis-master.my-ns.svc.cluster.local`.
+
+This is the most common and highly recommended solution. For example, in the previous section's image, we have seen that an internal DNS is configured, which maps our Services `frontend-svc` and `db-svc` to `172.17.0.4` and `172.17.0.5` IP addresses respectively.
+
+### ServiceType
+
+While defining a Service, we can also choose its access scope. We can decide whether the Service:
+
+  - Is only accessible within the cluster
+  - Is accessible from within the cluster and the external world
+  - Maps to an entity which resides either inside or outside the cluster.
+
+Access scope is decided by `ServiceType` property, defined when creating the Service.
+
+### ServiceType: ClusterIP and NodePort
+
+`ClusterIP` is the default [ServiceType](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport). A Service receives a Virtual IP address, known as its ClusterIP. This Virtual IP address is used for communicating with the Service and is accessible only from within the cluster. 
+
+With the [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport) `ServiceType`, in addition to a ClusterIP, a high-port, dynamically picked from the default range `30000-32767`, is mapped to the respective Service, from all the worker nodes. For example, if the mapped NodePort is `32233` for the service `frontend-svc`, then, if we connect to any worker node on port `32233`, the node would redirect all the traffic to the assigned `ClusterIP - 172.17.0.4`. If we prefer a specific high-port number instead, then we can assign that high-port number to the NodePort from the default range when creating the Service. 
+
+![NodePort](./images/NodePort.png)
+
+The `NodePort ServiceType` is useful when we want to make our Services accessible from the external world. The end-user connects to any worker node on the specified high-port, which proxies the request internally to the ClusterIP of the Service, then the request is forwarded to the applications running inside the cluster. Let's not forget that the Service is load balancing such requests, and only forwards the request to one of the Pods running the desired application. To manage access to multiple application Services from the external world, administrators can configure a reverse proxy - an ingress, and define rules that target specific Services within the cluster.
+
+### ServiceType: LoadBalancer
+
+With the [LoadBalancer](https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer) `ServiceType`:
+
+  - NodePort and ClusterIP are automatically created, and the external load balancer will route to them
+  - The Service is exposed at a static port on each worker node
+  - The Service is exposed externally using the underlying cloud provider's load balancer feature.
+ 
+![LoadBalancer](./images/LoadBalancer.png)
+
+The `LoadBalancer ServiceType` will only work if the underlying infrastructure supports the automatic creation of Load Balancers and have the respective support in Kubernetes, as is the case with the Google Cloud Platform and AWS. If no such feature is configured, the LoadBalancer IP address field is not populated, it remains in Pending state, but the Service will still work as a typical NodePort type Service. 
+
+### ServiceType: ExternalIP
+
+A Service can be mapped to an [ExternalIP](https://kubernetes.io/docs/concepts/services-networking/service/#external-ips) address if it can route to one or more of the worker nodes. Traffic that is ingressed into the cluster with the ExternalIP (as destination IP) on the Service port, gets routed to one of the Service endpoints. This type of service requires an external cloud provider such as Google Cloud Platform or AWS and a Load Balancer configured on the cloud provider's infrastructure.
+
+![ExternalIP](./images/ExternalIP.png)
+
+Please note that ExternalIPs are not managed by Kubernetes. The cluster administrator has to configure the routing which maps the ExternalIP address to one of the nodes.
+
+### ServiceType: ExternalName
+
+[ExternalName](https://kubernetes.io/docs/concepts/services-networking/service/#externalname) is a special `ServiceType`, that has no Selectors and does not define any endpoints. When accessed within the cluster, it returns a `CNAME` record of an externally configured Service.
+
+The primary use case of this `ServiceType` is to make externally configured Services like `my-database.example.com` available to applications inside the cluster. If the externally defined Service resides within the same Namespace, using just the name `my-database` would make it available to other applications and Services within that same Namespace.
+
+### Learning Objectives (Review)
+
+You should now be able to:
+
+  - Discuss the benefits of logically grouping Pods with Services to access an application.
+  - Explain the role of the `kube-proxy` daemon running on each node.
+  - Explore the Service discovery options available in Kubernetes.
+  - Discuss different Service types.
+
 ## Chapter 11. Deploying a Stand-Alone Application
+
+### Introduction
+
+In this chapter, we will learn how to deploy an application using the **Dashboard (Kubernetes WebUI)** and the **Command Line Interface (CLI)**. We will also expose the application with a NodePort type Service, and access it from outside the Minikube cluster.
+
+### Learning Objectives
+
+By the end of this chapter, you should be able to:
+
+  - Deploy an application from the dashboard.
+  - Deploy an application from a YAML file using kubectl.
+  - Expose a service using NodePort.
+  - Access the application from outside the Minikube cluster.
+
+### 
 
 ## Chapter 12. Kubernetes Volume Management
 
