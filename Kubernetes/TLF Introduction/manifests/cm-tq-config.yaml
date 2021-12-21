@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  tqkey1: tarso
+  tqkey2: dutra
+kind: ConfigMap
+metadata:
+  name: tq-config
+  namespace: default
