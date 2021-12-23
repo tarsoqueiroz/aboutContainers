@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-fix
+spec:
+  selector:
+    matchLabels:
+      app: echo-fix
+  template:
+    metadata:
+      labels:
+        app: echo-fix
+    spec:
+      containers:
+      - name: echo-fix
+        image: hashicorp/http-echo:0.2.3
+        args:
+        - "-text=fix_ip"
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5678

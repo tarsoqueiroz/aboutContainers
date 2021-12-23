@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-deu
+spec:
+  selector:
+    matchLabels:
+      app: echo-deu
+  template:
+    metadata:
+      labels:
+        app: echo-deu
+    spec:
+      containers:
+      - name: echo-deu
+        image: hashicorp/http-echo:0.2.3
+        args:
+        - "-text=deu"
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5678

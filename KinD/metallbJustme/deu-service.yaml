@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-deu
+spec:
+  selector:
+    app: echo-deu
+  ports:
+  - port: 8080
+    targetPort: 5678
+  type: LoadBalancer
