@@ -13,6 +13,7 @@ kubectl cluster-info
 kubectl get nodes -o wide
 kubectl -n kube-system get all
 
+
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/namespace.yaml
 kubectl get ns
 kubectl -n metallb-system get all
