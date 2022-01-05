@@ -9,4 +9,4 @@
 ## Using HAProxy
 
 - [HAProxy as a static reverse proxy for Docker containers](http://oskarhane.com/haproxy-as-a-static-reverse-proxy-for-docker-containers/)
-
+- [HAProxy Documentation Converter](https://cbonte.github.io/haproxy-dconv/)
