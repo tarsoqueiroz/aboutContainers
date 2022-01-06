@@ -1,0 +1,29 @@
+global
+    daemon
+    maxconn 4096
+
+defaults
+    mode http
+    timeout connect 5000ms
+    timeout client 50000ms
+    timeout server 50000ms
+
+frontend foo-service
+    bind *:5678
+    acl is_foo.tarso.dsk hdr(host) -i foo.tarso.dsk
+    use_backend foo.tarso.dsk if is_foo.tarso.dsk
+
+frontend fdd-service
+    bind *:80
+    acl is_fdd.tarso.dsk hdr(host) -i fdd.tarso.dsk
+    use_backend fdd.tarso.dsk if is_fdd.tarso.dsk
+
+backend foo.tarso.dsk
+    server foo 172.19.171.1:5678 maxconn 32
+
+backend fdd.tarso.dsk
+    server fdd 172.19.171.2:80 maxconn 32
+
+listen admin
+    bind 127.0.0.1:8080
+    stats enable

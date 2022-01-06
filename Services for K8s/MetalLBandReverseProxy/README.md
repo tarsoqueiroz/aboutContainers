@@ -10,3 +10,12 @@
 
 - [HAProxy as a static reverse proxy for Docker containers](http://oskarhane.com/haproxy-as-a-static-reverse-proxy-for-docker-containers/)
 - [HAProxy Documentation Converter](https://cbonte.github.io/haproxy-dconv/)
+
+
+
+
+
+```Shell
+sudo docker run -it --rm --name tq-haproxy -v /home/tarso/Learn/tempStudy/testProxy:/usr/local/etc/haproxy:ro --net host -p 80:80 -p 8404:8404 haproxy:2.4
+```
+

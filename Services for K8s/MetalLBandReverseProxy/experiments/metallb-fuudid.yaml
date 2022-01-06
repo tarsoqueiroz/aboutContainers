@@ -1,0 +1,37 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: fuu-app
+  labels:
+    app: http-80
+spec:
+  containers:
+  - name: fuu-app
+    image: hashicorp/http-echo:0.2.3
+    args:
+    - "-text=fuu"
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: did-app
+  labels:
+    app: http-80
+spec:
+  containers:
+  - name: did-app
+    image: hashicorp/http-echo:0.2.3
+    args:
+    - "-text=did"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: fdd-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: http-80
+  ports:
+  - port: 80
+    targetPort: 5678
