@@ -11,11 +11,24 @@
 - [HAProxy as a static reverse proxy for Docker containers](http://oskarhane.com/haproxy-as-a-static-reverse-proxy-for-docker-containers/)
 - [HAProxy Documentation Converter](https://cbonte.github.io/haproxy-dconv/)
 
-
-
-
-
 ```Shell
-sudo docker run -it --rm --name tq-haproxy -v /home/tarso/Learn/tempStudy/testProxy:/usr/local/etc/haproxy:ro --net host -p 80:80 -p 8404:8404 haproxy:2.4
-```
+figlet 'Run HAProxy with Docker'
+echo 'https://www.haproxy.com/blog/how-to-run-haproxy-with-docker/'
+docker network ls
+docker network inspect mynetwork
 
+docker run -d --name web1 --net mynetwork jmalloc/echo-server:latest
+docker run -d --name web2 --net mynetwork jmalloc/echo-server:latest
+docker run -d --name web3 --net mynetwork jmalloc/echo-server:latest
+docker ps -a
+
+docker inspect web1 | grep IPAddress
+docker inspect web2 | grep IPAddress
+docker inspect web3 | grep IPAddress
+cat haproxy.cfg
+
+kubectl get services -o wide
+
+docker rm haproxy -f
+docker run -d --name haproxy --net host -v $(pwd):/usr/local/etc/haproxy:ro haproxytech/haproxy-alpine:2.4
+```
