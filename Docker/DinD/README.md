@@ -42,3 +42,10 @@ docker ps -as
 docker exec -it manager1 /bin/sh
 docker ps -as
 ```
+
+```s
+docker build -t tarsoqueiroz/tqhlf:22.04 .
+
+docker run -d -t --rm --name hlf1 -v /var/run/docker.sock:/var/run/docker.sock tarsoqueiroz/tqhlf:22.04
+docker exec -it hlf1 /bin/bash
+```
