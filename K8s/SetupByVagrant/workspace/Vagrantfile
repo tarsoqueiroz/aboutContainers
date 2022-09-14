@@ -5,67 +5,77 @@ ENV['VAGRANT_NO_PARALLEL'] = 'yes'
 
 VAGRANT_BOX         = "generic/ubuntu2204"
 VAGRANT_BOX_VERSION = "4.0.2"
-CPUS_MASTER_NODE    = 2
-CPUS_WORKER_NODE    = 1
-MEMORY_MASTER_NODE  = 2048
-MEMORY_WORKER_NODE  = 1024
-WORKER_NODES_COUNT  = 2
+
+NODES_COUNT         = 2
+
+CPUS_CONTROLPLANE   = 2
+CPUS_NODE           = 1
+MEMORY_CONTROLPLANE = 2048
+MEMORY_NODE         = 2048
+
+# IP_NETWORK          = "172.16.16."
+IP_NETWORK          = "192.168.56."
+IP_START            = 100
 
 Vagrant.configure(2) do |config|
 
-  config.vm.provision "shell", path: "bootstrap.sh"
+  config.vm.provision "shell", env: {"IP_NETWORK" => IP_NETWORK, "IP_START" => IP_START}, inline: <<-SHELL
+      apt-get update -y
+      echo "$IP_NETWORK$((IP_START)) kcontrolplane" >> /etc/hosts
+      echo "$IP_NETWORK$((IP_START+1)) knode1" >> /etc/hosts
+      echo "$IP_NETWORK$((IP_START+2)) knode2" >> /etc/hosts
+  SHELL
+  config.vm.provision "shell", path: "bootstrap_common.sh"
 
   # Kubernetes Master Server
-  config.vm.define "kmaster" do |node|
+  config.vm.define "kcontrolplane" do |node|
   
     node.vm.box               = VAGRANT_BOX
     node.vm.box_check_update  = false
     node.vm.box_version       = VAGRANT_BOX_VERSION
-    node.vm.hostname          = "kmaster.example.com"
+    node.vm.hostname          = "kcontrolplane.example.com"
 
-    # node.vm.network "private_network", ip: "172.16.16.100"
-    node.vm.network "private_network", ip: "192.168.56.100"
+    node.vm.network "private_network", ip: IP_NETWORK + "#{IP_START}"
 
     node.vm.provider :virtualbox do |v|
-      v.name    = "kmaster"
-      v.memory  = MEMORY_MASTER_NODE
-      v.cpus    = CPUS_MASTER_NODE
+      v.name    = "kcontrolplane"
+      v.memory  = MEMORY_CONTROLPLANE
+      v.cpus    = CPUS_CONTROLPLANE
     end
   
     node.vm.provider :libvirt do |v|
-      v.memory  = MEMORY_MASTER_NODE
+      v.memory  = MEMORY_CONTROLPLANE
       v.nested  = true
-      v.cpus    = CPUS_MASTER_NODE
+      v.cpus    = CPUS_CONTROLPLANE
     end
   
-    node.vm.provision "shell", path: "bootstrap_kmaster.sh"
+    node.vm.provision "shell", path: "bootstrap_controlplane.sh"
   end
 
   # Kubernetes Worker Nodes
-  (1..WORKER_NODES_COUNT).each do |i|
-    config.vm.define "kworker#{i}" do |node|
+  (1..NODES_COUNT).each do |i|
+    config.vm.define "knode#{i}" do |node|
 
       node.vm.box               = VAGRANT_BOX
       node.vm.box_check_update  = false
       node.vm.box_version       = VAGRANT_BOX_VERSION
-      node.vm.hostname          = "kworker#{i}.example.com"
+      node.vm.hostname          = "knode#{i}.example.com"
 
-      # node.vm.network "private_network", ip: "172.16.16.10#{i}"
-      node.vm.network "private_network", ip: "192.168.56.10#{i}"
+      node.vm.network "private_network", ip: IP_NETWORK + "#{IP_START + i}"
 
       node.vm.provider :virtualbox do |v|
-        v.name    = "kworker#{i}"
-        v.memory  = MEMORY_WORKER_NODE
-        v.cpus    = CPUS_WORKER_NODE
+        v.name    = "knode#{i}"
+        v.memory  = MEMORY_NODE
+        v.cpus    = CPUS_NODE
       end
 
       node.vm.provider :libvirt do |v|
-        v.memory  = MEMORY_WORKER_NODE
+        v.memory  = MEMORY_NODE
         v.nested  = true
-        v.cpus    = CPUS_WORKER_NODE
+        v.cpus    = CPUS_NODE
       end
 
-      node.vm.provision "shell", path: "bootstrap_kworker.sh"
+      node.vm.provision "shell", path: "bootstrap_node.sh"
     end
   end
 end
