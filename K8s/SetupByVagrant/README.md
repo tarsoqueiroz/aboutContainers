@@ -2,6 +2,8 @@
 
 ## References
 
+[Create a local Kubernetes cluster with Vagrant](https://tferdinand.net/en/create-a-local-kubernetes-cluster-with-vagrant/)
+
 JustMeAndOpenSource
 
 Bibin Wilson

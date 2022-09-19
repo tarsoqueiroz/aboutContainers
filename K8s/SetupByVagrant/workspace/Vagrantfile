@@ -3,79 +3,58 @@
 
 ENV['VAGRANT_NO_PARALLEL'] = 'yes'
 
-VAGRANT_BOX         = "generic/ubuntu2204"
-VAGRANT_BOX_VERSION = "4.0.2"
+BOX_IMAGE           = "generic/ubuntu2204"
+BOX_VERSION         = "4.0.2"
 
-NODES_COUNT         = 2
+PROVISION_BOOTSTRAP = "bootstrap.sh"
+PROVISION_MAIN0     = "none.sh"
+PROVISION_MAINS     = "none.sh"
+PROVISION_NODES     = "none.sh"
+PROVISION_NONE      = "none.sh"
 
-CPUS_CONTROLPLANE   = 2
-CPUS_NODE           = 1
-MEMORY_CONTROLPLANE = 2048
-MEMORY_NODE         = 2048
-
-# IP_NETWORK          = "172.16.16."
-IP_NETWORK          = "192.168.56."
-IP_START            = 100
+cluster = {
+  "ldbal" => { :ip => "192.168.58.171", :cpus => 1, :mem => 2048, :provision => PROVISION_NONE },
+  "main0" => { :ip => "192.168.58.200", :cpus => 1, :mem => 2048, :provision => PROVISION_MAIN0 },
+  "main1" => { :ip => "192.168.58.201", :cpus => 1, :mem => 2048, :provision => PROVISION_MAINS },
+  "node0" => { :ip => "192.168.58.210", :cpus => 1, :mem => 2048, :provision => PROVISION_NODES },
+  "node1" => { :ip => "192.168.58.211", :cpus => 1, :mem => 2048, :provision => PROVISION_NODES }
+}
 
 Vagrant.configure(2) do |config|
 
-  config.vm.provision "shell", env: {"IP_NETWORK" => IP_NETWORK, "IP_START" => IP_START}, inline: <<-SHELL
+  config.vm.provision "shell", inline: <<-SHELL
       apt-get update -y
-      echo "$IP_NETWORK$((IP_START)) kcontrolplane" >> /etc/hosts
-      echo "$IP_NETWORK$((IP_START+1)) knode1" >> /etc/hosts
-      echo "$IP_NETWORK$((IP_START+2)) knode2" >> /etc/hosts
+      echo "192.168.58.200 main0" >> /etc/hosts
   SHELL
-  config.vm.provision "shell", path: "bootstrap_common.sh"
 
-  # Kubernetes Master Server
-  config.vm.define "kcontrolplane" do |node|
-  
-    node.vm.box               = VAGRANT_BOX
-    node.vm.box_check_update  = false
-    node.vm.box_version       = VAGRANT_BOX_VERSION
-    node.vm.hostname          = "kcontrolplane.example.com"
+  config.vm.provision "shell", path: PROVISION_BOOTSTRAP
 
-    node.vm.network "private_network", ip: IP_NETWORK + "#{IP_START}"
+  cluster.each_with_index do |(hostname, info), index|
 
-    node.vm.provider :virtualbox do |v|
-      v.name    = "kcontrolplane"
-      v.memory  = MEMORY_CONTROLPLANE
-      v.cpus    = CPUS_CONTROLPLANE
-    end
-  
-    node.vm.provider :libvirt do |v|
-      v.memory  = MEMORY_CONTROLPLANE
-      v.nested  = true
-      v.cpus    = CPUS_CONTROLPLANE
-    end
-  
-    node.vm.provision "shell", path: "bootstrap_controlplane.sh"
-  end
+    config.vm.define hostname do |subconfig|
 
-  # Kubernetes Worker Nodes
-  (1..NODES_COUNT).each do |i|
-    config.vm.define "knode#{i}" do |node|
+      # subconfig.vm.provision "shell", path: PROVISION_BOOTSTRAP
 
-      node.vm.box               = VAGRANT_BOX
-      node.vm.box_check_update  = false
-      node.vm.box_version       = VAGRANT_BOX_VERSION
-      node.vm.hostname          = "knode#{i}.example.com"
-
-      node.vm.network "private_network", ip: IP_NETWORK + "#{IP_START + i}"
-
-      node.vm.provider :virtualbox do |v|
-        v.name    = "knode#{i}"
-        v.memory  = MEMORY_NODE
-        v.cpus    = CPUS_NODE
+      subconfig.vm.box              = BOX_IMAGE
+      subconfig.vm.box_version      = BOX_VERSION
+      subconfig.vm.box_check_update = false
+      subconfig.vm.hostname         = "#{hostname}"
+      subconfig.vm.network            "private_network", ip: "#{info[:ip]}"
+      subconfig.vm.disk               :disk, name: "#{hostname}-dsk-a", size: "5GB"
+    
+      subconfig.vm.provider     "virtualbox" do |vbox|
+        vbox.name      = "Node #{hostname}"
+        vbox.memory    = "#{info[:mem]}"
+        vbox.cpus      = "#{info[:cpus]}"
+        vbox.gui       = false
+        vbox.customize   ["modifyvm", :id, "--groups", "/LocalK3s cluster"]
       end
+    
+      subconfig.vm.provision :shell,  privileged: true,
+                                      path:  "#{info[:provision]}"
 
-      node.vm.provider :libvirt do |v|
-        v.memory  = MEMORY_NODE
-        v.nested  = true
-        v.cpus    = CPUS_NODE
-      end
-
-      node.vm.provision "shell", path: "bootstrap_node.sh"
     end
-  end
+
+  end # end CLUSTER
+
 end
