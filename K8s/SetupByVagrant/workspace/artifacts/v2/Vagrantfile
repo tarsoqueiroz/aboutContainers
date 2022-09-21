@@ -1,0 +1,60 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+ENV['VAGRANT_NO_PARALLEL'] = 'yes'
+
+BOX_IMAGE           = "generic/ubuntu2204"
+BOX_VERSION         = "4.0.2"
+
+PROVISION_BOOTSTRAP = "bootstrap.sh"
+PROVISION_MAIN0     = "none.sh"
+PROVISION_MAINS     = "none.sh"
+PROVISION_NODES     = "none.sh"
+PROVISION_NONE      = "none.sh"
+
+cluster = {
+  "ldbal" => { :ip => "192.168.58.171", :cpus => 1, :mem => 2048, :provision => PROVISION_NONE },
+  "main0" => { :ip => "192.168.58.200", :cpus => 1, :mem => 2048, :provision => PROVISION_MAIN0 },
+  "main1" => { :ip => "192.168.58.201", :cpus => 1, :mem => 2048, :provision => PROVISION_MAINS },
+  "node0" => { :ip => "192.168.58.210", :cpus => 1, :mem => 2048, :provision => PROVISION_NODES },
+  "node1" => { :ip => "192.168.58.211", :cpus => 1, :mem => 2048, :provision => PROVISION_NODES }
+}
+
+Vagrant.configure(2) do |config|
+
+  config.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      echo "192.168.58.200 main0" >> /etc/hosts
+  SHELL
+
+  config.vm.provision "shell", path: PROVISION_BOOTSTRAP
+
+  cluster.each_with_index do |(hostname, info), index|
+
+    config.vm.define hostname do |subconfig|
+
+      # subconfig.vm.provision "shell", path: PROVISION_BOOTSTRAP
+
+      subconfig.vm.box              = BOX_IMAGE
+      subconfig.vm.box_version      = BOX_VERSION
+      subconfig.vm.box_check_update = false
+      subconfig.vm.hostname         = "#{hostname}"
+      subconfig.vm.network            "private_network", ip: "#{info[:ip]}"
+      subconfig.vm.disk               :disk, name: "#{hostname}-dsk-a", size: "5GB"
+    
+      subconfig.vm.provider     "virtualbox" do |vbox|
+        vbox.name      = "Node #{hostname}"
+        vbox.memory    = "#{info[:mem]}"
+        vbox.cpus      = "#{info[:cpus]}"
+        vbox.gui       = false
+        vbox.customize   ["modifyvm", :id, "--groups", "/LocalK3s cluster"]
+      end
+    
+      subconfig.vm.provision :shell,  privileged: true,
+                                      path:  "#{info[:provision]}"
+
+    end
+
+  end # end CLUSTER
+
+end
