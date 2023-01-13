@@ -1,3 +1,6 @@
+# Excluded by ME
+*.data
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
