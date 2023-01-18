@@ -1,6 +1,6 @@
 # Tutorial by Kubernetes.io
 
-> `https://kubernetes.io/docs/tutorials/kubernetes-basics`
+> `https://kubernetes.io/docs/tutorials`
 
 ## Create a Cluster
 
@@ -16,7 +16,11 @@ k3d cluster list
 kubectl cluster-info
 ```
 
-## Deploy an API server
+## Learn Kubernetes Basics
+
+> `https://kubernetes.io/docs/tutorials/kubernetes-basics/`
+
+### Deploy an API server
 
 Kubectl basics:
 
@@ -50,7 +54,7 @@ echo Name of the Pod: $POD_NAME
 curl http://localhost:8001/api/v1/namespaces/default/pods/$POD_NAME/
 ```
 
-## Explore your App
+### Explore your App
 
 Troubleshooting with kubectl: you used Kubectl command-line interface. You'll continue to use it to get information about deployed applications and their environments. The most common operations can be done with the following kubectl commands:
 
@@ -103,7 +107,7 @@ curl localhost:8080
 exit
 ```
 
-## Using a Service to Expose Your App
+### Using a Service to Expose Your App
 
 Create a new service:
 
@@ -124,7 +128,7 @@ echo NODE_PORT=$NODE_PORT
 curl <k3d_IP_node>:$NODE_PORT
 ```
 
-## Using labels
+### Using labels
 
 ```s
 kubectl describe deployment
@@ -143,7 +147,7 @@ kubectl describe pods $POD_NAME
 kubectl get pods -l version=v1
 ```
 
-## Deleting a service
+### Deleting a service
 
 ```s
 kubectl delete service -l app=kubernetes-bootcamp
@@ -155,7 +159,7 @@ curl <k3d_IP_node>:$NODE_PORT
 kubectl exec -ti $POD_NAME -- curl localhost:8080
 ```
 
-## Running Multiple Instances of Your App
+### Running Multiple Instances of Your App
 
 Scaling a deployment:
 
@@ -194,7 +198,7 @@ kubectl get deployments
 kubectl get pods -o wide
 ```
 
-## Performing a Rolling Update
+### Performing a Rolling Update
 
 Update the version of the app:
 
@@ -244,6 +248,114 @@ kubectl get pods
 
 kubectl describe pods
 ```
+
+## Connecting Applications with Services
+
+> `https://kubernetes.io/docs/tutorials/services/connect-applications-service/`
+
+### Exposing pods to the cluster
+
+```s
+kubectl apply -f ./manifests/appwithsvc-deploy.yaml
+
+kubectl get pods -l run=my-nginx -o wide
+
+kubectl get pods -l run=my-nginx -o custom-columns=POD_IP:.status.podIPs
+```
+
+### Creating a Service
+
+```s
+# By cmd line
+kubectl expose deployment/my-nginx
+kubectl delete svc/my-nginx
+
+# By manifest
+kubectl apply -f ./manifests/appwithsvc-service.yaml 
+
+kubectl get svc my-nginx  -o wide
+
+kubectl describe svc my-nginx 
+
+kubectl get endpointslices -l kubernetes.io/service-name=my-nginx
+```
+
+### Accessing the Service
+
+Environment Variables
+
+```s
+kubectl get po -o wide
+
+kubectl exec my-nginx-... -- printenv | grep SERVICE
+
+kubectl scale deployment my-nginx --replicas=0
+
+kubectl scale deployment my-nginx --replicas=2
+
+kubectl get pods -l run=my-nginx -o wide
+
+kubectl exec my-nginx-... -- printenv | grep SERVICE
+```
+
+DNS
+
+```s
+kubectl get service kube-dns --namespace=kube-system
+
+kubectl run curl --image=radial/busyboxplus:curl -i --tty
+# Inside container
+nslookup my-nginx
+
+# If you need to attach
+kubectl attach curl -c curl -i -t
+```
+
+### Securing the Service
+
+```s
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout vol.data/nginx.key -out vol.data/nginx.crt -subj "/CN=my-nginx/O=my-nginx"
+
+cat vol.data/nginx.crt | base64 -w 0
+cat vol.data/nginx.key | base64 -w 0
+# Use the output from the previous commands to adjust appwithsvc-secret.yaml file.
+# The base64 encoded value should all be on a single line.
+
+kubectl apply -f ./manifests/appwithsvc-secret.yaml 
+kubectl create configmap nginxconfigmap --from-file=./manifests/appwithsvc-default.conf 
+kubectl get configmaps,secrets 
+
+kubectl delete deployments,svc my-nginx 
+kubectl create -f ./manifests/appwithsvc-secure.yaml 
+
+kubectl get po,svc -o wide
+kubectl get pods -l run=my-nginx -o custom-columns=POD_IP:.status.podIPs
+
+kubectl apply -f ./manifests/appwithsvc-curlpod.yaml 
+kubectl get po -o wide
+
+kubectl exec curl-deployment-... -- curl https://my-nginx --cacert /etc/nginx/ssl/tls.crt
+```
+
+### Exposing the Service
+
+```s
+kubectl get svc my-nginx -o yaml | grep nodePort -C 5
+
+kubectl get nodes -o yaml | grep ExternalIP -C 1
+
+# Now, you can change from NodePort to LoadBalancer by command line or manifest file
+# kubectl edit svc my-nginx 
+# kubectl get svc my-nginx
+kubectl apply -f ./manifests/appwithsvc-secure.yaml 
+
+kubectl get svc my-nginx 
+```
+
+## Services using source IP
+
+
+
 
 ## That's all folks
 
