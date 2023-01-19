@@ -354,8 +354,7 @@ kubectl get svc my-nginx
 
 ## Services using source IP
 
-
-
+> `https://kubernetes.io/docs/tutorials/services/source-ip/`
 
 ## That's all folks
 
