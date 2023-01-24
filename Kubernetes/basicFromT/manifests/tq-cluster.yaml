@@ -1,0 +1,56 @@
+---
+apiVersion: k3d.io/v1alpha4
+kind: Simple
+metadata:
+  name: tqbasic
+
+servers: 1
+agents: 3
+
+kubeAPI:
+  hostIP: 0.0.0.0
+  hostPort: "6443"
+
+image: docker.io/rancher/k3s:v1.25.5-k3s2
+
+env:
+- envVar: cluster=tqbasic
+  nodeFilters:
+  - all
+
+options:
+  k3d:
+    wait: true
+    timeout: 360000000000
+    disableLoadbalancer: false
+    disableImageVolume: false
+    disableRollback: false
+    loadbalancer: {}
+
+  k3s:
+    extraArgs:
+    - arg: --tls-san=127.0.0.1
+      nodeFilters:
+      - server:*
+
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
+  runtime:
+    HostPidMode: false
+
+ports:
+- nodeFilters:
+  - loadbalancer
+  port: 10080:80
+- nodeFilters:
+  - loadbalancer
+  port: 10443:443
+- nodeFilters:
+  - loadbalancer
+  port: 18080:8080
+- nodeFilters:
+  - loadbalancer
+  port: 18843:8443
+
+registries: {}
