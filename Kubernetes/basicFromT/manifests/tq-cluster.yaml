@@ -5,7 +5,7 @@ metadata:
   name: tqbasic
 
 servers: 1
-agents: 3
+agents: 2
 
 kubeAPI:
   hostIP: 0.0.0.0
