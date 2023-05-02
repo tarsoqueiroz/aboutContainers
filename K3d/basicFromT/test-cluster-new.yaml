@@ -1,0 +1,27 @@
+apiVersion: k3d.io/v1alpha4
+
+image: docker.io/rancher/k3s:v1.25.7-k3s1
+
+servers: 1
+agents: 3
+
+kind: Simple
+
+kubeAPI: {}
+
+metadata:
+  name: k3s-default
+
+options:
+  k3d:
+    disableImageVolume: false
+    disableLoadbalancer: false
+    disableRollback: false
+    loadbalancer: {}
+    wait: false
+  k3s: {}
+  kubeconfig: {}
+  runtime:
+    HostPidMode: false
+
+registries: {}

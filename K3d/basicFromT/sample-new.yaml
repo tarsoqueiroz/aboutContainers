@@ -1,0 +1,58 @@
+apiVersion: k3d.io/v1alpha4
+
+image: docker.io/rancher/k3s:v1.27.1-k3s1
+kind: Simple
+servers: 1
+agents: 3
+
+env:
+- envVar: cluster=sample
+  nodeFilters:
+  - all
+
+kubeAPI:
+  hostIP: 0.0.0.0
+  hostPort: "6443"
+
+metadata:
+  name: sample
+
+options:
+  k3d:
+    disableImageVolume: false
+    disableLoadbalancer: false
+    disableRollback: false
+    loadbalancer: {}
+    timeout: 360000000000
+    wait: true
+  k3s:
+    extraArgs:
+    - arg: --tls-san=127.0.0.1
+      nodeFilters:
+      - server:*
+  kubeconfig:
+    switchCurrentContext: true
+    updateDefaultKubeconfig: true
+  runtime:
+    HostPidMode: false
+
+ports:
+- nodeFilters:
+  - loadbalancer
+  port: 10080:80
+- nodeFilters:
+  - loadbalancer
+  port: 10443:443
+- nodeFilters:
+  - loadbalancer
+  port: 18080:8080
+- nodeFilters:
+  - loadbalancer
+  port: 18843:8443
+
+registries: {}
+
+volumes:
+- nodeFilters:
+  - all
+  volume: /tmp:/tmp
