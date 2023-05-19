@@ -6,14 +6,25 @@ metadata:
   #   name: bysubdirectory
 spec:
   rules:
-  # - host: simpleweb.c0a864d0.nip.io
-  - host: simpleweb.0a0f122c.nip.io
+  - host: blue8080.c0a864d0.nip.io
+  # - host: blue8080.0a0f122c.nip.io
     http:
       paths:
       - pathType: Prefix
         path: /
         backend:
           service:
-            name: simpleweb-service
+            name: blue8080-service
             port: 
-              number: 80
+              number: 8080
+  - host: green8080.c0a864d0.nip.io
+  # - host: green8080.0a0f122c.nip.io
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: green8080-service
+            port: 
+              number: 8080

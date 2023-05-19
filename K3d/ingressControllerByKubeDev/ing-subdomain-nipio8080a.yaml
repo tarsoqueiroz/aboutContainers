@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bysubdomain8080
+  # labels:
+  #   name: bysubdirectory
+spec:
+  rules:
+  # - host: simpleweb.c0a864d0.nip.io
+  - host: simpleweb.0a0f122c.nip.io
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: simpleweb-service
+            port: 
+              number: 80

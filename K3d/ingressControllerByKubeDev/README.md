@@ -4,7 +4,7 @@ by Fabrício Veronez KubeDev
 
 > `https://www.youtube.com/watch?v=mdwYc08Qr0s`
 
-Nem sempre é correto utilizar serviços do tipo LoadBalancer ou NodePort para externalizar nossas aplicações em um cluster Kubernetes. 
+Nem sempre é correto utilizar serviços do tipo LoadBalancer ou NodePort para externalizar nossas aplicações em um cluster Kubernetes.
 
 Pois além de acabar custando mais, perdemos alguns benefícios como roteamento baseado em domínios e outras vantagens de um proxy reverso.
 

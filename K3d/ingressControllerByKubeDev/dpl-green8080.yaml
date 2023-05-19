@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: green8080-deploy
+spec:
+  selector:
+    matchLabels:
+      app: green8080
+  template:
+    metadata:
+      labels:
+        app: green8080
+    spec:
+      containers:
+      - name: nginx-green8080
+        image: fabricioveronez/bluehome
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8080

@@ -2,7 +2,7 @@
 apiVersion: k3d.io/v1alpha4
 kind: Simple
 metadata:
-  name: k3s-default
+  name: ingresstest
 
 servers: 1
 agents: 3
@@ -14,18 +14,18 @@ kubeAPI:
 image: docker.io/rancher/k3s:v1.26.0-k3s2
 
 ports:
-- nodeFilters:
-  - loadbalancer
-  port: 80:80
-- nodeFilters:
-  - loadbalancer
-  port: 443:443
-- nodeFilters:
-  - loadbalancer
-  port: 8080:8080
-- nodeFilters:
-  - loadbalancer
-  port: 8843:8443
+  - port: 80:80
+    nodeFilters:
+      - loadbalancer
+  - port: 8080:8080
+    nodeFilters:
+      - loadbalancer
+  - port: 443:443
+    nodeFilters:
+      - loadbalancer
+  - port: 8443:8443
+    nodeFilters:
+      - loadbalancer
 
 options:
   k3d:

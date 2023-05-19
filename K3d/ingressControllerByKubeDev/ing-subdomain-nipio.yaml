@@ -6,8 +6,8 @@ metadata:
   #   name: bysubdirectory
 spec:
   rules:
-  # - host: blue.c0a864d0.nip.io
-  - host: blue.0a0f122c.nip.io
+  - host: blue.c0a864d0.nip.io
+  # - host: blue.0a0f122c.nip.io
     http:
       paths:
       - pathType: Prefix
@@ -17,8 +17,8 @@ spec:
             name: blue-service
             port: 
               number: 80
-  # - host: green.c0a864d0.nip.io
-  - host: green.0a0f122c.nip.io
+  - host: green.c0a864d0.nip.io
+  # - host: green.0a0f122c.nip.io
     http:
       paths:
       - pathType: Prefix
