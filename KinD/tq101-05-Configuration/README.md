@@ -132,7 +132,44 @@ nodes:
 Try this with `extramount.yaml`:
 
 ```sh
+docker ps
 
+## Attach to control plane node
+docker exec -it extramount-control-plane /bin/bash
+
+## Inside container execute:
+ls -lah /
+cd /Data/
+ls -lah
+cat /etc/debian_version > ./test2.txt 
+cat ./test2.txt 
+exit
+
+## Back to prompt, execute these:
+ll vol.data/extramount.controlplane/test2.txt 
+cat vol.data/extramount.controlplane/test2.txt 
+
+## Attach to worker node
+docker exec -it extramount-worker /bin/bash
+
+## Inside container execute:
+ls -lah / ## No /Data found
+exit
+
+## Attach to worker2 node
+docker exec -it extramount-worker2 /bin/bash
+
+## Inside container execute:
+ls -lah /
+ls -lah /Data/
+cat /etc/debian_version > /Data/Debian.version
+ls -lah /Data/
+cat /Data/Debian.version 
+exit
+
+## Back to prompt, execute these:
+ll vol.data/extramount.worker2/Debian.version
+cat vol.data/extramount.worker2/Debian.version
 ```
 
 ## That's all folks

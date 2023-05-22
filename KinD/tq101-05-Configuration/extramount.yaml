@@ -6,32 +6,13 @@ name: extramount
 nodes:
 - role: control-plane
   extraMounts:
-  - hostPath: /path/to/my/files
+  - hostPath: ./vol.data/extramount.controlplane
     containerPath: /Data
-  #
-  # add an additional mount leveraging *all* of the config fields
-  #
-  # generally you only need the two fields above ...
-  #
-  - hostPath: /path/to/my/other-files/
-    containerPath: /other-files
-    # optional: if set, the mount is read-only.
-    # default false
-    readOnly: true
-    # optional: if set, the mount needs SELinux relabeling.
-    # default false
-    selinuxRelabel: false
-    # optional: set propagation mode (None, HostToContainer or Bidirectional)
-    # see https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation
-    # default None
-    #
-    # WARNING: You very likely do not need this field.
-    #
-    # This field controls propagation of *additional* mounts created
-    # *at runtime* underneath this mount.
-    #
-    # On MacOS with Docker Desktop, if the mount is from macOS and not the
-    # docker desktop VM, you cannot use this field. You can use it for
-    # mounts to the linux VM.
-    propagation: None
-
+    readOnly: false # default false
+    selinuxRelabel: false # default false
+    propagation: None # optional: set propagation mode (None, HostToContainer or Bidirectional)
+- role: worker
+- role: worker
+  extraMounts:
+  - hostPath: ./vol.data/extramount.worker2
+    containerPath: /Data
