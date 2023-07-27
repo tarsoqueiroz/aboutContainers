@@ -1,0 +1,31 @@
+---
+providers:
+  kubernetesCRD:
+    namespaces:
+      - default
+      - kube-system
+      - traefik
+  kubernetesIngress:
+    namespaces:
+      - default
+      - kube-system
+      - traefik
+
+ports:
+  traefik:
+    expose: true
+    nodePort: 32090
+  web:
+    nodePort: 32080
+  websecure:
+    nodePort: 32443
+
+nodeSelector:
+  ingress-ready: 'true'
+
+service:
+  type: NodePort
+
+dashboard:
+  enabled: true
+  domain: dashboard.0a0f122c.nip.io

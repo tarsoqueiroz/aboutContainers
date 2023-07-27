@@ -1,0 +1,32 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: echosrv
+  labels:
+    app: echosrv
+spec:
+  containers:
+  - name: echosrv
+    image: hashicorp/http-echo:0.2.3
+    args:
+    - "-text=echo server"
+    resources:
+      limits:
+        memory: "64Mi"
+        cpu: "250m"
+    ports:
+      - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echosvc
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    # nodePort: 32080
+    port: 5678
+  selector:
+    app: echosrv
