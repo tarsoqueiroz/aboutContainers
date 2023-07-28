@@ -2,17 +2,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: nginx-ingress
+  name: whoami-ingress
 
 spec:
   rules:
-  - host: 0a0f122c.nip.io
+  - host: whoami.0a0f122c.nip.io
     http:
       paths:
       - pathType: Exact
         path: "/"
         backend:
           service:
-            name: nginx-service
+            name: whoami-service
             port: 
               number: 80

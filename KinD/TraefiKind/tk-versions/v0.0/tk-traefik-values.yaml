@@ -1,19 +1,4 @@
 ---
-# image:
-#   name: traefik
-#   # pullPolicy: IfNotPresent
-
-service:
-  type: NodePort
-
-# nodeSelector:
-#   ingress-ready: 'true'
-
-# tolerations:
-#   - key: node-role.kubernetes.io/master
-#     operator: Equal
-#     effect: NoSchedule
-
 providers:
   kubernetesCRD:
     namespaces:
@@ -39,3 +24,6 @@ ports:
     expose: true
     port: 9100
     nodePort: 32091
+
+service:
+  type: NodePort

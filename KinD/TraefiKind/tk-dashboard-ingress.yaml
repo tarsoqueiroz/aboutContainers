@@ -2,17 +2,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: nginx-ingress
+  name: dashboard-ingress
+  namespace: kubernetes-dashboard
 
 spec:
   rules:
-  - host: 0a0f122c.nip.io
-    http:
+  - http:
       paths:
       - pathType: Exact
-        path: "/"
+        path: "/dashboard"
         backend:
           service:
-            name: nginx-service
+            name: kubernetes-dashboard
             port: 
-              number: 80
+              number: 443

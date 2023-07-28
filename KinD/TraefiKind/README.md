@@ -1,17 +1,27 @@
 # Traefik with Kind
 
-## 26 Brains
+## References of References
 
-### References
+- `https://github.com/rchidana/k8s-traefik/blob/master/hello-ingress.yaml`
+- `https://doc.traefik.io/traefik/getting-started/quick-start-with-kubernetes/`
+- `https://doc.traefik.io/traefik/v1.7/user-guide/kubernetes/`
 
-- [Reference Video](https://www.youtube.com/watch?v=-YwOG515M9M)
-
-Links
+Links:
 
 - [Kubernetes Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
 - [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/)
 - [Install Traefik](https://doc.traefik.io/traefik/getting-started/install-traefik/)
 - [Traefik & Kubernetes](https://doc.traefik.io/traefik/providers/kubernetes-ingress/)
+
+Github:
+
+- `https://github.com/rchidana/k8s-traefik`
+
+## 26 Brains
+
+### References
+
+- [Reference Video](https://www.youtube.com/watch?v=-YwOG515M9M)
 
 ### Create cluster
 
@@ -83,25 +93,70 @@ Go to browser and try to access:
 
 ### Create cluster
 
-`sh
-kind create cluster --config 26brain-cluster.yaml
-`
+```sh
+kind create cluster --config tk-cluster.yaml
+```
 
 ### Traefik install
 
 ```sh
+kubectl create namespace traefik
+
 helm install traefik traefik/traefik -n traefik --create-namespace -f tk-traefik-values.yaml
 
-kubectl get pods,services -o wide
+kubectl get pods,deployment,services,ingress -A -o wide
 ```
 
+### Test connection
 
-## Old test
+```sh
+kubectl apply -f tk-deployment.yaml
+
+kubectl get pods,deployment,services,ingress -A -o wide
+
+kubectl apply -f tk-ingress.yaml
+
+kubectl get pods,deployment,services,ingress -A -o wide
+```
+
+Try to access the following links:
+
+- `http://0a0f122c.nip.io:9000/dashboard/`
+- `http://0a0f122c.nip.io:8080/`
+- `http://0a0f122c.nip.io:9100/metrics/`
+- `http://whoami.0a0f122c.nip.io:8080/`
+- `http://whoami.0a0f122c.nip.io:9100/metrics`
+
+### Installing a kubernetes dashboard
+
+- `https://medium.com/@munza/local-kubernetes-with-kind-helm-dashboard-41152e4b3b3d`
+
+To access Dashboard run:
+  kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-nginx-controller 8443:443
+
+NOTE: In case port-forward command does not work, make sure that nginx service name is correct.
+      Check the services in Kubernetes Dashboard namespace using:
+        kubectl -n kubernetes-dashboard get svc
+
+Dashboard will be available at:
+  https://localhost:8443
+
+
+
+### Remove cluster
+
+```sh
+kind delete cluster --name tkluster
+```
+
+## Others test
 
 ### Source
 
 - [Deploy K8ssandra and Traefik with Kind](https://docs.k8ssandra.io/tasks/connect/ingress/kind-deployment/)
 - [Traefik (Ingress) Kubernetes Setup](https://www.youtube.com/watch?v=KRl5wpbi60Y)
+- [Kubernetes Traefik Ingress](https://mpolinowski.github.io/docs/DevOps/Kubernetes/2019-02-01--kubernetes-traefik-ingress/2019-02-01/)
+- [Using traefik for ingress on a kind cluster](https://blue42.net/devops/2021/k8s-kind-traefik/)
 
 ### Create cluster
 
