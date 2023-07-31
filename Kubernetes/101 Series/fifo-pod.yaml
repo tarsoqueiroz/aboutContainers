@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fifo-pod
+  labels:
+    name: fifo-pod
+spec:
+  volumes:
+    - name: queue
+      emptyDir: {}
+  containers:
+  - name: server
+    image: ubuntu
+    volumeMounts:
+      - name:  queue
+        mountPath: /var/lib/queue
+    command: ["/bin/sh"]
+    args: ["-c", "mkfifo /var/lib/queue/fifo; cat /var/lib/queue/fifo"]
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "125m"
+      limits:
+        memory: "64Mi"
+        cpu: "250m"
+  - name: client
+    image: ubuntu
+    volumeMounts:
+      - name:  queue
+        mountPath: /var/lib/queue
+    command: ["/bin/sh"]
+    args: ["-c", "echo Hey > /var/lib/queue/fifo"]
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "125m"
+      limits:
+        memory: "64Mi"
+        cpu: "250m"
