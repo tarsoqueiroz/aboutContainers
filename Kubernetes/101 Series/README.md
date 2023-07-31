@@ -142,6 +142,8 @@ kubectl exec deploy-pg2-6f968b6c7d-97n8s  -- psql -U postgres -c "SELECT * FROM 
 docker exec -it k8s101-worker ls -lah /data/volume/my-pv  # without table
 docker exec -it k8s101-worker2 ls -lah /data/volume/my-pv # without table
 docker exec -it k8s101-worker3 ls -lah /data/volume/my-pv # with table
+
+
 ```
 
 ## That's all folks
