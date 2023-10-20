@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: giropops
+  labels:
+    run: giropops
+spec:
+  containers:
+  - name: girus
+    image: nginx
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "0.5"
+      requests:
+        memory: "64Mi"
+        cpu: "0.3"
+    ports:
+      - containerPort: 80
