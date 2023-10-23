@@ -135,3 +135,52 @@ kubectl exec -it giropops -- bash
 
 ## [Day 3](https://livro.descomplicandokubernetes.com.br/pt/day_three/)
 
+```sh
+kubectl apply -f resources/deployment.yaml 
+kubectl get all
+
+kubectl get deployments.apps -l app=nginx-deployment -o wide
+kubectl get pods -l app=nginx-deployment -o wide
+kubectl get replicasets.apps -l app=nginx-deployment -o wide
+
+kubectl describe deployments.apps nginx-deployment 
+
+kubectl describe replicasets.apps nginx-deployment-dc6d6dfb9 
+kubectl describe pod nginx-deployment-dc6d6dfb9-42s27 
+
+kubectl apply -f resources/deployment.yaml 
+kubectl describe deployments.apps nginx-deployment 
+
+kubectl apply -f resources/deployment.yaml 
+kubectl describe deployments.apps nginx-deployment 
+
+kubectl rollout status deployment nginx-deployment 
+
+kubectl get pods -l app=nginx-deployment -o yaml
+
+kubectl exec -it nginx-deployment-776b7bf5c7-2r24n -- nginx -v
+
+kubectl apply -f resources/deployment.yaml 
+kubectl get pods -l app=nginx-deployment
+kubectl exec -it nginx-deployment-859c4697b4-2rj6d -- nginx -v
+
+kubectl apply -f resources/deployment.yaml 
+kubectl get pods -l app=nginx-deployment
+kubectl exec -it nginx-deployment-776b7bf5c7-2kf5j -- nginx -v
+
+kubectl rollout undo deployment nginx-deployment 
+kubectl get pods -l app=nginx-deployment
+kubectl exec -it nginx-deployment-859c4697b4-2pcld  -- nginx -v
+
+kubectl rollout history deployment nginx-deployment 
+kubectl rollout history deployment nginx-deployment --revision=1
+kubectl rollout history deployment nginx-deployment --revision=2
+
+kubectl delete deployments.apps nginx-deployment
+```
+
+## [Day 4](https://livro.descomplicandokubernetes.com.br/pt/day_four/)
+
+```sh
+
+```
