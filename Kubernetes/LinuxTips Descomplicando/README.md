@@ -14,6 +14,15 @@ kubectl cluster-info
 
 ## [Day 1](https://livro.descomplicandokubernetes.com.br/pt/day_one/)
 
+Durante o Day-1 vamos:
+
+- entender o que é um container;
+- falar sobre a importância do container runtime e do container engine;
+- entender o que é o Kubernetes e sua arquitetura;
+- falar sobre o control plane, workers, apiserver, scheduler, controller e muito mais! 
+
+Será aqui que iremos criar o nosso primeiro cluster Kubernetes e realizar o deploy de um pod do Nginx. O Day-1 é para que eu possa me sentir mais confortável com o Kubernetes e seus conceitos iniciais.
+
 ```sh
 kubectl get ns
 kubectl get pod -A
@@ -63,6 +72,12 @@ kubectl get all
 ```
 
 ## [Day 2](https://livro.descomplicandokubernetes.com.br/pt/day_two/)
+
+Durante o Day 2 iremos ver:
+
+- todos os detalhes importantes sobre o menor objeto do Kubernetes, o Pod;
+- desde a criação de um simples Pod, passando por Pod com multicontainers, com volumes e ainda com limitação ao consumo de recursos, como CPU ou memória;
+- aprender como ver todos os detalhes de um Pod em execução e brincar bastante com nossos arquivos YAML.
 
 ```sh
 # Criando um Pod
@@ -135,6 +150,13 @@ kubectl exec -it giropops -- bash
 
 ## [Day 3](https://livro.descomplicandokubernetes.com.br/pt/day_three/)
 
+Durante o Day 3 iremos:
+
+- aprender sobre um objeto muito importante no Kubernetes, o Deployment;
+- ver todos os detalhes para que possamos ter uma visão completa sobre o que é um Deployment e como ele funciona.
+
+Agora que já sabemos tudo sobre como criar um Pod, acho que já podemos colocar um pouco mais de complexidade no nosso cenário,
+
 ```sh
 kubectl apply -f resources/deployment.yaml 
 kubectl get all
@@ -180,6 +202,74 @@ kubectl delete deployments.apps nginx-deployment
 ```
 
 ## [Day 4](https://livro.descomplicandokubernetes.com.br/pt/day_four/)
+
+O Day 4 é dia de falar sobre dois objetos muito importantes no Kubernetes, os ReplicaSets e os DaemonSets:
+
+- quando falamos sobre Deployment é impossível não falar sobre ReplicaSet, pois o Deployment é um objeto que cria um ReplicaSet e o ReplicaSet é um objeto que cria um Pod, veja que tudo está conectado.
+- já o DaemonSet é um objeto que cria um Pod e esse Pod é um objeto que fica rodando em todos os nodes do cluster, super importante para nós, pois é com DaemonSet que nós conseguimos garantir que teremos pelo menos um Pod rodando em cada node do cluster.
+- vamos falar sobre Readiness Probe, Liveness Probe e Startup Probe, e claro, mostrando todos os detalhes em exemplos práticos e super explicativos.
+
+```sh
+# O Deployment e o ReplicaSet
+kubectl apply -f resources/replicaset.yaml 
+
+kubectl get deployments.apps -o wide
+kubectl get replicasets.apps  -o wide
+
+kubectl scale deployment nginx-deployment --replicas=2
+
+kubectl apply -f resources/replicaset.yaml 
+kubectl get replicasets.apps 
+
+kubectl apply -f resources/replicaset.yaml 
+kubectl get replicasets.apps 
+
+kubectl describe deployments.apps nginx-deployment 
+
+kubectl rollout undo deployment nginx-deployment 
+
+kubectl get replicasets.apps 
+kubectl describe deployments.apps nginx-deployment 
+
+# Criando um ReplicaSet
+kubectl apply -f resources/replicaset-alone.yaml 
+kubectl get pods
+
+kubectl apply -f resources/replicaset-alone.yaml 
+kubectl describe replicasets.apps nginx-replicaset 
+
+kubectl delete pod nginx-replicaset-hzst9 
+
+kubectl describe pod nginx-replicaset-s5dlk 
+kubectl describe pod nginx-replicaset-tq2mb 
+kubectl get pods -o=jsonpath='{range .items[*]}{"\n"}{.metadata.name}{"\t"}{range .spec.containers[*]}{.image}{"\t"}{end}{end}'
+
+kubectl delete -f resources/replicaset-alone.yaml 
+
+# O DaemonSet
+kubectl apply -f resources/node-exporter-daemonset.yaml 
+
+kubectl get daemonsets.apps 
+kubectl get pods -l app=node-exporter -o wide
+
+kubectl describe daemonsets.apps node-exporter 
+
+kubectl create daemonset --help
+
+kubectl create daemonset node-exporter --image=prom/node-exporter:latest --port=9100 --host-port=9100 -o yakubectl create daemonset node-exporter --image=prom/node-exporter:latest --port=9100 --host-port=9100 -o yaml --dry-run=client > node-exporter-daemonset.yamml --dry-run=client > resources/node-exporter-daemonset-dry.yaml
+
+kubectl create --help
+kubectl create daemonset --help
+
+kubectl create daemonset node-exporter --image=prom/node-exporter:latest --port=9100 --host-port=9100 -o yaml --dry-run=client > resources/node-exporter-daemonset-dry.yaml
+
+kubectl delete daemonsets.apps node-exporter
+
+# As Probes do Kubernetes
+
+```
+
+## [Day 5]()
 
 ```sh
 
