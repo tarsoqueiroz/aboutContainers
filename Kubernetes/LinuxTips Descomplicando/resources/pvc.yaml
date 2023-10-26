@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: meu-pvc
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  # volumeMode: Filesystem
+  storageClassName: nfs
+  selector:
+    matchLabels:
+      storage: nfs
+  accessModes:
+    - ReadWriteOnce

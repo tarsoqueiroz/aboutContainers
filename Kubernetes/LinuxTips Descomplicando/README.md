@@ -274,3 +274,94 @@ kubectl delete daemonsets.apps node-exporter
 ```sh
 
 ```
+
+## [Day 6](https://livro.descomplicandokubernetes.com.br/pt/day_six/)
+
+Vamos aprender tudo sobre volumes, finalmente descomplicar os volumes no Kubernetes!
+
+Entender e configurar o que é:
+
+- um configmap,
+- um persistente volume (PV), e
+- um persistent volume claim (PVC)!
+
+```sh
+# Volumes: EmptyDir
+kubectl apply -f resources/volpod-emptydir.yaml 
+kubectl describe pod giropops 
+
+kubectl exec -it giropops -- bash
+
+kubectl delete pod giropops 
+kubectl apply -f resources/volpod-emptydir.yaml 
+kubectl exec -it giropops -- bash
+
+# Volumes: Storage Class
+kubectl get storageclasses.storage.k8s.io 
+kubectl describe storageclasses.storage.k8s.io standard 
+
+kubectl apply -f resources/storageclass.yaml 
+kubectl describe storageclasses.storage.k8s.io giropops 
+
+# Volumes: Persistent Volume
+kubectl get pv -A
+
+kubectl apply -f resources/pv.yaml 
+kubectl get pv
+kubectl describe pv meu-pv 
+
+# Servidor NFS
+mkdir -p /nfs.data/mnt/nfs
+sudo apt install nfs-kernel-server nfs-common
+sudo pico /etc/exports
+## exports
+## /nfs.data/mnt/nfs *(rw,sync,no_root_squash,no_subtree_check)
+sudo exportfs -arv
+showmount -e
+
+kubectl apply -f resources/pv-nfs.yaml 
+kubectl describe pv pv-nfs
+kubectl get pv
+kubectl describe pv meu-pv-nfs 
+
+# Volume: Persistent Volume Claim
+kubectl apply -f resources/pvc.yaml 
+kubectl get pvc
+kubectl describe pvc meu-pvc 
+
+kubectl apply -f resources/pod-pvpvc.yaml 
+kubectl get pvc
+kubectl get pv
+kubectl describe pod nginx-pod 
+kubectl exec -it nginx-pod -- curl localhost
+```
+
+## [Day 7]()
+
+```sh
+
+```
+
+## [Day 8]()
+
+```sh
+
+```
+
+## [Day 9]()
+
+```sh
+
+```
+
+## [Day 10]()
+
+```sh
+
+```
+
+## [Day 11]()
+
+```sh
+
+```
