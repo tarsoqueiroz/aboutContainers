@@ -1,0 +1,37 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: foo-mlb
+  labels:
+    app: http-mlb-echo
+spec:
+  containers:
+  - name: foo-mlb
+    image: hashicorp/http-echo:0.2.3
+    args:
+    - "-text=<h2>foo do MLB</h2>"
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: bar-app
+  labels:
+    app: http-mlb-echo
+spec:
+  containers:
+  - name: bar-app
+    image: hashicorp/http-echo:0.2.3
+    args:
+    - "-text=<h2>E no MLB tem bar também</h2>"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: foo-mlb-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: http-mlb-echo
+  ports:
+  # Default port used by the image
+  - port: 5678

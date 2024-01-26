@@ -1,0 +1,27 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginxsrv
+spec:
+  selector:
+    matchLabels:
+      run: nginxsrv
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        run: nginxsrv
+    spec:
+      containers:
+      - name: nginxsrv
+        image: nginx
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+        ports:
+        - containerPort: 80

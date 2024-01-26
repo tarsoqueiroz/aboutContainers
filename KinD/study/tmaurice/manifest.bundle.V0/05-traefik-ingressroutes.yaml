@@ -1,0 +1,94 @@
+---
+### ip-any 0.0.0.0/0
+kind: Middleware
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  namespace: traefik
+  name: ip-any
+spec:
+  ipWhiteList:
+    sourceRange:
+    - 0.0.0.0/0
+---
+### redirect https
+kind: Middleware
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  namespace: traefik
+  name: redirect-https
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+### ingress dashboard
+kind: IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`dashboard.localhost`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: kubernetes-dashboard
+      port: 443
+      scheme: http
+---
+### ingress traefik
+kind: IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`traefik.localhost`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: traefik-internal
+      port: 8080
+      scheme: http
+---
+### ingress grafana
+kind: IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`grafana.localhost`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: prometheus-grafana
+      port: 80
+      scheme: http
+---
+### ingress prometheus
+kind: IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`prometheus.localhost`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: prometheus-kube-prometheus-prometheus
+      port: 9090
+      scheme: http

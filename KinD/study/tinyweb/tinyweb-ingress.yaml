@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tinywebinfo-ingress
+  labels:
+    name: tinywebinfo-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  # ingressClassName: nginx
+  rules:
+  - host: tinywebinfo.0a0f122c.nip.io
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: tinywebinfo-svc
+            port: 
+              number: 8080

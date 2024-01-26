@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: nginxsvcnodeport
+  labels:
+    run: nginxsvcnodeport
+
+spec:
+  type: NodePort
+  selector:
+    run: nginxsrv
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080
+    protocol: TCP

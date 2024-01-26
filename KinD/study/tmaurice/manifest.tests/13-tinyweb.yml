@@ -1,0 +1,30 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: tinywebinfo
+  labels:
+    app: tinywebinfo
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tinywebinfo
+  template:
+    metadata:
+      labels:
+        app: tinywebinfo
+    spec:
+      containers:
+        - name: tinywebinfo
+          image: tarsoqueiroz/tinywebinfo:1.0
+          # image: tarsoqueiroz/tinywebinfo:2.0
+          # image: tarsoqueiroz/tinywebinfo:3.0
+          resources:
+            limits:
+              memory: "64Mi"
+              cpu: "250m"
+          ports:
+            - name: web
+              containerPort: 8080

@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tinywebinfo-svc
+spec:
+  selector:
+    app: tinywebinfo
+  ports:
+  - port: 8080
+    targetPort: 8080
+---

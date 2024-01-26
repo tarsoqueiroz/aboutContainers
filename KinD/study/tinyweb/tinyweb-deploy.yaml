@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tinywebinfo
+spec:
+  selector:
+    matchLabels:
+      app: tinywebinfo
+  replicas: 12
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: tinywebinfo
+    spec:
+      containers:
+      - name: tinywebinfo
+        # image: tarsoqueiroz/tinywebinfo:1.0
+        # image: tarsoqueiroz/tinywebinfo:2.0
+        image: tarsoqueiroz/tinywebinfo:3.0
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8080

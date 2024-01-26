@@ -1,0 +1,51 @@
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: whoami-ingress
+# spec:
+#   rules:
+#   - http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: whoami
+#             port:
+#               name: web
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: whoami-ingress
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`whoami.0a0f122c.nip.io`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: whoami
+      port: 80
+      scheme: http
+# ---
+# kind: Ingress
+# apiVersion: networking.k8s.io/v1
+# metadata:
+#   name: whoami-ingress
+#   labels:
+#     name: whoami-ingress
+# spec:
+#   rules:
+#   - host: whoami.localhost
+#     http:
+#       paths:
+#       - pathType: Prefix
+#         path: "/"
+#         backend:
+#           service:
+#             name: whoami
+#             port: 
+#               name: http

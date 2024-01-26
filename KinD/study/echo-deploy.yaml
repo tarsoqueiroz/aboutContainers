@@ -1,0 +1,27 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echosrv
+spec:
+  selector:
+    matchLabels:
+      app: echosrv
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: echosrv
+    spec:
+      containers:
+      - name: echosrv
+        image: k8s.gcr.io/echoserver:1.3
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+        ports:
+        - containerPort: 80
