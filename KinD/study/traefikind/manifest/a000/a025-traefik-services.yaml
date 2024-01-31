@@ -1,0 +1,25 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-dashboard-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: dashboard
+  selector:
+    app: traefik
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-web-service
+spec:
+  type: ClusterIP
+  ports:
+    - targetPort: web
+      port: 80
+  selector:
+    app: traefik

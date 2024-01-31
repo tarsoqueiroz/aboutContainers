@@ -1,4 +1,5 @@
 ---
+##### ingressroutes.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -196,6 +197,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### ingressroutetcps.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -355,6 +357,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### ingressrouteudps.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -438,6 +441,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### middlewares.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -1007,6 +1011,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### middlewaretcps.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -1065,6 +1070,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### serverstransports.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -1169,6 +1175,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### tlsoptions.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -1255,6 +1262,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### tlsstores.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
@@ -1318,6 +1326,7 @@ status:
   conditions: []
   storedVersions: []
 ---
+##### traefikservices.traefik.containo.us
 kind: CustomResourceDefinition
 apiVersion: apiextensions.k8s.io/v1
 metadata:
