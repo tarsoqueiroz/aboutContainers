@@ -8,13 +8,25 @@ spec:
   type: ClusterIP
   ports:
     - protocol: TCP
+      name: http
+      port: 80
+    - protocol: TCP
+      name: https
+      port: 443
+    - protocol: TCP
+      name: websecure
+      port: 4443
+    - protocol: TCP
+      name: metrics
+      port: 6969
+    - protocol: TCP
       name: web
       port: 8000
     - protocol: TCP
       name: admin
       port: 8080
     - protocol: TCP
-      name: websecure
-      port: 4443
+      name: webs
+      port: 8443
   selector:
     app: traefik

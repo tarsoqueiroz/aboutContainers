@@ -1,0 +1,131 @@
+# ---
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: IngressRoute
+# metadata:
+#   name: simpleingressroute
+#   namespace: default
+# spec:
+#   entryPoints:
+#     - web
+#   routes:
+#   - match: Host(`traefik.0a0f122c.nip.io`)
+#     kind: Rule
+#     middlewares:
+#     services:
+#     - name: traefik
+#       port: 8080
+#       scheme: admin
+---
+### ip-any 0.0.0.0/0
+kind: Middleware
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  # namespace: traefik
+  name: ip-any
+spec:
+  ipWhiteList:
+    sourceRange:
+    - 0.0.0.0/0
+---
+### redirect https
+kind: Middleware
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  namespace: traefik
+  name: redirect-https
+spec:
+  redirectScheme:
+    scheme: websecure
+    permanent: true
+---
+### ingress dashboard
+kind: IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`dashboard.0a0f122c.nip.io`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: kubernetes-dashboard
+      port: 4443
+      scheme: http
+---
+### ingress traefik
+kind: IngressRoute
+apiVersion: traefik.containo.us/v1alpha1
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`traefik.0a0f122c.nip.io`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: traefik-internal
+      port: 8080
+      scheme: http
+
+
+# ---
+# apiVersion: traefik.io/v1alpha1
+# kind: IngressRoute
+# metadata:
+#   name: ingressroutetls
+#   namespace: default
+# spec:
+#   entryPoints:
+#     - websecure
+#   routes:
+#   - match: Host(`your.example.com`) && PathPrefix(`/tls`)
+#     kind: Rule
+#     services:
+#     - name: whoami
+#       port: 80
+#   tls:
+#     certResolver: myresolver
+
+# ---
+# ### ingress grafana
+# kind: IngressRoute
+# apiVersion: traefik.containo.us/v1alpha1
+# metadata:
+#   name: grafana
+#   namespace: monitoring
+# spec:
+#   entryPoints:
+#     - http
+#   routes:
+#   - match: Host(`grafana.0a0f122c.nip.io`)
+#     kind: Rule
+#     middlewares:
+#     services:
+#     - name: prometheus-grafana
+#       port: 80
+#       scheme: http
+# ---
+# ### ingress prometheus
+# kind: IngressRoute
+# apiVersion: traefik.containo.us/v1alpha1
+# metadata:
+#   name: prometheus
+#   namespace: monitoring
+# spec:
+#   entryPoints:
+#     - http
+#   routes:
+#   - match: Host(`prometheus.0a0f122c.nip.io`)
+#     kind: Rule
+#     middlewares:
+#     services:
+#     - name: prometheus-kube-prometheus-prometheus
+#       port: 9090
+#       scheme: http

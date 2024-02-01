@@ -204,13 +204,22 @@ cp manifest/traefik-deployment.yaml manifest/whoami-deployment.yaml
 # At spec section add `type: ClusterIP`
 
 # Apply deployment for Traefik
-kubectl apply -f manifest/traefik-service.yaml
+kubectl apply -f manifest/traefik-deployment.yaml
 ```
 
 ### Traefik Router
 
 ```sh
+# Get router manifest
+curl https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/user-guides/crd-acme/04-ingressroutes.yml -o manifest/traefik-04-ingressroutes.yaml
+cp manifest/traefik-deployment.yaml manifest/whoami-deployment.yaml
+# Edit both files splitting deployment
+# At spec section add `type: ClusterIP`
 
+# Apply deployment for Traefik
+kubectl apply -f manifest/traefik-deployment.yaml
+
+https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/user-guides/crd-acme/04-ingressroutes.yml
 ```
 
 ## another way...
