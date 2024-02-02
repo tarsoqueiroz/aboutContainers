@@ -29,13 +29,14 @@ touch test.txt
 ## Confirm at local-path (traefikind.data/control-plane) for 'test.txt' file existence.
 ```
 
-Untaint the master:
+Pre-config:
 
 ```sh
-kubectl --context kind-traefikind taint nodes --all node-role.kubernetes.io/master- || true
+# Admin account
+kubectl --context kind-traefikind apply -f manifest/t000/dashboard-05-account.yaml
 ```
 
-Installs the metrics server:
+Install metrics components:
 
 ```sh
 # INSTALL
@@ -45,7 +46,7 @@ helm repo update
 helm install metrics-server metrics-server/metrics-server
 
 # INSTALL
-# manifest
+# by manifest
 kubectl --context kind-traefikind apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 kubectl --context kind-traefikind apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.7.0/components.yaml
 # or
@@ -60,51 +61,72 @@ kubectl --context kind-traefikind get deployments -A
 # VERIFY
 ku top nodes
 ku top pods -A
+```
 
-# INSTALL PROMETHEUS
-kubectl --context kind-traefikind get ns
+Install Prometheus:
+
+```sh
 kubectl --context kind-traefikind apply -f manifest/t000/metrics-00-ns.yaml 
 kubectl --context kind-traefikind get ns
+# ADD REPO PROMETHEUS
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+# UPDATE HELM REPO
+helm repo update
 helm install prometheus -n monitoring prometheus-community/kube-prometheus-stack
 watch -n 1 kubectl --namespace monitoring get pods -l "release=prometheus" -o wide
 ```
 
-Apply the manifests: (TO AQUI AGORA)
+Install Kubernetes Dashboard:
 
 ```sh
-./manifest-install.sh
-```
-
-### Install stuff via Helm"
-
-Adding repo dashboard:
-
-```sh
+kubectl --context kind-traefikind apply -f manifest/t000/dashboard-00-ns.yaml
+kubectl --context kind-traefikind get ns
+kubectl --context kind-traefikind apply -f manifest/t000/dashboard-05-account.yaml
+# ADD REPO DASHBOARD
 helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
-```
-
-Adding repo prometheus:
-
-```sh
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-```
-
-Updating repo info:
-
-```sh
+# Updating helm repo
 helm repo update
-```
-
-Install dashboard:
-
-```sh
+# Install dashboard
 helm install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
     --namespace kubernetes-dashboard \
     --set protocolHttp=true \
     --set serviceAccount.create=false \
     --set serviceAccount.name=admin-user \
     --set metricsScraper.enabled=true
+# Testing
+export POD_NAME=$(kubectl get pods -n kubernetes-dashboard -l "app.kubernetes.io/name=kubernetes-dashboard,app.kubernetes.io/instance=kubernetes-dashboard" -o jsonpath="{.items[0].metadata.name}")
+echo http://127.0.0.1:9090/
+kubectl -n kubernetes-dashboard port-forward $POD_NAME 9090:9090
 ```
+
+Install Traefik:
+
+```sh
+# followin ./manifest-install.sh
+
+# Untaint the master
+kubectl --context kind-traefikind taint nodes --all node-role.kubernetes.io/master- || true
+# CREATE NAMESPACE
+kubectl --context kind-traefikind apply -f manifest/t000/traefik-00-ns.yaml
+# CREATE ADMIN ACCOUNT
+kubectl --context kind-traefikind apply -f manifest/t000/traefik-02-account.yaml
+# INSTALL TRAEFIK CUSTOM RESOURCE DEFINITIONS
+kubectl --context kind-traefikind apply -f https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+# INSTALL TRAEFIK RBAC
+kubectl --context kind-traefikind apply -f https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/reference/dynamic-configuration/kubernetes-crd-rbac.yml
+# CREATE SERVICE
+kubectl --context kind-traefikind apply -f manifest/t000/traefik-05-service.yaml
+# CREATE DEPLOYMENT
+kubectl --context kind-traefikind apply -f manifest/t000/traefik-07-deployment.yaml
+# CREATE INGRESS
+kubectl --context kind-traefikind apply -f manifest/t000/traefik-09-ingress.yaml
+
+
+
+```
+
+### Install stuff via Helm"
+
 
 ## Kind cluster with Traefik (TraefiKind)
 
