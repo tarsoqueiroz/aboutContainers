@@ -29,7 +29,7 @@ metadata:
   namespace: kubernetes-dashboard
 spec:
   entryPoints:
-    - http
+    - https
   routes:
   - match: Host(`dashboard.0a0f122c.nip.io`)
     kind: Rule
@@ -37,7 +37,7 @@ spec:
     services:
     - name: kubernetes-dashboard
       port: 443
-      scheme: http
+      scheme: https
 ---
 ### ingress traefik
 kind: IngressRoute

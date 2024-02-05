@@ -33,7 +33,7 @@ Pre-config:
 
 ```sh
 # Admin account
-kubectl --context kind-traefikind apply -f manifest/t000/dashboard-05-account.yaml
+kubectl --context kind-traefikind apply -f manifest/t000/cluster-02-account.yaml
 ```
 
 Install metrics components:
@@ -81,7 +81,7 @@ Install Kubernetes Dashboard:
 ```sh
 kubectl --context kind-traefikind apply -f manifest/t000/dashboard-00-ns.yaml
 kubectl --context kind-traefikind get ns
-kubectl --context kind-traefikind apply -f manifest/t000/dashboard-05-account.yaml
+kubectl --context kind-traefikind apply -f manifest/t000/dashboard-02-account.yaml
 # ADD REPO DASHBOARD
 helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
 # Updating helm repo
