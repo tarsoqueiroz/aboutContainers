@@ -53,8 +53,8 @@ kubectl --context kind-traefikind apply -f https://github.com/kubernetes-sigs/me
 kubectl --context kind-traefikind apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.7.0/high-availability-1.21+.yaml
 
 # CORRECTIONS
-kubectl --context kind-traefikind get deployments -A
 kubectl edit deployment metrics-server
+kubectl --context kind-traefikind get deployments -A
 # Put the follow flag “- --kubelet-insecure-tls=true” under the args section of the deployment
 kubectl --context kind-traefikind get deployments -A
 
@@ -106,6 +106,7 @@ Install Traefik:
 
 # Untaint the master
 kubectl --context kind-traefikind taint nodes --all node-role.kubernetes.io/master- || true
+kubectl --context kind-traefikind taint nodes --all node-role.kubernetes.io/control-plane- || true
 # CREATE NAMESPACE
 kubectl --context kind-traefikind apply -f manifest/t000/traefik-00-ns.yaml
 # CREATE ADMIN ACCOUNT

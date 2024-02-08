@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami
+
+spec:
+  ports:
+    - name: web
+      port: 80
+      targetPort: web
+
+  selector:
+    app: whoami
+# ---
+# kind: Service
+# apiVersion: v1
+# metadata:
+#   name: whoami
+# spec:
+#   selector:
+#     app: whoami
+#   ports:
+#   - name: http
+#     port: 80
+#     targetPort: http

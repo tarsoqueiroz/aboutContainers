@@ -1,4 +1,15 @@
 ---
+# Kind configuration file
+#
+# Nodes         : 1x control plane
+#                 3 workers
+# K8s version   : 1.28 (from https://github.com/kubernetes-sigs/kind/releases)
+# Ingress       : enabled
+# Port Mappings
+#   TCP         : 80,443,4443,6969,8000,8080,8443,9000
+#   UDP         :
+# Extra mounts  : traefikind.data/{control-plane,worker,worker2,worker3}
+# 
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 
@@ -6,6 +17,7 @@ name: traefikind
 
 nodes:
 - role: control-plane
+  # image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
   image: kindest/node:v1.23.6
   kubeadmConfigPatches:
   - |
@@ -38,17 +50,26 @@ nodes:
   - containerPort: 8443
     hostPort: 8443
     protocol: TCP
+  - containerPort: 9000
+    hostPort: 9000
+    protocol: TCP
+  - containerPort: 9090
+    hostPort: 9090
+    protocol: TCP
 - role: worker
+  # image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
   image: kindest/node:v1.23.6
   extraMounts:
     - hostPath: traefikind.data/worker
       containerPath: /data/local-path
 - role: worker
+  # image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
   image: kindest/node:v1.23.6
   extraMounts:
     - hostPath: traefikind.data/worker2
       containerPath: /data/local-path
 - role: worker
+  # image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
   image: kindest/node:v1.23.6
   extraMounts:
     - hostPath: traefikind.data/worker3

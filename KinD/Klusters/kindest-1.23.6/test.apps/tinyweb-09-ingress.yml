@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: tinywebinfo-ingress
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`tinywebinfo.0a0f122c.nip.io`)
+    kind: Rule
+    middlewares:
+    services:
+    - name: tinywebinfo
+      port: 80
+      scheme: http
+---

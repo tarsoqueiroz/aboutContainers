@@ -1,0 +1,55 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: whoami
+  labels:
+    app: whoami
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whoami
+  template:
+    metadata:
+      labels:
+        app: whoami
+    spec:
+      containers:
+        - name: whoami
+          image: traefik/whoami
+          resources:
+            limits:
+              memory: "64Mi"
+              cpu: "250m"
+          ports:
+            - name: web
+              containerPort: 80
+# ---
+# kind: Deployment
+# apiVersion: apps/v1
+# metadata:
+#   name: whoami
+#   labels:
+#     app: whoami
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: whoami
+#   template:
+#     metadata:
+#       labels:
+#         app: whoami
+#     spec:
+#       containers:
+#       - name: whoami
+#         image: traefik/whoami
+#         resources:
+#           limits:
+#             memory: "64Mi"
+#             cpu: "250m"
+#         ports:
+#         - name: http
+#           containerPort: 80
