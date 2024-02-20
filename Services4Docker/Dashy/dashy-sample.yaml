@@ -1,0 +1,38 @@
+pageInfo:
+  title: TQ links
+sections: # An array of sections
+- name: Example Section
+  icon: far fa-rocket
+  items:
+  - title: GitHub
+    description: Dashy source code and docs
+    icon: fab fa-github
+    url: https://github.com/Lissy93/dashy
+  - title: Issues
+    description: View open issues, or raise a new one
+    icon: fas fa-bug
+    url: https://github.com/Lissy93/dashy/issues
+- name: Local Services
+  items:
+  - title: Firewall
+    icon: favicon
+    url: http://192.168.1.1/
+  - title: Game Server
+    icon: https://i.ibb.co/710B3Yc/space-invader-x256.png
+    url: http://192.168.130.1/
+- name: Office
+  items:
+  - title: Filtro WEB
+    url: https://filtroweb.pr.gov.br/connect/PortalMain
+  - title: Ponto
+    url: https://www.pec.celepar.pr.gov.br/?p=login.php
+  - title: Expresso
+    url: https://expresso.pr.gov.br/
+  - title: Gestão RH
+    url: https://www.gestaorh.celepar.pr.gov.br/rhcelepar/
+  - title: Gestão de Férias
+    url: https://www.ferias.celepar.pr.gov.br/?p=login.php
+  - title: Asterisco Parana
+    url: https://www.pabx.celepar.pr.gov.br/main.php?inicio=1
+  - title: WIKI COTIS
+    url: https://celepar.wikis.pr.gov.br/cotis/wiki/P%C3%A1gina_principal
