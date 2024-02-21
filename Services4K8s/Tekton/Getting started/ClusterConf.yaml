@@ -1,0 +1,37 @@
+---
+# Kind configuration file
+#
+# Nodes         : 1x control plane
+#                 3x workers
+# K8s version   : 1.28 (from https://github.com/kubernetes-sigs/kind/releases)
+# Ingress       : enabled
+# Port Mappings
+#   TCP         : 80,443
+# 
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+name: kluster
+
+nodes:
+- role: control-plane
+  image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-controller=true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+- role: worker
+  image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
+- role: worker
+  image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
+- role: worker
+  image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
