@@ -2,11 +2,11 @@
 # Kind configuration file
 #
 # Nodes         : 1x control plane
-#                 3 workers
+#                 3x workers
 # K8s version   : 1.28 (from https://github.com/kubernetes-sigs/kind/releases)
 # Ingress       : enabled
 # Port Mappings
-#   TCP         : 80,443,4443,6969,8000,8080,8443,9000
+#   TCP         : 80,443,8080,8443
 #   UDP         :
 # Extra mounts  : kluster.data/{control-plane,worker,worker2,worker3}
 # 
@@ -18,7 +18,6 @@ name: kluster
 nodes:
 - role: control-plane
   image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
-  # image: kindest/node:v1.23.6
   kubeadmConfigPatches:
   - |
     kind: InitConfiguration
@@ -35,42 +34,24 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
-  - containerPort: 4443
-    hostPort: 4443
-    protocol: TCP
-  - containerPort: 6969
-    hostPort: 6969
-    protocol: TCP
-  - containerPort: 8000
-    hostPort: 8000
-    protocol: TCP
   - containerPort: 8080
     hostPort: 8080
     protocol: TCP
   - containerPort: 8443
     hostPort: 8443
     protocol: TCP
-  - containerPort: 9000
-    hostPort: 9000
-    protocol: TCP
-  - containerPort: 9090
-    hostPort: 9090
-    protocol: TCP
 - role: worker
   image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
-  # image: kindest/node:v1.23.6
   extraMounts:
     - hostPath: kluster.data/worker
       containerPath: /data/local-path
 - role: worker
   image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
-  # image: kindest/node:v1.23.6
   extraMounts:
     - hostPath: kluster.data/worker2
       containerPath: /data/local-path
 - role: worker
   image: kindest/node:v1.28.6@sha256:b7e1cf6b2b729f604133c667a6be8aab6f4dde5bb042c1891ae248d9154f665b
-  # image: kindest/node:v1.23.6
   extraMounts:
     - hostPath: kluster.data/worker3
       containerPath: /data/local-path
