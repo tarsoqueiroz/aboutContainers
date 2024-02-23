@@ -123,19 +123,62 @@ kubectl port-forward services/el-hello-listener 8080
 ## Monitor the Trigger
 
 ```sh
+# Send an event
 curl -v -H 'content-Type: application/json' -d '{"username": "Tekton"}' http://localhost:8080
-
+# Check the PipelineRuns on cluster
 kubectl get pipelineruns.tekton.dev --watch
-
+# Check the PipelineRun logs
 tkn pipelinerun logs hello-goodbye-run-rqscs -f
 
+# Send a second event
 curl -v -H 'content-Type: application/json' -d '{"username": "Teste1"}' http://localhost:8080
-
+# Check the PipelineRuns on cluster
 kubectl get pipelineruns.tekton.dev --watch
-
+# Check the PipelineRun logs
 tkn pipelinerun logs hello-goodbye-run-6j5c6 -f
+```
+
+## Install Tekton Chains
+
+```sh
+# Install Tekton Chains
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/chains/latest/release.yaml
+# Monitor the installation
+kubectl get pods --namespace tekton-chains --watch
+
+# Configure Tekton Chains to store the provenance metadata locally
+kubectl patch configmap chains-config -n tekton-chains -p='{"data":{"artifacts.oci.storage": "", "artifacts.taskrun.format":"in-toto", "artifacts.taskrun.storage": "tekton"}}'
+```
+
+## Install cosign
+
+```sh
+# Download last cosign release
+curl -OL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+# Install on /usr/local/bin/cosign
+sudo install -o root -g root -m 0755 cosign-linux-amd64 /usr/local/bin/cosign
+rm cosign-linux-amd64
+# Autocompletion
+cosign completion bash | sudo tee /etc/bash_completion.d/cosign_completion
+source ~/.bashrc
+# Verify
+cosign version
+cosign --help
+```
+
+## Generate a key pair to sign the artifact provenance
+
+```sh
+cosign generate-key-pair k8s://tekton-chains/signing-secrets
+```
+
+## Build and push a container image
+
+```sh
+# EventListener in event-listener.yaml
+# 
 ```
 
 ## TODO
 
-- Ingress
+- todo
