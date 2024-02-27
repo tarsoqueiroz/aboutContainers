@@ -1,0 +1,125 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rancher
+  namespace: cattle-system
+  uid: 473c8bf2-94e8-4d46-8179-3934138b14b5
+  resourceVersion: '14363'
+  generation: 1
+  creationTimestamp: '2024-02-27T16:11:47Z'
+  labels:
+    app: rancher
+    app.kubernetes.io/managed-by: Helm
+    chart: rancher-2.8.2
+    heritage: Helm
+    release: rancher
+  annotations:
+    cert-manager.io/issuer: rancher
+    cert-manager.io/issuer-kind: Issuer
+    field.cattle.io/publicEndpoints: >-
+      [{"addresses":["192.168.56.21","192.168.56.22","192.168.56.23"],"port":443,"protocol":"HTTPS","serviceName":"cattle-system:rancher","ingressName":"cattle-system:rancher","hostname":"rancher.my.org","path":"/","allNodes":false}]
+    meta.helm.sh/release-name: rancher
+    meta.helm.sh/release-namespace: cattle-system
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: '30'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '1800'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '1800'
+  managedFields:
+    - manager: helm
+      operation: Update
+      apiVersion: networking.k8s.io/v1
+      time: '2024-02-27T16:11:47Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:cert-manager.io/issuer: {}
+            f:cert-manager.io/issuer-kind: {}
+            f:meta.helm.sh/release-name: {}
+            f:meta.helm.sh/release-namespace: {}
+            f:nginx.ingress.kubernetes.io/proxy-connect-timeout: {}
+            f:nginx.ingress.kubernetes.io/proxy-read-timeout: {}
+            f:nginx.ingress.kubernetes.io/proxy-send-timeout: {}
+          f:labels:
+            .: {}
+            f:app: {}
+            f:app.kubernetes.io/managed-by: {}
+            f:chart: {}
+            f:heritage: {}
+            f:release: {}
+        f:spec:
+          f:rules: {}
+          f:tls: {}
+    - manager: rancher
+      operation: Update
+      apiVersion: networking.k8s.io/v1
+      time: '2024-02-27T16:20:00Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            f:field.cattle.io/publicEndpoints: {}
+    - manager: nginx-ingress-controller
+      operation: Update
+      apiVersion: networking.k8s.io/v1
+      time: '2024-02-27T16:26:05Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:status:
+          f:loadBalancer:
+            f:ingress: {}
+      subresource: status
+  selfLink: /apis/networking.k8s.io/v1/namespaces/cattle-system/ingresses/rancher
+status:
+  loadBalancer:
+    ingress:
+      - ip: 192.168.56.21
+      - ip: 192.168.56.22
+      - ip: 192.168.56.23
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - rancher.my.org
+      secretName: tls-rancher-ingress
+  rules:
+    - host: rancher.my.org
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80
+    - host: rancher.c0a83815.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80
+    - host: rancher.c0a83816.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80
+    - host: rancher.c0a83817.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80

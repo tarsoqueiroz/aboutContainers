@@ -1,0 +1,69 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rancher
+  namespace: cattle-system
+  labels:
+    app: rancher
+    app.kubernetes.io/managed-by: Helm
+    chart: rancher-2.8.2
+    heritage: Helm
+    release: rancher
+  annotations:
+    cert-manager.io/issuer: rancher
+    cert-manager.io/issuer-kind: Issuer
+    field.cattle.io/publicEndpoints: >-
+      [{"addresses":["192.168.56.21","192.168.56.22","192.168.56.23"],"port":443,"protocol":"HTTPS","serviceName":"cattle-system:rancher","ingressName":"cattle-system:rancher","hostname":"rancher.my.org","path":"/","allNodes":false}]
+    meta.helm.sh/release-name: rancher
+    meta.helm.sh/release-namespace: cattle-system
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: '30'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '1800'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '1800'
+  selfLink: /apis/networking.k8s.io/v1/namespaces/cattle-system/ingresses/rancher
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - rancher.my.org
+      secretName: tls-rancher-ingress
+  rules:
+    - host: rancher.my.org
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80
+    - host: rancher.c0a83815.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80
+    - host: rancher.c0a83816.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80
+    - host: rancher.c0a83817.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rancher
+                port:
+                  number: 80
