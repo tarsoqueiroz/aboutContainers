@@ -1,78 +1,54 @@
 Vagrant.configure("2") do |config|
   # This will be applied to every vagrant file that comes after it
   config.vm.box = "ubuntu/bionic64"
-  # K8s Control Plane
-  ## Control Plane Node
-  config.vm.define "controlplane" do |k8s_master|
-    k8s_master.vm.provision "shell", path: "node_script.sh"
-    k8s_master.vm.network "private_network", ip: "192.168.56.11" 
-    k8s_master.vm.hostname = "controlplane"
-    k8s_master.vm.provider "virtualbox" do |v|
-      v.name = "rke-controlplane"
+  # RKE Control Plane & Worker
+  ## Node 1
+  config.vm.define "rke-node1" do |k8s_rke|
+    k8s_rke.vm.provision "shell", path: "node_script.sh"
+    k8s_rke.vm.network "private_network", ip: "192.168.56.11" 
+    k8s_rke.vm.hostname = "rke-node1"
+    k8s_rke.vm.provider "virtualbox" do |v|
+      v.name = "rke-node1"
       v.customize ["modifyvm", :id, "--audio", "none"]
       v.memory = 4024
       v.cpus = 2
     end
   end
-  ## Control Plane Node 2
-  config.vm.define "controlplane2" do |k8s_master|
-    k8s_master.vm.provision "shell", path: "node_script.sh"
-    k8s_master.vm.network "private_network", ip: "192.168.56.12" 
-    k8s_master.vm.hostname = "controlplane2"
-    k8s_master.vm.provider "virtualbox" do |v|
-      v.name = "rke-controlplane2"
+  ## Node 2
+  config.vm.define "rke-node2" do |k8s_rke|
+    k8s_rke.vm.provision "shell", path: "node_script.sh"
+    k8s_rke.vm.network "private_network", ip: "192.168.56.12" 
+    k8s_rke.vm.hostname = "rke-node2"
+    k8s_rke.vm.provider "virtualbox" do |v|
+      v.name = "rke-node2"
       v.customize ["modifyvm", :id, "--audio", "none"]
       v.memory = 4024
       v.cpus = 2
     end
   end
-  ## Control Plane Node 3
-  config.vm.define "controlplane3" do |k8s_master|
-    k8s_master.vm.provision "shell", path: "node_script.sh"
-    k8s_master.vm.network "private_network", ip: "192.168.56.13" 
-    k8s_master.vm.hostname = "controlplane3"
-    k8s_master.vm.provider "virtualbox" do |v|
-      v.name = "rke-controlplane3"
+  ## Node 3
+  config.vm.define "rke-node3" do |k8s_rke|
+    k8s_rke.vm.provision "shell", path: "node_script.sh"
+    k8s_rke.vm.network "private_network", ip: "192.168.56.13" 
+    k8s_rke.vm.hostname = "rke-node3"
+    k8s_rke.vm.provider "virtualbox" do |v|
+      v.name = "rke-node3"
       v.customize ["modifyvm", :id, "--audio", "none"]
       v.memory = 4024
       v.cpus = 2
     end
   end
-  # K8s Data Plane
-  ## Worker Node 1
-  config.vm.define "worker" do |k8s_worker|
-    k8s_worker.vm.provision "shell", path: "node_script.sh"
-    k8s_worker.vm.network "private_network", ip: "192.168.56.21"
-    k8s_worker.vm.hostname = "worker"
-    k8s_worker.vm.provider "virtualbox" do |v|
-      v.name = "rke-worker"
+  ## Node 4
+  config.vm.define "rke-node4" do |k8s_rke|
+    k8s_rke.vm.provision "shell", path: "node_script.sh"
+    k8s_rke.vm.network "private_network", ip: "192.168.56.14" 
+    k8s_rke.vm.network "public_network", bridge: "enp6s0" 
+    k8s_rke.vm.hostname = "rke-node4"
+    k8s_rke.vm.provider "virtualbox" do |v|
+      v.name = "rke-node4"
       v.customize ["modifyvm", :id, "--audio", "none"]
-      v.memory = 4024
-      v.cpus = 2
-    end
-  end
-  ## Worker Node 2
-  config.vm.define "worker2" do |k8s_worker|
-    k8s_worker.vm.provision "shell", path: "node_script.sh"
-    k8s_worker.vm.network "private_network", ip: "192.168.56.22"
-    k8s_worker.vm.hostname = "worker2"
-    k8s_worker.vm.provider "virtualbox" do |v|
-      v.name = "rke-worker2"
-      v.customize ["modifyvm", :id, "--audio", "none"]
-      v.memory = 4024
-      v.cpus = 2
-    end
-  end
-  ## Worker Node 3
-  config.vm.define "worker3" do |k8s_worker|
-    k8s_worker.vm.provision "shell", path: "node_script.sh"
-    k8s_worker.vm.network "private_network", ip: "192.168.56.23"
-    k8s_worker.vm.hostname = "worker3"
-    k8s_worker.vm.provider "virtualbox" do |v|
-      v.name = "rke-worker3"
-      v.customize ["modifyvm", :id, "--audio", "none"]
-      v.memory = 4024
-      v.cpus = 2
+      v.memory = 2048
+      v.cpus = 1
     end
   end
 end
