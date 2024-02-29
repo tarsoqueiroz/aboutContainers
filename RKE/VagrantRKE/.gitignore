@@ -4,6 +4,6 @@
 *.log
 
 # RKE generated files
-cluster.rkestate
+*.rkestate
 
-kube_config_cluster.yml
+kube_config_*.yml
