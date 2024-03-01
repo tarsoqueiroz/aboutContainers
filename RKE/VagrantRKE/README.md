@@ -9,6 +9,8 @@
 > [Setting up Infrastructure for a High Availability K3s Kubernetes Cluster](https://ranchermanager.docs.rancher.com/how-to-guides/new-user-guides/infrastructure-setup/ha-k3s-kubernetes-cluster)
 >
 > [Setting up Rancher on Your Local Machine with an RKE Provisioned Cluster](https://www.suse.com/c/rancher_blog/setting-up-rancher-on-your-local-machine-with-an-rke-provisioned-cluster/)
+>
+> [Example Cluster.ymls](https://rke.docs.rancher.com/example-yamls)
 
 ## RKE cluster install
 

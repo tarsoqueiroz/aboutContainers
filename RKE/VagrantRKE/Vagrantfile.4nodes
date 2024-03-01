@@ -5,7 +5,6 @@ Vagrant.configure("2") do |config|
   ## Node 1
   config.vm.define "rke-node1" do |k8s_rke|
     k8s_rke.vm.provision "shell", path: "node_script.sh"
-    k8s_rke.vm.synced_folder "./rancher.data/rke-node1", "/data"
     k8s_rke.vm.network "private_network", ip: "192.168.56.11" 
     k8s_rke.vm.hostname = "rke-node1"
     k8s_rke.vm.provider "virtualbox" do |v|
@@ -18,7 +17,6 @@ Vagrant.configure("2") do |config|
   ## Node 2
   config.vm.define "rke-node2" do |k8s_rke|
     k8s_rke.vm.provision "shell", path: "node_script.sh"
-    k8s_rke.vm.synced_folder "./rancher.data/rke-node2", "/data"
     k8s_rke.vm.network "private_network", ip: "192.168.56.12" 
     k8s_rke.vm.hostname = "rke-node2"
     k8s_rke.vm.provider "virtualbox" do |v|
@@ -31,7 +29,6 @@ Vagrant.configure("2") do |config|
   ## Node 3
   config.vm.define "rke-node3" do |k8s_rke|
     k8s_rke.vm.provision "shell", path: "node_script.sh"
-    k8s_rke.vm.synced_folder "./rancher.data/rke-node3", "/data"
     k8s_rke.vm.network "private_network", ip: "192.168.56.13" 
     k8s_rke.vm.hostname = "rke-node3"
     k8s_rke.vm.provider "virtualbox" do |v|
@@ -44,7 +41,6 @@ Vagrant.configure("2") do |config|
   ## Node 4
   config.vm.define "rke-node4" do |k8s_rke|
     k8s_rke.vm.provision "shell", path: "node_script.sh"
-    k8s_rke.vm.synced_folder "./rancher.data/rke-node4", "/data"
     k8s_rke.vm.network "private_network", ip: "192.168.56.14" 
     k8s_rke.vm.network "public_network", bridge: "enp6s0" 
     k8s_rke.vm.hostname = "rke-node4"
