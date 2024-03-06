@@ -1,9 +1,0 @@
-.vagrant
-
-# Log files
-*.log
-
-# RKE generated files
-*.rkestate
-
-kube_config_*.yml
