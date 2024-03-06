@@ -80,8 +80,8 @@ helm repo list
 
 helm install rancher rancher-stable/rancher \
   --namespace cattle-system \
-  --set hostname=rancher.c0a8380d.nip.io \
-  --set bootstrapPassword=adminrancher
+  --set bootstrapPassword=adminrancher \
+  --set hostname=rancher.c0a8380d.nip.io
 
 # If you provided your own bootstrap password during installation, 
 # browse to https://rancher.c0a8380d.nip.io to get started.
