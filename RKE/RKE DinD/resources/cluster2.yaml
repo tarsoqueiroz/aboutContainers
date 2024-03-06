@@ -1,0 +1,10 @@
+nodes:
+  - address: cluster2-node1
+    user: docker
+    role: [controlplane,worker,etcd]
+  - address: cluster2-node2
+    user: docker
+    role: [controlplane,worker,etcd]
+  - address: cluster2-node3
+    user: ubuntu
+    role: [controlplane,worker,etcd]

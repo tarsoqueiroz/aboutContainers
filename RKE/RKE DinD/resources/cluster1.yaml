@@ -1,0 +1,21 @@
+# Name of the K8s Cluster
+cluster_name: rkedind
+
+# The Kubernetes version used.
+# rke config --list-version --all
+kubernetes_version: v1.27.10-rancher1-1
+
+# Cluster Nodes
+nodes:
+  - address: cluster1-node1
+    user: docker
+    role: [controlplane,worker,etcd]
+  - address: cluster1-node2
+    user: docker
+    role: [worker]
+  - address: cluster1-node3
+    user: docker
+    role: [worker]
+  - address: cluster1-node4
+    user: docker
+    role: [worker]
