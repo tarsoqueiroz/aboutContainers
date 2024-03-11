@@ -1,12 +1,12 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: cluster2
+name: c2
 nodes:
 - role: control-plane
 - role: worker
-- role: worker
 networking:
   disableDefaultCNI: true
+  apiServerAddress: 10.15.18.44 # PUT YOUR IP ADDRESSS OF YOUR MACHINE HERE!
+  apiServerPort: 6442
   podSubnet: "10.2.0.0/16"
   serviceSubnet: "10.3.0.0/16"
-  apiServerPort: 6444
