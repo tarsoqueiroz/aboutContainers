@@ -1,6 +1,6 @@
 # Excluded by ME
 *.data
-broker*.subm
+broker-info.subm*
 
 # Binaries for programs and plugins
 *.exe
