@@ -142,6 +142,6 @@ Go to [Cleaning up lab](#cleaning-up-lab) to keep everything clean.
 
 [Top](#quick-start-a-use-case-using-docker)
 
-## See you soon
+## That's all folks
 
-***That's all folks!!!***
+***See you soon!!!***
