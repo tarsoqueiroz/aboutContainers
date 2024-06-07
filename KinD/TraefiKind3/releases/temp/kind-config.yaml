@@ -16,21 +16,26 @@ nodes:
         hostPort: 80
         protocol: TCP
         # listenAddress: "0.0.0.0" # Optional, defaults to "0.0.0.0"
-      - containerPort: 8080
-        hostPort: 8080
-        protocol: TCP
-      - containerPort: 8888
-        hostPort: 8888
-        protocol: TCP
       - containerPort: 443
         hostPort: 443
         protocol: TCP
+        # listenAddress: "0.0.0.0" # Optional, defaults to "0.0.0.0"
+      - containerPort: 8080
+        hostPort: 8080
+        protocol: TCP
+        # listenAddress: "0.0.0.0" # Optional, defaults to "0.0.0.0"
+      - containerPort: 8888
+        hostPort: 8888
+        protocol: TCP
+        # listenAddress: "0.0.0.0" # Optional, defaults to "0.0.0.0"
       - containerPort: 8443
         hostPort: 8443
         protocol: TCP
+        # listenAddress: "0.0.0.0" # Optional, defaults to "0.0.0.0"
       - containerPort: 9090
         hostPort: 9090
         protocol: TCP
+        # listenAddress: "0.0.0.0" # Optional, defaults to "0.0.0.0"
   - role: worker
-  # - role: worker
-  # - role: worker
+  - role: worker
+  - role: worker

@@ -18,22 +18,18 @@ spec:
       serviceAccountName: traefik-account
       containers:
         - name: traefik
+          # image: traefik:v3.0.0-rc1
           image: traefik:v3.0.1
           resources:
-            requests:
-              cpu: "250m"
-              memory: "128Mi"
             limits:
               cpu: "500m"
-              memory: "1024Mi"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "64Mi"
           args:
             - --api.insecure
             - --providers.kubernetesingress
-            # - --entryPoints.dashboard.address=:8888
-            - --entryPoints.web.address=:80
-            - --entryPoints.websec.address=:443
-            - --entryPoints.websechigh.address=:8443
-            - --entryPoints.web9090.address=:9090
 
             # Enable tracing
             - --tracing=true
@@ -45,19 +41,19 @@ spec:
           ports:
             - name: web
               containerPort: 80
-              hostPort: 80
-            - name: dashboard
-              containerPort: 8080
-              hostPort: 8080
+              # hostPort: 80
             - name: websec
               containerPort: 443
-              hostPort: 443
-            - name: websechigh
+              # hostPort: 443
+            - name: webhigh
+              containerPort: 8080
+              # hostPort: 8080
+            - name: dashboard
+              containerPort: 8888
+              # hostPort: 8888
+            - name: webhighsec
               containerPort: 8443
-              hostPort: 8443
-            - name: web9090
-              containerPort: 9090
-              hostPort: 9090
+              # hostPort: 8443
       nodeSelector:
         ingress-ready: "true"
       tolerations:

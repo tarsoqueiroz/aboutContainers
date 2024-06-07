@@ -1,0 +1,72 @@
+---
+# Traefik Dashboard Service
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-dashboard-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  # We use NodePort instead of LoadBalancer to be able to access externally when using kind
+  # see https://kind.sigs.k8s.io/docs/user/ingress
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: dashboard
+  selector:
+    app: traefik
+---
+# Web Ingress on 80
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-web-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+    - targetPort: web
+      port: 80
+  selector:
+    app: traefik
+---
+# Web Ingress on 443
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-websec-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+    - targetPort: websec
+      port: 443
+  selector:
+    app: traefik
+---
+# Web Ingress on 8080
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-webhigh-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+    - targetPort: webhigh
+      port: 8080
+  selector:
+    app: traefik
+---
+# Web Ingress on 8443
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-webhighsec-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+    - targetPort: webhighsec
+      port: 8443
+  selector:
+    app: traefik

@@ -2,5 +2,5 @@
 
 set +e
 
-echo "Deploying sample application"
+echo "Deploying sample app:"
 envsubst < httpbin.yaml | kubectl apply -f -

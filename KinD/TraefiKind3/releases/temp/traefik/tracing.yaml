@@ -18,12 +18,19 @@ spec:
       containers:
         - name: zipkin
           image: openzipkin/zipkin
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "64Mi"
           ports:
             - name: web
               containerPort: 9411
 ---
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: zipkin
   namespace: ${TRAEFIK_NAMESPACE}
@@ -35,8 +42,8 @@ spec:
   selector:
     app: zipkin
 ---
-apiVersion: networking.k8s.io/v1
 kind: Ingress
+apiVersion: networking.k8s.io/v1
 metadata:
   name: zipkin-ingress
   namespace: ${TRAEFIK_NAMESPACE}
@@ -52,8 +59,8 @@ spec:
                 port:
                   name: web
 ---
-apiVersion: v1
 kind: ConfigMap
+apiVersion: v1
 metadata:
   name: otelcollector-config
   namespace: ${TRAEFIK_NAMESPACE}
@@ -99,6 +106,13 @@ spec:
       containers:
         - name: otelcollector
           image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.94.0
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "64Mi"
           command:
             - "/otelcol"
             - "--config=/conf/config.yaml"
@@ -113,8 +127,8 @@ spec:
           configMap:
             name: otelcollector-config
 ---
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: otelcollector
   namespace: ${TRAEFIK_NAMESPACE}
