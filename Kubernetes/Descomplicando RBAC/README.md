@@ -4,7 +4,7 @@
 
 > Source: `https://www.linuxtips.io/blog/descomplicando-rbac-no-kubernetes`
 >
-> Youtube: 
+> Youtube: Nop
 
 ## RBAC: O que é RBAC?
 
@@ -14,91 +14,125 @@ No Kubernetes é super importante você entender como funciona o RBAC, pois é a
 
 ## Primeiro exemplo de RBAC
 
-...
-...
-
-> **TÔ AQUI!!!**
-
-...
-...
-
 Vamos imaginar que precisamos dar acesso ao cluster a uma pessoa desenvolvedora da nossa empresa, mas não queremos que ela tenha acesso a todos os recursos do cluster, apenas aos recursos que ela precisa para desenvolver a sua aplicação.
 
 Para isso, vamos criar um usuário chamado developer e vamos dar acesso a ele para criar e administrar os Pods no namespace dev.
 
 Temos duas formas de fazer isso, a primeira e mais antiga é através da criação de um Token de acesso, e a que iremos abordar na sequência é através da criação de um certificado. O Token é mais utilizado para dar acesso a um ServiceAccount, que é um usuário que não é humano. Por exemplo, podemos ter um ServiceAccount para o Prometheus poder coletar métricas do cluster, ou um ServiceAccount para o Fluentd poder coletar os logs do cluster. E podemos ter um User para um usuário humano, como por exemplo, o usuário developer que iremos criar.
 
-Criando um Usuário para acesso ao cluster
+## Montando o ambiente
+
+Para o nosso laboratório vamos criar um cluster local com o Kind e com uma pasta temporária (`./temp.data`) para armazenar alguns dados e arquivos que iremos gerar durante nosso estudo.
+
+```sh
+make build
+```
+
+## Criando um Usuário para acesso ao cluster
+
 Bem, agora que já sabemos quais serão as permissões do nosso novo usuário, já podemos iniciar a sua criação.
 
 Primeira coisa que precisamos é criar uma chave privada para o nosso usuário. Para isso, vamos utilizar o comando openssl:
 
-openssl genrsa -out developer.key 2048
+```sh
+openssl genrsa -out ./temp.data/developer.key 2048
+```
+
 Com o comando acima estamos criando uma chave privadas de 2048 bits e salvando ela no arquivo developer.key. O parametro genrsa indica que queremos gerar uma chave privada, e o parametro -out indica o nome do arquivo que queremos salvar a chave.
 
 Com a chave criada, precisa agora criar a um CSR, ou Certificate Signing Request, que é um arquivo que contém o certificado que criamos, e que será enviado para o Kubernetes assinar e gerar o certificado final.
 
-openssl req -new -key developer.key -out developer.csr -subj "/CN=developer"
+```sh
+openssl req -new -key ./temp.data/developer.key -out ./temp.data/developer.csr -subj "/CN=developer"
+```
+
 No comando acima estamos criando um certificado para o nosso usuário, utilizando a chave privada que criamos anteriormente. O parametro req indica que queremos criar um certificado, o parametro -key indica o nome do arquivo da chave privada que queremos utilizar, o parametro -out indica o nome do arquivo que queremos salvar o certificado, e o parametro -subj indica o nome do usuário que queremos criar.
 
 Pronto, agora com os dois arquivos em mãos, já podemos iniciar a criação do nosso usuário no cluster, mas antes, precisamos criar um CSR, ou Certificate Signing Request, que é um arquivo que contém o certificado que criamos, e que será enviado para o Kubernetes assinar e gerar o certificado final.
 
 Mas para que possamos criar o arquivo, precisamos antes ter o conteúdo do certificado em base64, para isso, vamos utilizar o comando base64:
 
-cat developer.csr | base64 | tr -d '\n'
+```sh
+cat ./temp.data/developer.csr | base64 | tr -d '\n'
+```
+
 Com o comando acima estamos lendo o conteúdo do arquivo developer.csr, convertendo ele para base64, e removendo a quebra de linha.
 
 O conteúdo do certificado em base64 será algo parecido com isso:
 
-LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1dUQ0NBVUVDQVFBd0ZERVNNQkFHQTFVRUF3d0paR1YyWld4dmNHVnlNSUlCSWpBTkJna3Foa2lHOXcwQgpBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF5OFN1Y25JWjJjL0k3dXQvS0EwSXhvN0RZa0hkSUxrbmxZOWNwMkVlClJJSzRzU1NzZnA2SzBhbWZlYWtRaEdXT2NWMmFaeEtTM0xrNERNNlVmb3ZucEQvOXpidDl0em44UUpMTDZxREEKeHFxbzVSbEt4QnpEV3lQT2JkUStMWnI2VjFQZ2wxYms2c3o0d2lWek52a2NhT0doSDdlSU90QVI0U096MjNJdAowZ0xiZHBDalFITFIvNlFuSXBjY3h3bDBGa1FtL3RVeHdRa0x1NXNpSTNKOGRiUkQwcnlFdGxReWQ5elhLM29rCjBRbVpLZDVpV1p2aDU3R1lrV1kweGMzV0J5aXY5OURQYVE3WTB4MFNaWGlPL2w0bTRzazJ3RjYwa2dUa1NJZmQKdEMxN2Y1ZzVWVzhOTW02amNpMFRXeDk5Z0REcmpHanJpaExHeTBLUWdRa2p3d0lEQVFBQm9BQXdEUVlKS29aSQpodmNOQVFFTEJRQURnZ0VCQUllZVdLbjAwZkk5ekw3MUVQNFNpOUVxVUFNUnBYT0dkT1Aybm8rMTV2VzJ5WmpwCmhsTWpVTjMraVZubkh2QVBvWFVLKzBYdXdmaklHMjBQTjA5UEd1alU4aUFIeVZRbFZRS0VaOWpRcENXYnQybngKVlZhYUw0N0tWMUpXMnF3M1YybmNVNkhlNHdtQzVqUE9vU29vVGtrVlF5Uml4bkcyVVQrejI3M2xpaTY3RkFXegpBZ1QvczlVa3gvS1dxRjIzczVuUk9TTlZUS2xCSG5LMU40YkN6RHBqZnN5V01GUXdnazhxRCtlOXp0cTh2c1VhCi9Say9jUWNyS2wxVDMyM0xDcG1TekhnM3hDdjFqdzJUVFFINm1yWlBBa2doa2R2YlNnalp6Y1JRZWNqSEpNeTMKTzFJQXJ6V3pWbU1hRTJqeGhUV1JwbkJkcVZjZERTUERiNkNXaktVPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K%
-Lembre-se de remover a quebra de linha do final do arquivo, representada pelo %.
+```text
+LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1dUQ0NBVUVDQVFBd0ZERVNNQkFHQTFVRUF3d0paR1YyWld4dmNHVnlNSUlCSWpBTkJna3Foa2lHOXcwQgpBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF5Y01OYWp0Qnc1Y0ZCYURGQ3cyMEFrb0prYlZ0VDBnaWw3UERIaisrCjJwL1hrd1dDNGZnU2J4dURqWE9iRWNPUmFkTXhOdzNmb3hKU3V0MzZsQlJFdHRRRDBUVzJ2UjZKZHRVZENLQ1MKQlc3MDFzUlhoRjhtUzR0cUVjK0dhRDY0aFB6ZmUrQWR1ZHJxUjhKRENtL2dPaUR4STBLZ1VBTkRRVGdQNXlDWQpPU2JNNzRTbVU0UWcrTXBtYVI1Wmp2K3l5MDBjRzZsS09ySFZ3YURidzdqZnRRc1g5Z1BMSDVMVFArQVNNMDdiCld6cThBSms1ZkRrQkg5QUtXa3VRNlZ6OVY1R3Jrb05HZUtSaGJHWVZSdzFBYTRhQk8zR1NYZjZBbnM2RzBUd0oKRXQzblp6ams1K0RsaGRvb2JMVzRKT3dMT1VNcDZZWVNQWkVFVmRYeGhPVUZ4UUlEQVFBQm9BQXdEUVlKS29aSQpodmNOQVFFTEJRQURnZ0VCQUhLRTJ0dmVocXQrKzQ1YTZOY25yTGRpMDNUVkNNREtTanZvcU53Mk9jK3J3UHozCm1tSGlFbVc3QlA4QzNGbE84R1Z1elk5eksxdEdEby82Nnl6eW54d0xSRHRFSTBZYWFoZnhKRFJQMmVxTVlwZ1UKRDA2MnNBY0t6Ky8xMWxDWTUxMUJWTStQYVBFUVBJSVViWkhoUkc5bHJaaEZFQUFORWd2dktHMWJIMklrTGtjSAoySFEyTURzWFhNa3ZNUEU4ZnI2b0dWcFpJMVJlTHE4SCtxUXM3cmFtdnV4cTBYSzlnS0RTeHBpMURrR3JXN2FXCm1VSVhmTnczY3lKTzlNSkhmOGd1QmZRZlQ0TmU2Y2lEYWlCZ0NGTDU3bVBRL0FhQlFLU2FGN2tsRVU2c2xkay8KeU1XMHc5NlhmdWh5V3RWUnlRZEZJRjljSkdhd3lKVldMTEFKNm1jPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K%
+```
 
-Agora que já temos o conteúdo do certificado em base64, copie ele e cole no arquivo developer.yaml que vamos criar agora:
+Lembre-se de remover a quebra de linha do final do arquivo, representada pelo % se existir.
 
+Agora que já temos o conteúdo do certificado em base64, vamos gerar o manifesto com base no arquivo `./resources/developer.yaml` que vamos criar com o comando que segue:
+
+```sh
+DEVELOPER_BASE64=$(cat ./temp.data/developer.csr | base64 | tr -d '\n') envsubst < ./resources/developer.yaml > ./temp.data/developer.yaml
+```
+
+Verifique o arquivo `./temp.data/developer.yaml` que deverá ser parecido com o que segue:
+
+```yaml
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
- name: developer
+  name: developer
 spec:
- request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1dUQ0NBVUVDQVFBd0ZERVNNQkFHQTFVRUF3d0paR1YyWld4dmNHVnlNSUlCSWpBTkJna3Foa2lHOXcwQgpBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF5OFN1Y25JWjJjL0k3dXQvS0EwSXhvN0RZa0hkSUxrbmxZOWNwMkVlClJJSzRzU1NzZnA2SzBhbWZlYWtRaEdXT2NWMmFaeEtTM0xrNERNNlVmb3ZucEQvOXpidDl0em44UUpMTDZxREEKeHFxbzVSbEt4QnpEV3lQT2JkUStMWnI2VjFQZ2wxYms2c3o0d2lWek52a2NhT0doSDdlSU90QVI0U096MjNJdAowZ0xiZHBDalFITFIvNlFuSXBjY3h3bDBGa1FtL3RVeHdRa0x1NXNpSTNKOGRiUkQwcnlFdGxReWQ5elhLM29rCjBRbVpLZDVpV1p2aDU3R1lrV1kweGMzV0J5aXY5OURQYVE3WTB4MFNaWGlPL2w0bTRzazJ3RjYwa2dUa1NJZmQKdEMxN2Y1ZzVWVzhOTW02amNpMFRXeDk5Z0REcmpHanJpaExHeTBLUWdRa2p3d0lEQVFBQm9BQXdEUVlKS29aSQpodmNOQVFFTEJRQURnZ0VCQUllZVdLbjAwZkk5ekw3MUVQNFNpOUVxVUFNUnBYT0dkT1Aybm8rMTV2VzJ5WmpwCmhsTWpVTjMraVZubkh2QVBvWFVLKzBYdXdmaklHMjBQTjA5UEd1alU4aUFIeVZRbFZRS0VaOWpRcENXYnQybngKVlZhYUw0N0tWMUpXMnF3M1YybmNVNkhlNHdtQzVqUE9vU29vVGtrVlF5Uml4bkcyVVQrejI3M2xpaTY3RkFXegpBZ1QvczlVa3gvS1dxRjIzczVuUk9TTlZUS2xCSG5LMU40YkN6RHBqZnN5V01GUXdnazhxRCtlOXp0cTh2c1VhCi9Say9jUWNyS2wxVDMyM0xDcG1TekhnM3hDdjFqdzJUVFFINm1yWlBBa2doa2R2YlNnalp6Y1JRZWNqSEpNeTMKTzFJQXJ6V3pWbU1hRTJqeGhUV1JwbkJkcVZjZERTUERiNkNXaktVPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K 
- signerName: kubernetes.io/kube-apiserver-client
- expirationSeconds: 31536000 # 1 year
- usages:
- - client auth
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1dUQ0NBVUVDQVFBd0ZERVNNQkFHQTFVRUF3d0paR1YyWld4dmNHVnlNSUlCSWpBTkJna3Foa2lHOXcwQgpBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF5Y01OYWp0Qnc1Y0ZCYURGQ3cyMEFrb0prYlZ0VDBnaWw3UERIaisrCjJwL1hrd1dDNGZnU2J4dURqWE9iRWNPUmFkTXhOdzNmb3hKU3V0MzZsQlJFdHRRRDBUVzJ2UjZKZHRVZENLQ1MKQlc3MDFzUlhoRjhtUzR0cUVjK0dhRDY0aFB6ZmUrQWR1ZHJxUjhKRENtL2dPaUR4STBLZ1VBTkRRVGdQNXlDWQpPU2JNNzRTbVU0UWcrTXBtYVI1Wmp2K3l5MDBjRzZsS09ySFZ3YURidzdqZnRRc1g5Z1BMSDVMVFArQVNNMDdiCld6cThBSms1ZkRrQkg5QUtXa3VRNlZ6OVY1R3Jrb05HZUtSaGJHWVZSdzFBYTRhQk8zR1NYZjZBbnM2RzBUd0oKRXQzblp6ams1K0RsaGRvb2JMVzRKT3dMT1VNcDZZWVNQWkVFVmRYeGhPVUZ4UUlEQVFBQm9BQXdEUVlKS29aSQpodmNOQVFFTEJRQURnZ0VCQUhLRTJ0dmVocXQrKzQ1YTZOY25yTGRpMDNUVkNNREtTanZvcU53Mk9jK3J3UHozCm1tSGlFbVc3QlA4QzNGbE84R1Z1elk5eksxdEdEby82Nnl6eW54d0xSRHRFSTBZYWFoZnhKRFJQMmVxTVlwZ1UKRDA2MnNBY0t6Ky8xMWxDWTUxMUJWTStQYVBFUVBJSVViWkhoUkc5bHJaaEZFQUFORWd2dktHMWJIMklrTGtjSAoySFEyTURzWFhNa3ZNUEU4ZnI2b0dWcFpJMVJlTHE4SCtxUXM3cmFtdnV4cTBYSzlnS0RTeHBpMURrR3JXN2FXCm1VSVhmTnczY3lKTzlNSkhmOGd1QmZRZlQ0TmU2Y2lEYWlCZ0NGTDU3bVBRL0FhQlFLU2FGN2tsRVU2c2xkay8KeU1XMHc5NlhmdWh5V3RWUnlRZEZJRjljSkdhd3lKVldMTEFKNm1jPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K
+  signerName: kubernetes.io/kube-apiserver-client
+  expirationSeconds: 31536000 # 1 year
+  usages:
+  - client auth
+```
+
 No arquivo acima, estamos definindo as seguintes informações:
 
-apiVersion: Versão da API que estamos utilizando para criar o nosso usuário.
-kind: Tipo do recurso que estamos criando, no caso, um CSR.
-metadata.name: Nome do nosso usuário.
-spec.request: Conteúdo do certificado em base64.
-spec.signerName: Nome do assinador do certificado, que no caso é o kube-apiserver, que será o responsável por assinar o nosso certificado.
-spec.expirationSeconds: Tempo de expiração do certificado, que no caso é de 1 ano.
-spec.usages: Tipo de uso do certificado, que no caso é client auth.
+- **`apiVersion`**: Versão da API que estamos utilizando para criar o nosso usuário.
+- **`kind`**: Tipo do recurso que estamos criando, no caso, um CSR.
+- **`metadata.name`**: Nome do nosso usuário.
+- **`spec.request`**: Conteúdo do certificado em base64.
+- **`spec.signerName`**: Nome do assinador do certificado, que no caso é o kube-apiserver, que será o responsável por assinar o nosso certificado.
+- **`spec.expirationSeconds`**: Tempo de expiração do certificado, que no caso é de 1 ano.
+- **`spec.usages`**: Tipo de uso do certificado, que no caso é client auth.
+
 Agora que já temos o nosso arquivo criado, vamos aplicar ele no cluster:
 
-kubectl apply -f developer.yaml
+```sh
+kubectl apply -f ./temp.data/developer.yaml
+```
+
 Vamos listar os CSR's do cluster para ver o status do nosso usuário:
 
+```sh
 kubectl get csr
+```
+
 O resultado será algo parecido com isso:
 
-NAME        AGE   SIGNERNAME                                    REQUESTOR                 REQUESTEDDURATION   CONDITION
-csr-4zd8k   15m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-68wsv   15m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-jkm8t   15m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-r2hcr   15m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-x52kj   15m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-developer   3s    kubernetes.io/kube-apiserver-client           kubernetes-admin          365d                Pending
+```text
+NAME        AGE   SIGNERNAME                                    REQUESTOR                        REQUESTEDDURATION   CONDITION
+csr-jm6bc   36m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef          <none>              Approved,Issued
+csr-w2v4k   37m   kubernetes.io/kube-apiserver-client-kubelet   system:node:rbac-control-plane   <none>              Approved,Issued
+csr-w9jsn   36m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef          <none>              Approved,Issued
+developer   21s   kubernetes.io/kube-apiserver-client           kubernetes-admin                 365d                Pending
+```
+
 Perceba que o nosso usuário está com o status Pending, isso porque o kube-apiserver ainda não assinou o nosso certificado. Você pode acompanhar o status do seu usuário através do comando:
 
+```sh
 kubectl describe csr developer
+```
+
 O resultado será algo parecido com isso:
 
+```sh
 Name:         developer
 Labels:       <none>
-Annotations:  kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"certificates.k8s.io/v1","kind":"CertificateSigningRequest","metadata":{"annotations":{},"name":"developer"},"spec":{"expirationSeconds":31536000,"request":"LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1dUQ0NBVUVDQVFBd0ZERVNNQkFHQTFVRUF3d0paR1YyWld4dmNHVnlNSUlCSWpBTkJna3Foa2lHOXcwQgpBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF5OFN1Y25JWjJjL0k3dXQvS0EwSXhvN0RZa0hkSUxrbmxZOWNwMkVlClJJSzRzU1NzZnA2SzBhbWZlYWtRaEdXT2NWMmFaeEtTM0xrNERNNlVmb3ZucEQvOXpidDl0em44UUpMTDZxREEKeHFxbzVSbEt4QnpEV3lQT2JkUStMWnI2VjFQZ2wxYms2c3o0d2lWek52a2NhT0doSDdlSU90QVI0U096MjNJdAowZ0xiZHBDalFITFIvNlFuSXBjY3h3bDBGa1FtL3RVeHdRa0x1NXNpSTNKOGRiUkQwcnlFdGxReWQ5elhLM29rCjBRbVpLZDVpV1p2aDU3R1lrV1kweGMzV0J5aXY5OURQYVE3WTB4MFNaWGlPL2w0bTRzazJ3RjYwa2dUa1NJZmQKdEMxN2Y1ZzVWVzhOTW02amNpMFRXeDk5Z0REcmpHanJpaExHeTBLUWdRa2p3d0lEQVFBQm9BQXdEUVlKS29aSQpodmNOQVFFTEJRQURnZ0VCQUllZVdLbjAwZkk5ekw3MUVQNFNpOUVxVUFNUnBYT0dkT1Aybm8rMTV2VzJ5WmpwCmhsTWpVTjMraVZubkh2QVBvWFVLKzBYdXdmaklHMjBQTjA5UEd1alU4aUFIeVZRbFZRS0VaOWpRcENXYnQybngKVlZhYUw0N0tWMUpXMnF3M1YybmNVNkhlNHdtQzVqUE9vU29vVGtrVlF5Uml4bkcyVVQrejI3M2xpaTY3RkFXegpBZ1QvczlVa3gvS1dxRjIzczVuUk9TTlZUS2xCSG5LMU40YkN6RHBqZnN5V01GUXdnazhxRCtlOXp0cTh2c1VhCi9Say9jUWNyS2wxVDMyM0xDcG1TekhnM3hDdjFqdzJUVFFINm1yWlBBa2doa2R2YlNnalp6Y1JRZWNqSEpNeTMKTzFJQXJ6V3pWbU1hRTJqeGhUV1JwbkJkcVZjZERTUERiNkNXaktVPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K","signerName":"kubernetes.io/kube-apiserver-client","usages":["client auth"]}}
+Annotations:  kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"certificates.k8s.io/v1","kind":"CertificateSigningRequest","metadata":{"annotations":{},"name":"developer"},"spec":{"expirationSeconds":31536000,"request":"LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1dUQ0NBVUVDQVFBd0ZERVNNQkFHQTFVRUF3d0paR1YyWld4dmNHVnlNSUlCSWpBTkJna3Foa2lHOXcwQgpBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF5Y01OYWp0Qnc1Y0ZCYURGQ3cyMEFrb0prYlZ0VDBnaWw3UERIaisrCjJwL1hrd1dDNGZnU2J4dURqWE9iRWNPUmFkTXhOdzNmb3hKU3V0MzZsQlJFdHRRRDBUVzJ2UjZKZHRVZENLQ1MKQlc3MDFzUlhoRjhtUzR0cUVjK0dhRDY0aFB6ZmUrQWR1ZHJxUjhKRENtL2dPaUR4STBLZ1VBTkRRVGdQNXlDWQpPU2JNNzRTbVU0UWcrTXBtYVI1Wmp2K3l5MDBjRzZsS09ySFZ3YURidzdqZnRRc1g5Z1BMSDVMVFArQVNNMDdiCld6cThBSms1ZkRrQkg5QUtXa3VRNlZ6OVY1R3Jrb05HZUtSaGJHWVZSdzFBYTRhQk8zR1NYZjZBbnM2RzBUd0oKRXQzblp6ams1K0RsaGRvb2JMVzRKT3dMT1VNcDZZWVNQWkVFVmRYeGhPVUZ4UUlEQVFBQm9BQXdEUVlKS29aSQpodmNOQVFFTEJRQURnZ0VCQUhLRTJ0dmVocXQrKzQ1YTZOY25yTGRpMDNUVkNNREtTanZvcU53Mk9jK3J3UHozCm1tSGlFbVc3QlA4QzNGbE84R1Z1elk5eksxdEdEby82Nnl6eW54d0xSRHRFSTBZYWFoZnhKRFJQMmVxTVlwZ1UKRDA2MnNBY0t6Ky8xMWxDWTUxMUJWTStQYVBFUVBJSVViWkhoUkc5bHJaaEZFQUFORWd2dktHMWJIMklrTGtjSAoySFEyTURzWFhNa3ZNUEU4ZnI2b0dWcFpJMVJlTHE4SCtxUXM3cmFtdnV4cTBYSzlnS0RTeHBpMURrR3JXN2FXCm1VSVhmTnczY3lKTzlNSkhmOGd1QmZRZlQ0TmU2Y2lEYWlCZ0NGTDU3bVBRL0FhQlFLU2FGN2tsRVU2c2xkay8KeU1XMHc5NlhmdWh5V3RWUnlRZEZJRjljSkdhd3lKVldMTEFKNm1jPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K","signerName":"kubernetes.io/kube-apiserver-client","usages":["client auth"]}}
 
-CreationTimestamp:   Wed, 31 Jan 2024 11:52:24 +0100
+CreationTimestamp:   Mon, 10 Jun 2024 13:17:09 -0300
 Requesting User:     kubernetes-admin
 Signer:              kubernetes.io/kube-apiserver-client
 Requested Duration:  365d
@@ -107,50 +141,72 @@ Subject:
          Common Name:    developer
          Serial Number:  
 Events:  <none>
+```
+
 Tudo certo até aqui, agora precisamos assinar o nosso certificado, para isso, vamos utilizar o comando kubectl certificate approve:
 
+```sh
 kubectl certificate approve developer
+```
+
 Agora vamos listar os CSR's do cluster novamente:
 
+```sh
 kubectl get csr
+```
+
 O resultado será algo parecido com isso:
 
-NAME        AGE   SIGNERNAME                                    REQUESTOR                 REQUESTEDDURATION   CONDITION
-csr-4zd8k   17m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-68wsv   17m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-jkm8t   17m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-r2hcr   17m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-x52kj   16m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-developer   88s   kubernetes.io/kube-apiserver-client           kubernetes-admin          365d                Approved,Issued
+```sh
+NAME        AGE     SIGNERNAME                                    REQUESTOR                        REQUESTEDDURATION   CONDITION
+csr-jm6bc   42m     kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef          <none>              Approved,Issued
+csr-w2v4k   43m     kubernetes.io/kube-apiserver-client-kubelet   system:node:rbac-control-plane   <none>              Approved,Issued
+csr-w9jsn   42m     kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef          <none>              Approved,Issued
+developer   6m18s   kubernetes.io/kube-apiserver-client           kubernetes-admin                 365d                Approved,Issued
+```
+
 Pronto, o nosso certificado foi assinado com sucesso, agora podemos pegar o certificado do nosso usuário e salvar em um arquivo, para isso, vamos utilizar o comando kubectl get csr:
 
-kubectl get csr developer -o jsonpath='{.status.certificate}' | base64 --decode > developer.crt
+```sh
+kubectl get csr developer -o jsonpath='{.status.certificate}' | base64 --decode > ./temp.data/developer.crt
+```
+
 No comando acima, estamos pegando o certificado do nosso usuário, convertendo ele para base64, e salvando ele no arquivo developer.crt.
 
 Para pegar o certificado, estamos usando o parametro -o jsonpath='{.status.certificate}', para que o comando retorne apenas o certificado do usuário, e não todas as informações do CSR.
 
 Você pode conferir o conteúdo do certificado através do comando:
 
-cat developer.crt
+```sh
+cat ./temp.data/developer.crt
+```
+
 Pronto, agora temos o nosso certificado final criado, e podemos utilizá-lo para acessar o cluster, mas antes precisamos definir o que o nosso usuário pode fazer no cluster.
 
-Criando um Role para o nosso usuário
+## Criando um Role para o nosso usuário
+
 Quando criamos um novo Usuário ou ServiceAccount no Kubernetes, ele não tem acesso a nada no cluster, para que ele possa acessar os recursos do cluster, precisamos criar um Role e associar ele ao usuário.
 
 A definição da Role consiste em um arquivo onde definimos quais são as permissões que o usuário terá no cluster, e para quais recursos ele terá acesso. Dentro da Role é onde definimos:
 
-Qual é o namespace que o usuário terá acesso.
-Quais apiGroups o usuário terá acesso.
-Quais recursos o usuário terá acesso.
-Quais verbos o usuário terá acesso.
-apiGroups
+- Qual é o namespace que o usuário terá acesso.
+- Quais apiGroups o usuário terá acesso.
+- Quais recursos o usuário terá acesso.
+- Quais verbos o usuário terá acesso.
+
+## apiGroups
+
 São os grupos de recursos do Kubernetes, que são divididos em core e named, você pode consultar todos os grupos de recursos do Kubernetes através do comando kubectl api-resources.
 
 Vamos listar os grupos de recursos do Kubernetes:
 
+```sh
 kubectl api-resources
+```
+
 A lista é longa, mas o resultado será algo parecido com isso:
 
+```sh
 NAME                              SHORTNAMES   APIVERSION                             NAMESPACED   KIND
 bindings                                       v1                                     true         Binding
 componentstatuses                 cs           v1                                     false        ComponentStatus
@@ -207,38 +263,52 @@ csinodes                                       storage.k8s.io/v1                
 csistoragecapacities                           storage.k8s.io/v1                      true         CSIStorageCapacity
 storageclasses                    sc           storage.k8s.io/v1                      false        StorageClass
 volumeattachments                              storage.k8s.io/v1                      false        VolumeAttachment
+```
+
 Onde a primeira coluna é o nome do recurso, a segunda coluna é o nome abreviado do recurso, a terceira coluna é a versão da API que o recurso está, a quarta coluna indica se o recurso é ou não Namespaced, e a quinta coluna é o tipo do recurso.
 
 Vamos dar uma olhada em um recurso específico, por exemplo, o recurso pods:
 
+```sh
 kubectl api-resources | grep pods
+```
+
 O resultado será algo parecido com isso:
 
+```sh
 NAME       SHORTNAMES   APIVERSION     NAMESPACED   KIND
 pods       po           v1             true         Pod
+```
+
 Onde:
 
-NAME: Nome do recurso.
-SHORTNAMES: Nome abreviado do recurso.
-APIVERSION: Versão da API que o recurso está.
-NAMESPACED: Indica se o recurso é ou não Namespaced.
-KIND: Tipo do recurso.
+- **NAME**: Nome do recurso.
+- **SHORTNAMES**: Nome abreviado do recurso.
+- **APIVERSION**: Versão da API que o recurso está.
+- **NAMESPACED**: Indica se o recurso é ou não Namespaced.
+- **KIND**: Tipo do recurso.
+
 Mas o que é um recurso Namespaced? Um recurso Namespaced é um recurso que pode ser criado dentro de um namespace, por exemplo, um Pod, um Deployment, um Service, etc. Já um recurso que não é Namespaced, é um recurso que não pode ser criado dentro de um namespace, por exemplo, um Node, um PersistentVolume, um ClusterRole, etc. Fácil né?
 
 Agora, como eu sei qual é o apiGroup de um recurso? Bem, o apiGroup de um recurso é o nome do grupo de recursos que ele pertence, por exemplo, o recurso pods pertence ao grupo de recursos core, e o recurso deployments pertence ao grupo de recursos apps. Quando o recurso é do tipo core ele não precisa ser especificado no apiGroup, pois o Kubernetes já entende que ele pertence ao grupo de recursos core, esse é o famoso apiVersion: v1.
 
 Ja o apiVersion: apps/v1 indica que o recurso pertence ao grupo de recursos apps, e a versão da API é a v1. No apps temos recursos importantes como o deployments, replicasets, daemonsets, statefulsets, etc.
 
-Recursos
+## Recursos
+
 São os recursos do Kubernetes, que são divididos em core e named, você pode consultar todos os recursos do Kubernetes através do comando kubectl api-resources.
 
 Os recursos chamados de core são os recursos que já vem instalados no Kubernetes, e os recursos chamados de named são os recursos que são instalados através de Custom Resource Definitions, ou CRD's, como por exemplo o ServiceMonitor do Prometheus.
 
 Vamos listar os recursos do Kubernetes:
 
+```sh
 kubectl api-resources --namespaced=false
+```
+
 O resultado será algo parecido com isso:
 
+```sh
 NAME                              SHORTNAMES   APIVERSION                             NAMESPACED   KIND
 componentstatuses                 cs           v1                                     false        ComponentStatus
 namespaces                        ns           v1                                     false        Namespace
@@ -264,18 +334,25 @@ csidrivers                                     storage.k8s.io/v1                
 csinodes                                       storage.k8s.io/v1                      false        CSINode
 storageclasses                    sc           storage.k8s.io/v1                      false        StorageClass
 volumeattachments                              storage.k8s.io/v1                      false        VolumeAttachment
+```
+
 Assim podemos saber quais são os recursos que são nativos do Kubernetes, e quais são os recursos que são instalados através de CRD's, que são os Custom Resources Definitions.
 
 Então o nome do recurso é o nome que utilizamos para criar o recurso, por exemplo, pods, deployments, services, etc.
 
-Verbos
+## Verbos
+
 Os verbos definem o que o usuário pode fazer com o recurso, por exemplo, o usuário pode criar, listar, atualizar, deletar, etc.
 
 Para que você possa visualizar os verbos que podem ser utilizados, vamos utilizar o comando kubectl api-resources com o parametro -o wide:
 
+```sh
 kubectl api-resources -o wide
+```
+
 O resultado será algo parecido com isso:
 
+```sh
 NAME                              SHORTNAMES   APIVERSION                             NAMESPACED   KIND                             VERBS                                                        CATEGORIES
 bindings                                       v1                                     true         Binding                          create                                                       
 componentstatuses                 cs           v1                                     false        ComponentStatus                  get,list                                                     
@@ -331,71 +408,98 @@ csidrivers                                     storage.k8s.io/v1                
 csinodes                                       storage.k8s.io/v1                      false        CSINode                          create,delete,deletecollection,get,list,patch,update,watch   
 csistoragecapacities                           storage.k8s.io/v1                      true         CSIStorageCapacity               create,delete,deletecollection,get,list,patch,update,watch   
 storageclasses                    sc           storage.k8s.io/v1                      false        StorageClass                     create,delete,deletecollection,get,list,patch,update,watch   
-volumeattachments                              storage.k8s.io/v1                      false        VolumeAttachment                 create,delete,deletecollection,get,list,patch,update,watch  
-Perceba que agora temos uma nova coluna, a coluna VERBS, onde temos todos os verbos que podem ser utilizados com o recurso, e a coluna CATEGORIES, onde temos a categoria do recurso. Mas o nosso foco aqui é nos verbos, então vamos dar uma olhada neles.
+volumeattachments                              storage.k8s.io/v1                      false        VolumeAttachment                 create,delete,deletecollection,get,list,patch,update,watch   
+```
+
+Perceba que agora temos uma nova coluna, a coluna `VERBS`, onde temos todos os verbos que podem ser utilizados com o recurso, e a coluna `CATEGORIES`, onde temos a categoria do recurso. Mas o nosso foco aqui é nos verbos, então vamos dar uma olhada neles.
 
 Os verbos são divididos em:
 
-create: Permite que o usuário crie um recurso.
-delete: Permite que o usuário delete um recurso.
-deletecollection: Permite que o usuário delete uma coleção de recursos.
-get: Permite que o usuário obtenha um recurso.
-list: Permite que o usuário liste os recursos.
-patch: Permite que o usuário atualize um recurso.
-update: Permite que o usuário atualize um recurso.
-watch: Permite que o usuário acompanhe as alterações de um recurso.
+- **`create`**: Permite que o usuário crie um recurso.
+- **`delete`**: Permite que o usuário delete um recurso.
+- **`deletecollection`**: Permite que o usuário delete uma coleção de recursos.
+- **`get`**: Permite que o usuário obtenha um recurso.
+- **`list`**: Permite que o usuário liste os recursos.
+- **`patch`**: Permite que o usuário atualize um recurso.
+- **`update`**: Permite que o usuário atualize um recurso.
+- **`watch`**: Permite que o usuário acompanhe as alterações de um recurso.
+
 Com isso, vamos pegar exemplo da linha do recurso pods:
 
-NAME   SHORTNAMES   APIVERSION     NAMESPACED   KIND     VERBS                     CATEGORIES
-pods   po           v1             true         Pod      create,delete,deletecollection,get,list,patch,update,watch   all
+```sh
+NAME SHORTNAMES APIVERSION NAMESPACED   KIND VERBS                                                      CATEGORIES
+pods po         v1         true         Pod  create,delete,deletecollection,get,list,patch,update,watch all
+```
+
 Com isso sabemos que o usuário pode criar, deletar, deletar uma coleção, obter, listar, atualizar e acompanhar as alterações de um Pod. Simplão demais, hein!
 
-Criando a Role
+## Criando a Role
+
 Agora que já sabemos muito sobre os resources, apiGroups e verbs, vamos criar a nossa Role para o nosso usuário.
 
 Para isso, vamos criar um arquivo chamado developer-role.yaml com o seguinte conteúdo:
 
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
- name: developer
- namespace: dev
+  name: developer
+  namespace: dev
 rules:
-- apiGroups: [""] # "" indicates the core API group
-  resources: ["pods"]
-  verbs: ["get", "watch", "list", "update", "create", "delete"]
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["pods"]
+    verbs: ["get", "watch", "list", "update", "create", "delete"]
+```
+
 No arquivo acima, estamos definindo as seguintes informações:
 
-apiVersion: Versão da API que estamos utilizando para criar o nosso usuário.
-kind: Tipo do recurso que estamos criando, no caso, uma Role.
-metadata.name: Nome da nossa Role.
-metadata.namespace: Namespace que a nossa Role será criada.
-rules: Regras da nossa Role.
-rules.apiGroups: Grupos de recursos que a nossa Role terá acesso.
-rules.resources: Recursos que a nossa Role terá acesso.
-rules.verbs: Verbos que a nossa Role terá acesso.
+- `apiVersion`: Versão da API que estamos utilizando para criar o nosso usuário.
+- `kind`: Tipo do recurso que estamos criando, no caso, uma Role.
+- `metadata.name`: Nome da nossa Role.
+- `metadata.namespace`: Namespace que a nossa Role será criada.
+- `rules`: Regras da nossa Role.
+- `rules.apiGroups`: Grupos de recursos que a nossa Role terá acesso.
+- `rules.resources`: Recursos que a nossa Role terá acesso.
+- `rules.verbs`: Verbos que a nossa Role terá acesso.
+
 Eu tenho certeza que está fácil para você fazer a leitura da Role, que é basicamente o que o nosso usuário pode fazer no cluster, mas em resumo o que estamos falando é que o usuário que estiver usando essa Role, poderá fazer tudo com o recurso pods no namespace dev. Simples como voar!
 
 Lembre-se que essa Role pode ser reutilizada por outros usuários, e que você pode criar quantas Roles quiser, e que você pode criar Roles para outros perfis de usuários e para outros recursos, como por exemplo, deployments, services, configmaps, etc.
 
 Ahhh, antes de mais nada, vamos criar o namespace dev:
 
+```sh
 kubectl create ns dev
+```
+
 Agora que já temos o nosso arquivo e a namespace criados, vamos aplicar ele no cluster:
 
-kubectl apply -f developer-role.yaml
+```sh
+kubectl apply -f ./resources/developer-role.yaml
+```
+
 Para verificar se a nossa Role foi criada com sucesso, vamos listar as Roles do cluster:
 
+```sh
 kubectl get roles -n dev
+```
+
 A saída:
 
+```sh
 NAME        CREATED AT
-developer   2024-01-31T11:32:08Z
+developer   2024-06-10T19:29:31Z
+```
+
 Para ver os detalhes da Role, vamos utilizar o comando kubectl describe:
 
+```sh
 kubectl describe role developer -n dev
+```
+
 A saída será algo parecido com isso:
 
+```sh
 Name:         developer
 Labels:       <none>
 Annotations:  <none>
@@ -403,55 +507,75 @@ PolicyRule:
   Resources  Non-Resource URLs  Resource Names  Verbs
   ---------  -----------------  --------------  -----
   pods       []                 []              [get watch list update create delete]
+```
+
 Pronto, a nossa Role já está criada, porém ainda não associamos ela ao nosso usuário, para isso, vamos criar um RoleBinding.
 
-Criando um RoleBinding para o nosso usuário
+## Criando um RoleBinding para o nosso usuário
+
 A RoleBinding é o recurso que associa um usuário a uma Role, ou seja, é através da RoleBinding que definimos qual usuário terá acesso a qual Role, é como se tivessemos um crachá de Developer, a Role seria o crachá, e a RoleBinding seria o crachá com o nome do usuário. Faz sentindo?
 
 Para isso, vamos criar um arquivo chamado developer-rolebinding.yaml com o seguinte conteúdo:
 
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: DeveloperRoleBinding
   namespace: dev
 subjects:
-- kind: User
-  name: developer
+  - kind: User
+    name: developer
 roleRef:
   kind: Role
   name: developer
   apiGroup: rbac.authorization.k8s.io
+```
+
 No arquivo acima, estamos definindo as seguintes informações:
 
-apiVersion: Versão da API que estamos utilizando para criar o nosso usuário.
-kind: Tipo do recurso que estamos criando, no caso, um RoleBinding.
-metadata.name: Nome da nossa RoleBinding.
-metadata.namespace: Namespace que a nossa RoleBinding será criada.
-subjects: Usuários que terão acesso a Role.
-subjects.kind: Tipo do usuário, que no caso é User.
-subjects.name: Nome do usuário, que no caso é developer.
-roleRef: Referência da Role que o usuário terá acesso.
-roleRef.kind: Tipo da Role, que no caso é Role.
-roleRef.name: Nome da Role, que no caso é developer.
-roleRef.apiGroup: Grupo de recursos da Role, que no caso é rbac.authorization.k8s.io.
+- `apiVersion`: Versão da API que estamos utilizando para criar o nosso usuário.
+- `kind`: Tipo do recurso que estamos criando, no caso, um RoleBinding.
+- `metadata.name`: Nome da nossa RoleBinding.
+- `metadata.namespace`: Namespace que a nossa RoleBinding será criada.
+- `subjects`: Usuários que terão acesso a Role.
+- `subjects.kind`: Tipo do usuário, que no caso é User.
+- `subjects.name`: Nome do usuário, que no caso é developer.
+- `roleRef`: Referência da Role que o usuário terá acesso.
+- `roleRef.kind`: Tipo da Role, que no caso é Role.
+- `roleRef.name`: Nome da Role, que no caso é developer.
+- `roleRef.apiGroup`: Grupo de recursos da Role, que no caso é rbac.authorization.k8s.io.
+
 Nada de outro mundo, e mais uma vez está super claro o que iremos ter, que é o usuário developer com a Role developer no namespace dev.
 
 Agora que já temos o nosso arquivo criado, bora aplica-lo:
 
-kubectl apply -f developer-rolebinding.yaml
+```sh
+kubectl apply -f ./resources/developer-rolebinding.yaml
+```
+
 Para verificar se a nossa RoleBinding foi criada com sucesso, vamos listar as RoleBindings do cluster:
 
+```sh
 kubectl get rolebindings -n dev
+```
+
 A saída:
 
+```sh
 NAME                   ROLE             AGE
-DeveloperRoleBinding   Role/developer   9s
+DeveloperRoleBinding   Role/developer   97s
+```
+
 Para ver detalhes da RoleBinding, vamos utilizar o comando kubectl describe:
 
+```sh
 kubectl describe rolebinding DeveloperRoleBinding -n dev
+```
+
 A saída será algo parecido com isso:
 
+```sh
 Name:         DeveloperRoleBinding
 Labels:       <none>
 Annotations:  <none>
@@ -462,72 +586,127 @@ Subjects:
   Kind  Name       Namespace
   ----  ----       ---------
   User  developer  
+```
+
 Pronto, RoleBinding criada com sucesso, agora vamos testar o nosso usuário.
 
-Adicionando o certificado do usuário no kubeconfig
+...
+...
+
+> **TÔ AQUI!!!**
+
+...
+...
+
+## Adicionando o certificado do usuário no kubeconfig
+
 Agora que já temos o nosso usuário criado, precisamos adicionar o certificado do usuário no kubeconfig, para que possamos acessar o cluster com o nosso usuário.
 
-Para isso, vamos utilizar o comando kubectl config set-credentials:
+Para isso, vamos utilizar o comando `kubectl config set-credentials`:
 
-kubectl config set-credentials developer --client-certificate=developer.crt --client-key=developer.key --embed-certs=true
-O comando kubectl config set-credentials é utilizado para adicionar um novo usuário no kubeconfig, e ele recebe os seguintes parametros:
+```sh
+kubectl config set-credentials developer --client-certificate=./temp.data/developer.crt --client-key=./temp.data/developer.key --embed-certs=true
+```
 
---client-certificate: Caminho do certificado do usuário.
---client-key: Caminho da chave do usuário.
---embed-certs: Indica se o certificado deve ser embutido no kubeconfig.
+O comando `kubectl config set-credentials` é utilizado para adicionar um novo usuário no kubeconfig, e ele recebe os seguintes parametros:
+
+- `--client-certificate`: Caminho do certificado do usuário.
+- `--client-key`: Caminho da chave do usuário.
+- `--embed-certs`: Indica se o certificado deve ser embutido no kubeconfig.
+
 No nosso caso, estamos passando o caminho do certificado e da chave do usuário, e estamos indicando que o certificado deve ser embutido no kubeconfig.
 
-Agora precisamos criar um contexto para o nosso usuário, para isso, vamos utilizar o comando kubectl config set-context:
+Agora precisamos criar um contexto para o nosso usuário, para isso, vamos utilizar o comando `kubectl config set-context`:
 
-kubectl config set-context developer --cluster=NOME-DO-CLUSTER --namespace=dev --user=developer
-Caso você não se lembre o que é um contexto no Kubernetes, eu vou te ajudar a relembrar. Um contexto é um conjunto de configurações que definem o acesso a um cluster, ou seja, um contexto é composto por um cluster, um usuário e um namespace. Quando você cria um novo usuário, você precisa criar um novo contexto para ele, para que ele possa acessar o cluster.
+```sh
+kubectl config set-context developer --cluster=kind-rbac --namespace=dev --user=developer
+```
 
-Para que você possa pegar os nomes do cluster, basta utilizar o comando kubectl config get-clusters, assim você poderá pegar o nome do cluster que você quer utilizar.
+> Caso você não se lembre o que é um contexto no Kubernetes, eu vou te ajudar a relembrar. Um contexto é um conjunto de configurações que definem o acesso a um cluster, ou seja, um contexto é composto por um cluster, um usuário e um namespace. Quando você cria um novo usuário, você precisa criar um novo contexto para ele, para que ele possa acessar o cluster.
+>
+> Para que você possa pegar os nomes do cluster, basta utilizar o comando `kubectl config get-clusters`, assim você poderá pegar o nome do cluster que você quer utilizar.
 
 Com isso, o nosso novo usuário está pronto para ser utilizado, mas antes vamos verificar se ele está funcionando.
 
-Acessando o cluster com o novo usuário
+## Acessando o cluster com o novo usuário
+
 Uma vez que o nosso usuário está criado, e que o certificado do usuário está no kubeconfig e que já temos um contexto para o usuário, podemos testar o acesso ao cluster.
 
 Antes de mais nada, vamos listar todos os contextos do kubeconfig:
 
+```sh
 kubectl config get-contexts
+```
+
 O nosso novo contexto deve aparecer na lista, e deve ser algo parecido com isso:
 
+```sh
 CURRENT   NAME                CLUSTER        AUTHINFO       NAMESPACE
-*         developer           kind-strigus   developer      dev
-          kind-strigus        kind-strigus   kind-strigus   
+          developer           kind-rbac      developer      dev
+*         kind-rbac           kind-rbac      kind-rbac                            
+```
+
 Então bora o utilizar o nosso novo contexto:
 
+```sh
 kubectl config use-context developer
+```
+
 Pronto, nesse momento estamos utilizando o nosso novo usuário através do nosso novo contexto, agora vamos testar o acesso ao cluster:
 
+```sh
 kubectl get pods
+```
+
 Tudo funcionando, certo?
 
-Perceba que o Namespace que estamos utilizando é o dev, onde ele pode fazer tudo com o recurso pods, e que ele não pode fazer nada com os outros recursos, como por exemplo, deployments, services, configmaps, etc. Isso porque a nossa Role está limitada ao recurso pods, e ao namespace dev.
+Perceba que o Namespace que estamos utilizando é o `dev`, onde ele pode fazer tudo com o recurso `pods`, e que ele não pode fazer nada com os outros recursos, como por exemplo: `deployments`, `services`, `configmaps`, etc. Isso porque a nossa Role está limitada ao recurso `pods`, e ao namespace `dev`.
 
 Vamos testar o acesso a um recurso que ele não tem permissão:
 
+```sh
 kubectl get deployments
+```
+
 O resultado será algo parecido com isso:
 
+```sh
 Error from server (Forbidden): deployments.apps is forbidden: User "developer" cannot list resource "deployments" in API group "apps" in the namespace "dev"
+```
+
 Tudo funcionando perfeitamente! Pra finalizar, vamos criar um Pod simples do Nginx, ele deve ser criado com sucesso, pois o nosso usuário tem permissão para criar Pods no namespace dev:
 
+```sh
 kubectl run nginx --image=nginx -n dev
+```
+
 Criado!
 
 Vamos listar os Pods do namespace dev:
 
+```sh
 kubectl get pods
+```
+
 E veremos o nosso Pod do Nginx criado:
 
+```sh
 NAME    READY   STATUS    RESTARTS   AGE
 nginx   1/1     Running   0          5s
+```
+
 Pronto! O nosso usuário está criado e funcionando perfeitamente!
 
-ClusterRole e ClusterRoleBinding
+...
+...
+
+> **TÔ AQUI!!!**
+
+...
+...
+
+## ClusterRole e ClusterRoleBinding
+
 Até agora nós criamos uma Role e uma RoleBinding, que são recursos Namespaced, ou seja, eles só podem ser criados dentro de um namespace, mas e se você quiser criar um usuário que tenha acesso a todos os namespaces do cluster? Para isso, você precisa criar um ClusterRole e um ClusterRoleBinding.
 
 Basicamente eles são iguais a Role e RoleBinding, porém com maior escopo, pois eles refletem em todo o cluster, e não apenas em um namespace específico.
@@ -635,7 +814,8 @@ Ou seja, o usuário platform não tem permissão para listar os Nodes do cluster
 
 Simples como voar!
 
-ClusterRole e ClusterRoleBinding para o usuário admin
+## ClusterRole e ClusterRoleBinding para o usuário admin
+
 Agora vamos criar um usuário que terá acesso total ao cluster, ou seja, ele terá acesso a todos os recursos do cluster, e a todos os namespaces do cluster.
 
 Primeiro vamos criar a chave privada e o CSR do usuário:
@@ -727,7 +907,8 @@ Acho que deu pra entender bem como funciona o RBAC, e como criar usuários com d
 
 Agora é só praticar!
 
-Removendo o usuário
+## Removendo o usuário
+
 Para remover o usuário é super simples, basta remover o CSR e o RoleBinding relacionado ao usuário.
 
 kubectl delete csr NOME-DO-CSR
@@ -737,14 +918,16 @@ E para remover do seu kubeconfig, basta utilizar o comando kubectl config unset:
 kubectl config unset users.NOME-DO-USUARIO
 Pronto, usuário removido!
 
-Utilizando Tokens para Service Accounts
+## Utilizando Tokens para Service Accounts
+
 Uma das formas de autentição no Kubernetes é através de Tokens, que são utilizados para autenticar Service Accounts, que são contas de serviço utilizadas, normalmente, por aplicações que rodam no cluster ou serviços que precisam acessar o cluster.
 
 Os Tokens são gerados automaticamente pelo Kubernetes, e são utilizados para autenticar Service Accounts, e eles são armazenados em Secrets, que são recursos do Kubernetes que armazenam informações sensíveis, como por exemplo, chaves privadas, senhas, tokens, etc.
 
 O primeiro passo para a criação de um Service Account utilizando Tokens é criar o Service Account, então bora começar os trablahos!
 
-Criando um Service Account
+## Criando um Service Account
+
 Podemos criar service accounts utilizando o comando kubectl ou através de um arquivo YAML, e é isso que vamos fazer, criar um arquivo chamado service-account.yaml com o seguinte conteúdo:
 
 apiVersion: v1
@@ -813,7 +996,8 @@ Pronto, Service Account criado com sucesso!
 
 Agora vamos criar o Secret que irá armazenar o Token do Service Account.
 
-Criando um Secret para o Service Account
+## Criando um Secret para o Service Account
+
 Novamente aqui podemos utilizar o comando kubectl ou um arquivo YAML, e é isso que vamos fazer, criar um arquivo chamado service-account-secret.yaml com o seguinte conteúdo:
 
 apiVersion: v1
@@ -985,7 +1169,8 @@ Estão lá, mais uma etapa concluída!
 
 Agora que temos tudo o que precisamos, a nossa Service Account está pronta para ser utilizada.
 
-Utilizando o Token do Service Account
+## Utilizando o Token do Service Account
+
 Para o nossa exemplo, vamos criar um Pod que irá utilizar o Token do Service Account para acessar o cluster.
 
 Vamos criar um arquivo chamado pod-service-account.yaml com o seguinte conteúdo:
@@ -1134,7 +1319,8 @@ Pronto, com isso o nosso teste está completo, e vimos como utilizar o Token do 
 
 Agora é só praticar e ficar uma pessoa expert no assunto!
 
-Removendo o Service Account
+## Removendo o Service Account
+
 Para remover o Service Account é super simples, basta remover o Service Account, o Secret e a RoleBinding relacionado ao Service Account.
 
 kubectl delete serviceaccount NOME-DO-SERVICE-ACCOUNT
