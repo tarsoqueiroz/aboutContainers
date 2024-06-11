@@ -69,7 +69,7 @@ Lembre-se de remover a quebra de linha do final do arquivo, representada pelo % 
 Agora que já temos o conteúdo do certificado em base64, vamos gerar o manifesto com base no arquivo `./resources/developer.yaml` que vamos criar com o comando que segue:
 
 ```sh
-DEVELOPER_BASE64=$(cat ./temp.data/developer.csr | base64 | tr -d '\n') envsubst < ./resources/developer.yaml > ./temp.data/developer.yaml
+DEVELOPER_BASE64=$(cat ./temp.data/developer.csr | base64 | tr -d '\n') envsubst < ./resources/developer.template.yaml > ./temp.data/developer.yaml
 ```
 
 Verifique o arquivo `./temp.data/developer.yaml` que deverá ser parecido com o que segue:
@@ -590,14 +590,6 @@ Subjects:
 
 Pronto, RoleBinding criada com sucesso, agora vamos testar o nosso usuário.
 
-...
-...
-
-> **TÔ AQUI!!!**
-
-...
-...
-
 ## Adicionando o certificado do usuário no kubeconfig
 
 Agora que já temos o nosso usuário criado, precisamos adicionar o certificado do usuário no kubeconfig, para que possamos acessar o cluster com o nosso usuário.
@@ -697,14 +689,6 @@ nginx   1/1     Running   0          5s
 
 Pronto! O nosso usuário está criado e funcionando perfeitamente!
 
-...
-...
-
-> **TÔ AQUI!!!**
-
-...
-...
-
 ## ClusterRole e ClusterRoleBinding
 
 Até agora nós criamos uma Role e uma RoleBinding, que são recursos Namespaced, ou seja, eles só podem ser criados dentro de um namespace, mas e se você quiser criar um usuário que tenha acesso a todos os namespaces do cluster? Para isso, você precisa criar um ClusterRole e um ClusterRoleBinding.
@@ -717,99 +701,152 @@ Ele precisa ter acesso a Deployments, Services, ConfigMaps, Secrets, Ingress e P
 
 Então vamos começar criando a chave privada e o CSR do usuário:
 
-openssl genrsa -out platform.key 2048
-openssl req -new -key platform.key -out platform.csr -subj "/CN=platform/O=platform"
-Pegue o conteúdo do arquivo platform.csr, use o base64 para codificar o conteúdo, e cole o resultado no campo request do arquivo platform-csr.yaml:
+```sh
+openssl genrsa -out ./temp.data/platform.key 2048
+openssl req -new -key ./temp.data/platform.key -out ./temp.data/platform.csr -subj "/CN=platform/O=platform"
+```
 
+Pegue o conteúdo do arquivo `platform.csr`, use o base64 para codificar o conteúdo, e substitua o resultado no campo request do arquivo `platform.template.yaml` para gerar o arquivo `platform.yaml`. Vamos criar com o comando que segue:
+
+```sh
+PLATFORM_BASE64=$(cat ./temp.data/platform.csr | base64 | tr -d '\n') envsubst < ./resources/platform.template.yaml > ./temp.data/platform.yaml
+```
+
+O resultado para `platform.yaml` deverá ser algo como segue:
+
+```yaml
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
   name: platform
 spec:
-  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ2F6Q0NBVk1DQVFBd0pqRVJNQThHQTFVRUF3d0ljR3hoZEdadmNtMHhFVEFQQmdOVkJBb01DSEJzWVhSbQpiM0p0TUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFyd3ZaT1NNeUlsTFlUYlR0CjEzYmNMOWtqK0hyOXl5ekpPQnU1Z1hLSUljM3NhdGg1Q1BMOHNvRFN4dzNrbkVOQklsQlE5YlYxNWRJNDQwSnoKdDRDT0ZpR1lTSGt2WGNuVFRGTlpHSlFxemwxZ2JvZ1VldlZxS0tYM0c2ZFhUZ3BrYjNaNTZQRHV2MlF3VlZ6cApYRWE1VlpLZFF6Nmd2LzdFNzV2YWdDOUhxdXVYWWtQYWN4ajRvTERZL2xxNzRpMlBlb1B2L0VNd2NsVEpSV01NCk5ESmNDZmIyLzl3bU1vVEg3N3BpYUNaRlBGWG1XOStHcmhrcGY5VDNua1dST2doL2s3b2RBcjc4ekNUVTZ3a0MKa0p3QWJNR1lkaEpaZHpJLzZWTVJPUHhxV01RckVzR005MzkzNUNPSmZVYlRzOEoreEZQb2l2eWJPbXdzQWFYMgpNM0U4clFJREFRQUJvQUF3RFFZSktvWklodmNOQVFFTEJRQURnZ0VCQUdTUlRtVEU1bjBIK2VFZ2ZFdmdqWFRxCitucmdlSEJka3JvK3BlMTFOM1pONjVubVhaWEQ3cFJ0U3RZamtma2p1RG1OdDcrN0Q0NW1hOXEyeDZ1aGV2eFkKMWhCNEcxOWNCS0dTVWM1QzlBbnJNemtsY29Ic1JTYjhwZkhXcmNpak4rVEQ1MkNZWC9XMVEyY28xQ2pTMWI1bgpTWG8rRE1vdkZRVHhDbnFGdTVCMVlsVXdGWkhDVW5qOXp6SUJjQmRBekUzT3VZSVdyYWFFOXNNZUU5ZC9OVE11CkVvL3lSVVJ0THlaQUtWc3NTQ2k2NEk0dVlGV3Y3WXlKbG00RTVuUDQ1YUhJd1pzdVFlZ2RwOEZhOVVZVFBLaksKbmVjWEJGdVlhekRxYlRiWHhRN1QvUW44VWhZbGIybVZ3UUpsbUpoeTEweXYwZW1DeTVPVGFDZ2ZiUlh5bk9rPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K
- signerName: kubernetes.io/kube-apiserver-client
- expirationSeconds: 31536000 # 1 year
- usages:
- - client auth
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ2F6Q0NBVk1DQVFBd0pqRVJNQThHQTFVRUF3d0ljR3hoZEdadmNtMHhFVEFQQmdOVkJBb01DSEJzWVhSbQpiM0p0TUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUE0U2pJd0JWc0VUZDJRZkN1CjlRcTdUMkFjc0xFTDZ6NHdSUDRDbFBDSEtPNGpyWlNpNW8zZ3F1U2NxZDN2dVQxbERKdjdacTlZZWRsMFovTVgKSDBiYnNaYSt1QWdKN0RzU3NZTk43bE45alNranFJcFR3aDFvYTl2MFcxNzVhdDRFL1U5c3BzV1dQY241WVVzawpySFRNY3lERElXZ2lhTDFRczRqa0hUenNDd1k0OEJ2SzYyWTFDeXlDeUFycXF6TXZIYnNwUlNKa2d6L0dKVktkCkRzTHI0U0ZTWS9aWlNPdFliNXpnUlE3UnlWNVRZVjRQU2czU0s4elI4eDRtMWwrc1JPOFVuL2RuSFVkdDFCVE0KZU9RMW1QOWkxVG9MdG9PckwwM0NlTXNLcUpuSWF2VlJ3ZU84UjEzR3h6STdLL0RuUXRnRHV0NW15NHRPOHpLYgpXODlKRlFJREFRQUJvQUF3RFFZSktvWklodmNOQVFFTEJRQURnZ0VCQUNIeE1UMWwvYlMwRWIvTURnWmk3RlNBCit6K0lTVXVPL0U0cWhEUk40ZTAvRlVaWmlzT1N0emREUkUvLzNaekJGeUpwYXdVTmFhVm81RVlqNWNwZGV6azMKVERUNkozTXRXdWEwcjBkUTNvbDNkNmFORFYxcFJId2JaSExpcW9kZDlqeWFpeUhTQ3BPeHJhbzFNUllVbHdDbAplRTYrb2VTOUxiR0tCakd4NTFxMXlwMkNUbWRRVS81eFlGWnhmNXdiSWNNbzJ5NmZzZDhGV1BKN0oxZVZsQUM1CjgwWTZMR0RDU3JLZTFxNk9EZHAxVkUyOExqVlFiQy9SellRa1ZVYkYzaGh2TzdYR1J1WitDOTEzU3UxajhMaGQKREo1RUJodUswNWtubHFjT1RHa0dvVmNRRDU2YVlJSXlndkJXa2dVRENCN2dIK2lkVmNxQ05jTTB4Q2JiKzdRPQotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K
+  signerName: kubernetes.io/kube-apiserver-client
+  expirationSeconds: 31536000 # 1 year
+  usages:
+    - client auth
+```
+
 Agora vamos aplicar:
 
-kubectl apply -f platform-csr.yaml
+```sh
+kubectl apply -f ./temp.data/platform.yaml
+```
+
 Para verificar se o CSR foi criado com sucesso, vamos listar os CSR's do cluster:
 
+```sh
 kubectl get csr
+```
+
 A saída:
 
-NAME        AGE   SIGNERNAME                                    REQUESTOR                 REQUESTEDDURATION   CONDITION
-csr-648l9   82m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-hn4d4   82m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-qd72l   82m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-r24pf   82m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-csr-rswk4   82m   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:abcdef   <none>              Approved,Issued
-developer   79m   kubernetes.io/kube-apiserver-client           kubernetes-admin          365d                Approved,Issued
-platform    87s   kubernetes.io/kube-apiserver-client           kubernetes-admin          365d                Pending
+```sh
+NAME       AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
+platform   42s   kubernetes.io/kube-apiserver-client   kubernetes-admin   365d                Pending
+```
+
 Vamos aprovar o CSR:
 
+```sh
 kubectl certificate approve platform
+```
+
 Agora vamos pegar o certificado do usuário:
 
-kubectl get csr platform -o jsonpath='{.status.certificate}' | base64 --decode > platform.crt
-Eu não vou explicar novamente tudo o que estamos fazendo, pois boa parte é igual ao que já fizemos anteriormente, então se você não se lembra, volte e leia novamente. 😄
+```sh
+kubectl get csr platform -o jsonpath='{.status.certificate}' | base64 --decode > ./temp.data/platform.crt
+```
 
-Pronto, o que está faltando agora são os recursos ClusterRole e ClusterRoleBinding, então vamos criar o arquivo platform-clusterrole.yaml com o seguinte conteúdo:
+Eu não vou explicar novamente tudo o que estamos fazendo, pois boa parte é igual ao que já fizemos anteriormente, então se você não se lembra, volte e leia novamente.
 
+Pronto, o que está faltando agora são os recursos ClusterRole e ClusterRoleBinding, então vamos criar o arquivo `platform-clusterrole.yaml` com o seguinte conteúdo:
+
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: platform
 rules:
-- apiGroups: [""] # "" indicates the core API group
-  resources: ["deployments", "services", "configmaps", "secrets", "ingresses", "pods"]
-  verbs: ["get", "watch", "list", "update", "create", "delete"]
-Como pode ver, a configuração é muito parecida com a Role, porém agora estamos criando um ClusterRole. A diferença na definção da Role e do ClusterRole é que o ClusterRole o Kind é ClusterRole, e também não tem o campo namespace, pois o ClusterRole não é Namespaced.
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["deployments", "services", "configmaps", "secrets", "ingresses", "pods"]
+    verbs: ["get", "watch", "list", "update", "create", "delete"]
+```
 
-Agora vamos criar o arquivo platform-clusterrolebinding.yaml com o seguinte conteúdo:
+Como pode ver, a configuração é muito parecida com a Role, porém agora estamos criando um ClusterRole. A diferença na definção da Role e do ClusterRole é que o ClusterRole o Kind é `ClusterRole`, e também não tem o campo `namespace`, pois o `ClusterRole` não é Namespaced.
 
+Agora vamos criar o arquivo `platform-clusterrolebinding.yaml` com o seguinte conteúdo:
+
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: PlatformClusterRoleBinding
 subjects:
-- kind: User
-  name: platform
+  - kind: User
+    name: platform
 roleRef:
   kind: ClusterRole
   name: platform
   apiGroup: rbac.authorization.k8s.io
-Mesma coisa aqui, a configuração é super parecida com a RoleBinding, mudando somente o Kind, que agora é ClusterRoleBinding, e também não tem o campo namespace.
+```
 
-Bora aplicar os arquivos:
+Mesma coisa aqui, a configuração é super parecida com a `RoleBinding`, mudando somente o Kind, que agora é `ClusterRoleBinding`, e também não tem o campo `namespace`.
 
-kubectl apply -f platform-clusterrole.yaml
-kubectl apply -f platform-clusterrolebinding.yaml
+Vamos aplicar os arquivos:
+
+```sh
+kubectl apply -f ./resources/platform-clusterrole.yaml
+kubectl apply -f ./resources/platform-clusterrolebinding.yaml
+```
+
 Para verificar se os recursos foram criados com sucesso, vamos listar os ClusterRoles e ClusterRoleBindings do cluster:
 
+```sh
 kubectl get clusterroles
 kubectl get clusterrolebindings
+```
+
 Estão criados!
 
 Agora vamos adicionar o certificado do usuário no kubeconfig:
 
-kubectl config set-credentials platform --client-certificate=platform.crt --client-key=platform.key --embed-certs=true
+```sh
+kubectl config set-credentials platform --client-certificate=./temp.data/platform.crt --client-key=./temp.data/platform.key --embed-certs=true
+```
+
 Falta agora criar o contexto para o usuário:
 
-kubectl config set-context platform --cluster=NOME-DO-CLUSTER --user=platform
+```sh
+kubectl config set-context platform --cluster=kind-rbac --user=platform
+
+kubectl config get-contexts
+```
+
 E já era! Agora vamos testar o acesso ao cluster:
 
+```sh
 kubectl config use-context platform
+
+kubectl config get-contexts 
+
 kubectl get pods --all-namespaces
+```
+
 Tudo funcionando lindamente!
 
 Agora vamos tentar listar os Nodes do cluster:
 
+```sh
 kubectl get nodes
+```
+
 O resultado será algo parecido com isso:
 
+```sh
 Error from server (Forbidden): nodes is forbidden: User "platform" cannot list resource "nodes" in API group "" at the cluster scope
+```
+
 Ou seja, o usuário platform não tem permissão para listar os Nodes do cluster, pois ele só tem permissão para listar os recursos deployments, services, configmaps, secrets, ingresses e pods conforme definido na nossa ClusterRole.
 
 Simples como voar!
@@ -820,79 +857,125 @@ Agora vamos criar um usuário que terá acesso total ao cluster, ou seja, ele te
 
 Primeiro vamos criar a chave privada e o CSR do usuário:
 
-openssl genrsa -out admin.key 2048
+```sh
+openssl genrsa -out ./temp.data/admin.key 2048
 openssl req -new -key admin.key -out admin.csr -subj "/CN=admin/O=admin"
-Converta o conteúdo do arquivo admin.csr para base64, e cole o resultado no campo request do arquivo admin-csr.yaml:
+```
 
+Converta o conteúdo do arquivo `admin.csr` para base64, e substitua o resultado no campo request do arquivo `admin.template.yaml` para gerar o arquivo `admin.yaml`. Vamos criar com o comando que segue:
+
+```sh
+ADMIN_BASE64=$(cat ./temp.data/admin.csr | base64 | tr -d '\n') envsubst < ./resources/admin.template.yaml > ./temp.data/admin.yaml
+```
+
+O resultado para `admin.yaml` deverá ser algo como segue:
+
+```yaml
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
- name: admin
+  name: admin
 spec:
- request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1pUQ0NBVTBDQVFBd0lERU9NQXdHQTFVRUF3d0ZZV1J0YVc0eERqQU1CZ05WQkFvTUJXRmtiV2x1TUlJQgpJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBb2NtUUxVdVc1TEpKM0p4YmZFdmY1a2xGClRCdWZrb2h3SFBiS1FVYVdmNWErc3FrRzBlS2NSMXplVmhwZXNnYUh3WG9uRnVYakdzc3BHaHJnL21XcWFQSG4KNU14SE1uc1lmWE9VV2diOWIrT3VtRFV1Qmh3eE5EL0c1eSswMmhORUIybzdaTzltcUlCNkdZWlo2d3dHQ01vSgpVVGFzM2tCNVBXaUg4eXFISDZhdFhPNlBteG5Ba0Iyb3praHQ0NWp0ZlNVeDI1UzQvN00zVTVwSjhOTG9jU3N1CjE3d0wvRWdhQitpaThVa0t3MnNvZlZTM2hwQlNxNVNNbzNqZ2dCQ3R3eWN0UzhOWG9wb2M4Rlg5SzFWeFBGMXEKSnpGK2N2UFZVZHNWUUNJWm45Vkt6ZTV4T2JBT2ZYL2hrallrdFhJS0VIU2dIYTZvTXdOT0hXWlBxQVUrVndJRApBUUFCb0FBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFJeFJJeVN6TzY0Vi95ZHRoNVVSS09IcXdBM3JKb2U0CnJFc3A3Nkp2VTNjcVFtUVVFem9nR2RzdHMxWEFGVzA5cGJxZTdJa1pXTktOemp2NjZyTThkeDBnazRpSWdCdGkKeXovWDI5ZE5KUEVqRCthTW1sSWJ1VEpnZkpSYmx0a1lDYVpPN2tqWUJlMXRNNWE5U0dCQXg3bkt0RnlTNzArMwpTN2VaQmhYNlY2K080Z1FsZlEzT1ZxMzlzSzN5QnBPallYTDQxak5HZmh0TkRTcjNMWExodzd2MjhJb2xUZXQ5CnZJSUw0S3hjQ3kvUTROUTFXSnlKdkpWODZJS01BT2tabjJtUnY0UWFoUEVRM1grS21RbmxpQ01QYnFic2l3czUKL1pTKzA1QUp2QytLalhjcXpHZ016V21rbDlZOXV4RENVVE5paXdmQkJiOGhvRW9PV2lzcENHcz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUgUkVRVUVTVC0tLS0tCg==
- signerName: kubernetes.io/kube-apiserver-client
- expirationSeconds: 31536000 # 1 year
- usages:
- - client auth
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1pUQ0NBVTBDQVFBd0lERU9NQXdHQTFVRUF3d0ZZV1J0YVc0eERqQU1CZ05WQkFvTUJXRmtiV2x1TUlJQgpJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBcWFLa2VTMmJWZ0tERmY1ZEVYbTJ0Q2psCmJhdnpoSnpjdEZpbEtQWEFEblBQL0o4TjNMZVprbkNHbDI4am1tQ2FqcEMyeDk3OHlDNlV1TTNqWTZDQ21QNFgKVEpHdlFjK1NKdXRQTEY4Ums2UWxWYXRNZHJkY0pCRGNISWlPSGJSSHp0dVZ2cXFyc3RYTlUwZC93ZXd4KzlGRwo2NUtnWFUxcTBnaXpoSFhxOGhTMFQzS0hkV1NPZkJ4SjNaczZoSngzS2daL29EM3p3ei9MenV2OFdYR3hHc0grCkZ1S0M2a3VKTGhRK3Y4UENUdzRraGVSNGdBd3ByL3BzdlVkZG9JNW5LTFVPcXlWSEgyNXpNSTlXeTNYZnRuRTYKT2pGOFlvQXYwbXFtSWJhSkVuT0VSWmtkQjNkL3F2anY1Vk45VXRyRjh6NFYwVkgveGY0Ym11TWgxb0hMeVFJRApBUUFCb0FBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFHQVJWRlNTcHB1dEIvdE9DVzdJYXpQSUxtbDczNzNSCmMySDRtbWYxUW5aU3lXbGdmVGw1cU1BblhZbVBHTk9vbnZQYW5Da3dYZmtTSDJmRHpaMzltcHdxN1ZIYlBSN1cKTDZnd29CK1JvTVExajN5L0hZdUNycjFsTXkxazFVWUZXd2cwU1NLeFBFWTF0Tlh2UWsxekxyYXdTOHFjN1hoRApFZWlNQTdId2wyWVdSTFR1dDNUQ1pzb3RIeWM3MkpTcm93dFNhNkVoVFhHL3hZZVp5MjJoMnpLSVo3UUtnV3dzCmY0VXlWVGVwLzlSeVl4V2UrOTk5R2YwRTh6eTYyYStlbVFuN3NZdmFVcWR3cGxmY3JSa3NGSGwxSXY2VTdDYXYKWTFFT0lQWWp6OTlQOHZPcFFHS3FONEt2UUljTXpQOTdjMHpGRXFxRHlNZ3dlcmJtZFM4TDNGST0KLS0tLS1FTkQgQ0VSVElGSUNBVEUgUkVRVUVTVC0tLS0tCg==
+  signerName: kubernetes.io/kube-apiserver-client
+  expirationSeconds: 31536000 # 1 year
+  usages:
+    - client auth
+```
+
 Agora vamos aplicar:
 
-kubectl apply -f admin-csr.yaml
+```sh
+kubectl apply -f ./temp.data/admin.yaml
+```
+
 Hora de aprovar o CSR:
 
+```sh
 kubectl certificate approve admin
+```
+
 Agora vamos pegar o certificado do usuário:
 
-kubectl get csr admin -o jsonpath='{.status.certificate}' | base64 --decode > admin.crt
-Agora bora criar o arquivo admin-clusterrole.yaml com o seguinte conteúdo:
+```sh
+kubectl get csr admin -o jsonpath='{.status.certificate}' | base64 --decode > ./temp.data/admin.crt
+```
 
+Agora bora criar o arquivo `admin-clusterrole.yaml` com o seguinte conteúdo:
+
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: admin
 rules:
-- apiGroups: [""] # "" indicates the core API group
-  resources: ["*"]
-  verbs: ["*"]
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["*"]
+    verbs: ["*"]
+```
+
 Perceba que nesse caso, nós estamos utilizando o * para indicar que o usuário terá acesso a todos os recursos do cluster, e a todos os namespaces do cluster.
 
-Agora vamos criar o arquivo admin-clusterrolebinding.yaml com o seguinte conteúdo:
+Agora vamos criar o arquivo `admin-clusterrolebinding.yaml` com o seguinte conteúdo:
 
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: AdminClusterRoleBinding
 subjects:
-- kind: User
-  name: admin
+  - kind: User
+    name: admin
 roleRef:
   kind: ClusterRole
   name: admin
   apiGroup: rbac.authorization.k8s.io
+```
+
 Agora vamos aplicar os arquivos:
 
-kubectl apply -f admin-clusterrole.yaml
-kubectl apply -f admin-clusterrolebinding.yaml
+```sh
+kubectl apply -f ./resources/admin-clusterrole.yaml
+kubectl apply -f ./resources/admin-clusterrolebinding.yaml
+```
+
 Para verificar se os recursos foram criados com sucesso, vamos listar os ClusterRoles e ClusterRoleBindings do cluster:
 
+```sh
 kubectl get clusterroles
 kubectl get clusterrolebindings
+```
+
 Estão lá! Hora de adicionar o certificado do usuário no kubeconfig:
 
-kubectl config set-credentials admin --client-certificate=admin.crt --client-key=admin.key --embed-certs=true
+```sh
+kubectl config set-credentials admin --client-certificate=./temp.data/admin.crt --client-key=./temp.data/admin.key --embed-certs=true
+```
+
 E criar o contexto para o usuário:
 
-kubectl config set-context admin --cluster=NOME-DO-CLUSTER --user=admin
+```sh
+kubectl config set-context admin --cluster=kind-rbac --user=admin
+```
+
 Fim! hahahah
 
 Agora é só testar, então vamos:
 
+```sh
 kubectl config use-context admin
 kubectl get pods --all-namespaces
+```
+
 Você pode usar um comando super útil para saber tudo o que o usuário pode fazer no cluster:
 
+```sh
 kubectl auth can-i --list
+```
+
 A saída é gigante, então vou colocar somente o começo dela:
 
+```sh
 Resources                                        Non-Resource URLs   Resource Names   Verbs
 leases.coordination.k8s.io                       []                  []               [create delete deletecollection get list patch update watch]
 rolebindings.rbac.authorization.k8s.io           []                  []               [create delete deletecollection get list patch update watch]
@@ -901,9 +984,11 @@ configmaps                                       []                  []         
 events                                           []                  []               [create delete deletecollection patch update get list watch]
 persistentvolumeclaims                           []                  []               [create delete deletecollection patch update get list watch]
 ...
-Um bom teste é você comparar com o usuário developer e com o usuário platform, assim você poderá ver a diferença entre eles do que eles podem fazer no cluster.
+```
 
-Acho que deu pra entender bem como funciona o RBAC, e como criar usuários com diferentes níveis de acesso ao cluster, e como criar Roles e ClusterRoles para diferentes perfis de usuários.
+Um bom teste é você comparar com o usuário `developer` e com o usuário `platform`, assim você poderá ver a diferença entre eles do que eles podem fazer no cluster.
+
+Acho que deu pra entender bem como funciona o RBAC, e como criar usuários com diferentes níveis de acesso ao cluster, e como criar **Roles** e **ClusterRoles** para diferentes perfis de usuários.
 
 Agora é só praticar!
 
@@ -911,12 +996,26 @@ Agora é só praticar!
 
 Para remover o usuário é super simples, basta remover o CSR e o RoleBinding relacionado ao usuário.
 
-kubectl delete csr NOME-DO-CSR
-kubectl delete rolebinding NOME-DO-ROLEBINDING
+```sh
+kubectl delete csr <NOME-DO-CSR>
+kubectl delete rolebinding <NOME-DO-ROLEBINDING>
+```
+
 E para remover do seu kubeconfig, basta utilizar o comando kubectl config unset:
 
-kubectl config unset users.NOME-DO-USUARIO
+```sh
+kubectl config unset <users.NOME-DO-USUARIO>
+```
+
 Pronto, usuário removido!
+
+...
+...
+
+> **TÔ AQUI!!!**
+
+...
+...
 
 ## Utilizando Tokens para Service Accounts
 
@@ -924,73 +1023,56 @@ Uma das formas de autentição no Kubernetes é através de Tokens, que são uti
 
 Os Tokens são gerados automaticamente pelo Kubernetes, e são utilizados para autenticar Service Accounts, e eles são armazenados em Secrets, que são recursos do Kubernetes que armazenam informações sensíveis, como por exemplo, chaves privadas, senhas, tokens, etc.
 
-O primeiro passo para a criação de um Service Account utilizando Tokens é criar o Service Account, então bora começar os trablahos!
+O primeiro passo para a criação de um Service Account utilizando Tokens é criar o Service Account, então bora começar os trabalhos!
 
 ## Criando um Service Account
 
-Podemos criar service accounts utilizando o comando kubectl ou através de um arquivo YAML, e é isso que vamos fazer, criar um arquivo chamado service-account.yaml com o seguinte conteúdo:
+Podemos criar service accounts utilizando o comando kubectl ou através de um arquivo YAML, e é isso que vamos fazer, criar um arquivo chamado `service-account.yaml` com o seguinte conteúdo:
 
+```yaml
 apiVersion: v1
-
 kind: ServiceAccount
-
 metadata:
-
   name: service-account-example
-
   namespace: default
-
-
+```
 
 Nada de novo acima, certo? No arquivo estamos definindo o seguinte:
 
-apiVersion: Versão da API que estamos utilizando para criar o nosso Service Account.
-
-kind: Tipo do recurso que estamos criando, no caso, um Service Account.
-
-metadata.name: Nome do nosso Service Account.
-
-metadata.namespace: Namespace que o nosso Service Account será criado.
+- **`apiVersion`**: Versão da API que estamos utilizando para criar o nosso Service Account.
+- **`kind`**: Tipo do recurso que estamos criando, no caso, um Service Account.
+- **`metadata.name`**: Nome do nosso Service Account.
+- **`metadata.namespace`**: Namespace que o nosso Service Account será criado.
 
 Agora vamos aplicar o arquivo no cluster:
 
-kubectl apply -f service-account.yaml
+```sh
+kubectl apply -f ./resources/service-account.yaml
+```
 
-
-
-Caso queira criar utilizando a linha de comando, basta utilizar o comando kubectl create serviceaccount NOME-DO-SERVICE-ACCOUNT.
+Caso queira criar utilizando a linha de comando, basta utilizar o comando `kubectl create serviceaccount NOME-DO-SERVICE-ACCOUNT`.
 
 Agora vamos ver os detalhes da nossa Service Account:
 
+```sh
 kubectl get serviceaccounts service-account-example -o yaml
-
-
+```
 
 A saída será algo parecido com isso:
 
+```yaml
 apiVersion: v1
-
 kind: ServiceAccount
-
 metadata:
-
   annotations:
-
     kubectl.kubernetes.io/last-applied-configuration: |
-
       {"apiVersion":"v1","kind":"ServiceAccount","metadata":{"annotations":{},"name":"service-account-example","namespace":"default"}}
-
-  creationTimestamp: "2024-02-05T10:20:19Z"
-
+  creationTimestamp: "2024-06-11T16:34:20Z"
   name: service-account-example
-
   namespace: default
-
-  resourceVersion: "2472"
-
-  uid: 0d21af3f-e242-477b-8557-983533562274
-
-
+  resourceVersion: "134888"
+  uid: df421048-6804-43a7-b858-13b85783fb9a
+```
 
 Pronto, Service Account criado com sucesso!
 
@@ -998,172 +1080,135 @@ Agora vamos criar o Secret que irá armazenar o Token do Service Account.
 
 ## Criando um Secret para o Service Account
 
-Novamente aqui podemos utilizar o comando kubectl ou um arquivo YAML, e é isso que vamos fazer, criar um arquivo chamado service-account-secret.yaml com o seguinte conteúdo:
+Novamente aqui podemos utilizar o comando `kubectl` ou um arquivo YAML, e é isso que vamos fazer, criar um arquivo chamado `service-account-secret.yaml` com o seguinte conteúdo:
 
+```yaml
 apiVersion: v1
-
 kind: Secret
-
 metadata:
-
   name: service-account-example-token
-
   annotations:
-
     kubernetes.io/service-account.name: service-account-example
-
 type: kubernetes.io/service-account-token
-
-
+```
 
 Aqui estamos falando o seguinte para o Kubernetes:
 
-apiVersion: Versão da API que estamos utilizando para criar o nosso Secret.
-
-kind: Tipo do recurso que estamos criando, no caso, um Secret.
-
-metadata.name: Nome do nosso Secret.
-
-metadata.annotations: Anotações do nosso Secret.
-
-metadata.annotations.kubernetes.io/service-account.name: Nome do nosso Service Account.
-
-type: Tipo do Secret, que no caso é kubernetes.io/service-account-token.
+- **`apiVersion`**: Versão da API que estamos utilizando para criar o nosso Secret.
+- **`kind`**: Tipo do recurso que estamos criando, no caso, um Secret.
+- **`metadata.name`**: Nome do nosso Secret.
+- **`metadata.annotations`**: Anotações do nosso Secret.
+- **`metadata.annotations.kubernetes.io/service-account.name`**: Nome do nosso Service Account.
+- **`type`**: Tipo do Secret, que no caso é kubernetes.io/service-account-token.
 
 Pronto, hora de aplicar o arquivo:
 
-kubectl apply -f service-account-secret.yaml
-
-
+```sh
+kubectl apply -f ./resources/service-account-secret.yaml
+```
 
 Vamos ver se está tudo certo com o nosso Secret:
 
+```sh
 kubectl get secrets service-account-example-token -o yaml
-
-
+```
 
 A saída será algo parecido com isso:
 
-Name:         service-account-example-token
-
-Namespace:    default
-
-Labels:       <none>
-
-Annotations:  kubernetes.io/service-account.name: service-account-example
-
-              kubernetes.io/service-account.uid: 0d21af3f-e242-477b-8557-983533562274
-
-
-
-Type:  kubernetes.io/service-account-token
-
-
-
-Data
-
-====
-
-ca.crt:     1099 bytes
-
-namespace:  7 bytes
-
-token:      eyJhbGciOiJSUzI1NiIsImtpZCI6IkhicVNQcnRtbVBOa0tzVm00WUJfZjMwajNMZVN1bl9peXo0WVpUUHVjSTQifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6InNlcnZpY2UtYWNjb3VudC1leGFtcGxlLXRva2VuIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6InNlcnZpY2UtYWNjb3VudC1leGFtcGxlIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiMGQyMWFmM2YtZTI0Mi00NzdiLTg1NTctOTgzNTMzNTYyMjc0Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OmRlZmF1bHQ6c2VydmljZS1hY2NvdW50LWV4YW1wbGUifQ.B_N9F9gTucLFryhyTMNJxjCoEAa1q5NmbtUJ95RUNwEUUKY3KapDxezrFMZCA7VG-I7YbukRdYKusYmtWnZLvlgm2UHw1CY4dmzlqBwu3-XhOms8OHVAu1JVbGujgjljPEQy8jPFrkYRz356L_5FUzka9Noj3i2pj5R1wOrJz1O2KAw99RhKI1ctKtXnk4O0VJJ4fdmDUf0Ox0PQt4oNgGr28ZRIpyZkB0RSjhO3Wb6QgsGPoTBKHYnRo3zcCNymEkF8iJBGyyv4WyMx5zr4prCUpeSHqg-2m6vI_KZ9pu0pCJVJ1wV25vU6WOsyY56UR87a7jeBh83m-sOM8SAqOA
-
-
+```yaml
+apiVersion: v1
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMvakNDQWVhZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJME1EWXhNREUxTkRBeE9Gb1hEVE0wTURZd09ERTFOREF4T0Zvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTkJlCnFuc0twdHorb21LWnFHRzhhUnJxRVN1U2JxRzBmOHFFaHdRZXZPaEdqN3FNWUJwQWwydkRwRVlLdmNhbWprWmgKOHFqL05SRkVKOXp5a0ZqVVc3Q3NjaWZEMFd4Q1lRc2R4TTlidHpTMjh5eTdTNUYwN0NJK1p6ZWFEa1F5ZDdzTQpGVDFsT0pFNTFvZURXSGJGT1QzL3FwcEdPNzNtbDZSd2NCYWpTeGJuUzFNbzBjYmlzNTJPelZwd0JKYUhkcGd5CmhWYzJ5RW1odG85SVhEM1JvRHBxV2R4RFluQmJPTXhaZjk5QWtmOEF2RDRyQjVZTUt0TEtObGp2dlh0ZFFyem8KT0dPNU1QZDExT3JhTUtZQ1RPWWo4cG9WNWdrK3d3SVlUSyt5RlJzczU2MWN2TVd4Y1pVZ3ZkWDNrbytWRi9ybQpRR1lFWVR5bExjV2tpcmZXUmRjQ0F3RUFBYU5aTUZjd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZDRjFoVUtHby9lSVZSa2J5blhUL0VNYUxadFJNQlVHQTFVZEVRUU8KTUF5Q0NtdDFZbVZ5Ym1WMFpYTXdEUVlKS29aSWh2Y05BUUVMQlFBRGdnRUJBTVRRMFp2OUl1N282Tm1pZHpwKwpVWlk1N0RrT3RQeHh2ektBeHpaV1pYQWx2MW95a05WVCtmUGZqTVR3eWdLQjQ1Z0U4dnA1SkhXNkZBUXVkditNCnVvdWwrWjhCemwxNkFSWEhTRVo4VTBwdXVuYnpPdlNkWURJRHhCYjVabG10dEtMdEpPb1ptRGhNdkQwWU90MGwKR2FydVFnYlhoNmw3RGRDWjlzeUhpYTFvWElhL0ZFZkJqcThveFhVN1U0cDdtNkhpK1VZa3hKN0x3bHZ2cWFOagpERm5jMWYyR0RZSVdYY1puc3p5TVdGU2pYQlFaNVdWa0drdHRiL3V0ZFRCTkxUSldXZ2wzVW01U1ZRdWdURThYCngvdXV0a1pIQzFobjNwNlovS3hvbEE3dUtIWVVkcUVsd05SSGd6bGZzNUNoK0UzdXRpTjRoUStsRmVTOUF3ZEcKZ0FZPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  namespace: ZGVmYXVsdA==
+  token: ZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNkluaDZUWEV6YkcxUlNqTTFRbXd0UkRKNGJtdE5hVWhOTldKVk9HaDBPQzFFTURWc2QyMDFTbkYwUjBVaWZRLmV5SnBjM01pT2lKcmRXSmxjbTVsZEdWekwzTmxjblpwWTJWaFkyTnZkVzUwSWl3aWEzVmlaWEp1WlhSbGN5NXBieTl6WlhKMmFXTmxZV05qYjNWdWRDOXVZVzFsYzNCaFkyVWlPaUprWldaaGRXeDBJaXdpYTNWaVpYSnVaWFJsY3k1cGJ5OXpaWEoyYVdObFlXTmpiM1Z1ZEM5elpXTnlaWFF1Ym1GdFpTSTZJbk5sY25acFkyVXRZV05qYjNWdWRDMWxlR0Z0Y0d4bExYUnZhMlZ1SWl3aWEzVmlaWEp1WlhSbGN5NXBieTl6WlhKMmFXTmxZV05qYjNWdWRDOXpaWEoyYVdObExXRmpZMjkxYm5RdWJtRnRaU0k2SW5ObGNuWnBZMlV0WVdOamIzVnVkQzFsZUdGdGNHeGxJaXdpYTNWaVpYSnVaWFJsY3k1cGJ5OXpaWEoyYVdObFlXTmpiM1Z1ZEM5elpYSjJhV05sTFdGalkyOTFiblF1ZFdsa0lqb2laR1kwTWpFd05EZ3ROamd3TkMwME0yRTNMV0k0TlRndE1UTmlPRFUzT0RObVlqbGhJaXdpYzNWaUlqb2ljM2x6ZEdWdE9uTmxjblpwWTJWaFkyTnZkVzUwT21SbFptRjFiSFE2YzJWeWRtbGpaUzFoWTJOdmRXNTBMV1Y0WVcxd2JHVWlmUS5lYVVsdGJta0M3dENFUzhBQ01oLUR0eGlLdkcweTNrdGVETUY5ZC1JeWVHTi1SaUF2a3UwQ3VOTTh0NUJNdUI3V0psSXVvdG5LajBvcXRlaFNiSDFhaFZYM2Z0QlhpbTJTQW9fQ0V3T0R6YVFmUWpITHVXSDlwWE0wRDI3R013d3RrenFCSHJZWmdhUDJmRjBoVW5NTDZUaHA3NVFlei1IaDFjSDRQRTJzdFNGR2dwaTFObEJBNzJHZTF3aWlvWEp5RjBPaDJmWWt3bi1FdVdyYkR3TTFwNW9McHVLUXVoRDQ0cFZ0OW5XdWRuR096WE8zcXV3NUEyVU5ycVNkUnMyOHVtTVZJWXJnT0xEd19SWFJ6NEJsS0Vud1Q0ZTZvZ2VfYXRHdHJvWUczQXByQ1ZXT08zX0tSQnZpSk00U1pUYTNSNDdLbVZmMFRobTBsaUFrRDRCMGc=
+kind: Secret
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Secret","metadata":{"annotations":{"kubernetes.io/service-account.name":"service-account-example"},"name":"service-account-example-token","namespace":"default"},"type":"kubernetes.io/service-account-token"}
+    kubernetes.io/service-account.name: service-account-example
+    kubernetes.io/service-account.uid: df421048-6804-43a7-b858-13b85783fb9a
+  creationTimestamp: "2024-06-11T16:41:24Z"
+  name: service-account-example-token
+  namespace: default
+  resourceVersion: "135528"
+  uid: 33defb04-59d3-40b4-a6f6-b8acb5bca4da
+type: kubernetes.io/service-account-token
+```
 
 Já era! Secret está lá e com o Token do Service Account.
-Nós não precisamos gerar o Token, isso foi feito automaticamente pelo Kubernetes, pois quando criamos a nossa Secret, nós informamos que a Secret é do tipo kubernetes.io/service-account-token, e também informamos o nome do nosso Service Account. Com isso o Kubernetes gerou automaticamente o Token para o nosso Service Account especificado e armazenou na Secret. Simples como voar!
 
-Agora, para acessar o nosso Token, uma forma que eu gosto bastante é utilizando o comando kubectl get secret, e com o comando kubectl get secret NOME-DO-SECRET -o jsonpath='{.data.token}' | base64 --decode, assim você consegue pegar o Token do Service Account.
+Nós não precisamos gerar o Token, isso foi feito automaticamente pelo Kubernetes, pois quando criamos a nossa Secret, nós informamos que a Secret é do tipo `kubernetes.io/service-account-token`, e também informamos o nome do nosso Service Account. Com isso o Kubernetes gerou automaticamente o Token para o nosso Service Account especificado e armazenou na Secret. Simples como voar!
+
+Agora, para acessar o nosso Token, uma forma que eu gosto bastante é utilizando o comando `kubectl get secret`, e com o comando `kubectl get secret NOME-DO-SECRET -o jsonpath='{.data.token}' | base64 --decode`, assim você consegue pegar o Token do Service Account.
 
 Olha o comando completo:
 
+```sh
 kubectl get secret service-account-example-token -ojsonpath='{.data.token}'| base64 --decode
-
-
+```
 
 Dessa forma você consegue pegar o Token do Service Account, já decodificado, e utilizar para autenticar a sua aplicação ou serviço no cluster.
 
 Agora precisamos criar uma Role para o nosso Service Account.
 
-Aqui não temos nada de novo, pois já vimos como criar Roles, então vamos criar um arquivo chamado service-account-role.yaml com o seguinte conteúdo:
+Aqui não temos nada de novo, pois já vimos como criar Roles, então vamos criar um arquivo chamado `service-account-role.yaml` com o seguinte conteúdo:
 
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
-
 kind: Role
-
 metadata:
-
   name: service-account-role
-
   namespace: default
-
 rules:
-
--apiGroups:[""]
-
-  resources:["pods"]
-
-  verbs:["get","list","watch"]
-
-
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get","list","watch"]
+```
 
 Com a definição da Role acima, estamos falando que quem utilizar essa Role terá permissão para get, list e watch nos recursos pods do namespace default, somente!
 
 Vamos aplicar o arquivo:
 
-kubectl apply -f service-account-role.yaml
-
-
+```sh
+kubectl apply -f ./resources/service-account-role.yaml
+```
 
 Agora precisamos criar um RoleBinding para o nosso Service Account.
 
-Vamos criar um arquivo chamado service-account-rolebinding.yaml com o seguinte conteúdo:
+Vamos criar um arquivo chamado `service-account-rolebinding.yaml` com o seguinte conteúdo:
 
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
-
 kind: RoleBinding
-
 metadata:
-
   name: service-account-rolebinding
-
   namespace: default
-
 subjects:
-
--kind: ServiceAccount
-
-  name: service-account-example
-
-  namespace: default
-
+  - kind: ServiceAccount
+    name: service-account-example
+    namespace: default
 roleRef:
-
   kind: Role
-
   name: service-account-role
-
   apiGroup: rbac.authorization.k8s.io
+```
 
-
-
-Aqui estamos conectando a nossa Role com o nosso Service Account, e estamos dizendo que o nosso Service Account terá todas as permissões definidas na Role service-account-role no namespace default.
+Aqui estamos conectando a nossa Role com o nosso Service Account, e estamos dizendo que o nosso Service Account terá todas as permissões definidas na Role `service-account-role` no namespace `default`.
 
 Vamos aplicar o arquivo:
 
-kubectl apply -f service-account-rolebinding.yaml
-
-
+```sh
+kubectl apply -f ./resources/service-account-rolebinding.yaml
+```
 
 Vamos listar as Roles e RoleBindings do namespace default:
 
+```sh
 kubectl get roles
 
 kubectl get rolebindings
-
-
+```
 
 Estão lá, mais uma etapa concluída!
 
@@ -1173,147 +1218,142 @@ Agora que temos tudo o que precisamos, a nossa Service Account está pronta para
 
 Para o nossa exemplo, vamos criar um Pod que irá utilizar o Token do Service Account para acessar o cluster.
 
-Vamos criar um arquivo chamado pod-service-account.yaml com o seguinte conteúdo:
+Vamos criar um arquivo chamado `pod-service-account.yaml` com o seguinte conteúdo:
 
+```yaml
 apiVersion: v1
-
 kind: Pod
-
 metadata:
-
   name: pod-service-account
-
   namespace: default
-
 spec:
-
   serviceAccountName: service-account-example
-
   containers:
-
-  -name: curl-container
-
+  - name: curl-container
     image: curlimages/curl
+    command: ["sleep","infinity"]
+    resources:
+      limits:
+        cpu: "1"
+        memory: "500M"
+      requests:
+        cpu: ".5"
+        memory: "250M"
+```
 
-    command:["sleep","infinity"]
-
-
-
-A informação nova que temos nessa definição de Pod é o campo serviceAccountName, que é onde informamos o nome do nosso Service Account.
+A informação nova que temos nessa definição de Pod é o campo `serviceAccountName`, que é onde informamos o nome do nosso Service Account.
 
 Vamos aplicar o arquivo:
 
-kubectl apply -f pod-service-account.yaml
-
-
+```sh
+kubectl apply -f ./resources/pod-service-account.yaml
+```
 
 Agora vamos listar os Pods do namespace default:
 
+```sh
 NAME                  READY   STATUS    RESTARTS   AGE
 
 pod-service-account   1/1     Running   0          6s
+```
 
+Os Tokens são montados dentro do container do Pod no caminho `/var/run/secrets/kubernetes.io/serviceaccount`, e o Token do Service Account está no arquivo `token`, vamos confirmar isso:
 
-
-Os Tokens são montados dentro do container do Pod no caminho /var/run/secrets/kubernetes.io/serviceaccount, e o Token do Service Account está no arquivo token, vamos confirmar isso:
-
-kubectl exec-it pod-service-account -- ls /var/run/secrets/kubernetes.io/serviceaccount
-
-
+```sh
+kubectl exec -it pod-service-account -- ls -lah /var/run/secrets/kubernetes.io/serviceaccount
+```
 
 A saída será algo parecido com isso:
 
-ca.crt     namespace  token
-
-
+```sh
+total 4K     
+drwxrwxrwt    3 root     root         140 Jun 11 16:55 .
+drwxr-xr-x    3 root     root        4.0K Jun 11 16:55 ..
+drwxr-xr-x    2 root     root         100 Jun 11 16:55 ..2024_06_11_16_55_32.4104963068
+lrwxrwxrwx    1 root     root          32 Jun 11 16:55 ..data -> ..2024_06_11_16_55_32.4104963068
+lrwxrwxrwx    1 root     root          13 Jun 11 16:55 ca.crt -> ..data/ca.crt
+lrwxrwxrwx    1 root     root          16 Jun 11 16:55 namespace -> ..data/namespace
+lrwxrwxrwx    1 root     root          12 Jun 11 16:55 token -> ..data/token
+```
 
 Onde:
 
-ca.crt: É o certificado do cluster.
-
-namespace: É o namespace do Pod.
-
-token: É o Token do Service Account.
+- **`ca.crt`**: É o certificado do cluster.
+- **`namespace`**: É o namespace do Pod.
+- **`token`**: É o Token do Service Account.
 
 Vamos dar uma olhada no conteúdo do arquivo token:
 
-kubectl exec-it pod-service-account -- cat /var/run/secrets/kubernetes.io/serviceaccount/token
-
-
+```sh
+kubectl exec -it pod-service-account -- cat /var/run/secrets/kubernetes.io/serviceaccount/token
+```
 
 Agora temos o nosso Token:
 
-eyJhbGciOiJSUzI1NiIsImtpZCI6IkhicVNQcnRtbVBOa0tzVm00WUJfZjMwajNMZVN1bl9peXo0WVpUUHVjSTQifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxNzM4NjY1OTY3LCJpYXQiOjE3MDcxMjk5NjcsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJkZWZhdWx0IiwicG9kIjp7Im5hbWUiOiJwb2Qtc2VydmljZS1hY2NvdW50IiwidWlkIjoiY2MyNmQ1MTUtZjYwMS00MTU3LWIzNDAtZDUzM2Q0OTdhZjE5In0sInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJzZXJ2aWNlLWFjY291bnQtZXhhbXBsZSIsInVpZCI6IjBkMjFhZjNmLWUyNDItNDc3Yi04NTU3LTk4MzUzMzU2MjI3NCJ9LCJ3YXJuYWZ0ZXIiOjE3MDcxMzM1NzR9LCJuYmYiOjE3MDcxMjk5NjcsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OnNlcnZpY2UtYWNjb3VudC1leGFtcGxlIn0.O-XrTx9b1ZqvFpedKH6lBsQeHeP2qn3bEuL1WVKjCgMhd2TtjKAJOgDJH2Spye-7BQF1bwa2KyAwoWCauDDZ4I0XqwjVRSUF8dUahFmbAL9fMzrieEA2oPkNuPnwCCF57Csls52J-1z9GdIElgG-Z48aksrl0iIB1l7y5TBKS3Za7W2XDBdl1sFx1fKsAlz6k_NPaC49I21NJlmk9i3LxwctvDn6oxMjbCjBVk4fFVnK3y1HsdR_3trCLKH-FDgy59jD96Ume4VPgQMfmXNigObyJ6t3qcL53IRnqdY0xrFNOwHjwIMxBqQSTGSf42xUBWVjfKHZ_gMTX_Va-Nyk9A%
-
-
+```jwt
+eyJhbGciOiJSUzI1NiIsImtpZCI6Inh6TXEzbG1RSjM1QmwtRDJ4bmtNaUhNNWJVOGh0OC1EMDVsd201SnF0R0UifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxNzQ5NjYwOTMyLCJpYXQiOjE3MTgxMjQ5MzIsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJkZWZhdWx0IiwicG9kIjp7Im5hbWUiOiJwb2Qtc2VydmljZS1hY2NvdW50IiwidWlkIjoiZGM2ODk2MjQtZTUzMC00OWQ4LThhNDEtMjEzOTM3ZTU4Yjg5In0sInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJzZXJ2aWNlLWFjY291bnQtZXhhbXBsZSIsInVpZCI6ImRmNDIxMDQ4LTY4MDQtNDNhNy1iODU4LTEzYjg1NzgzZmI5YSJ9LCJ3YXJuYWZ0ZXIiOjE3MTgxMjg1Mzl9LCJuYmYiOjE3MTgxMjQ5MzIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OnNlcnZpY2UtYWNjb3VudC1leGFtcGxlIn0.sXSoGuUz7KeE7yZFQUom5MVws0l6iLljXw28LYfWI7O6az52N_j73yL5unfk96IMsLkofziHdunbBujHx62CJXJ1lLPU5QB4LFyxotRg8isvD1GxrzqdhpJwxDYRufX20vn5TpN2FgnoVq-FFmAJViLbAM_-J6tMSB9TKL1ftJzl1UrhJy5uCf5b3o849EGM4TOT-5TCo1gXZoqnKXrJwCJMjBCKLV0GvoGYnszRbZRT88Wpq9aJLNvmX_CQ4k5-fsH9J4k3i2UktUBFvOG7iOh5HKv4gqzWsdIYqvSWR77o5DdUHlTNd8CR0qzBT_NAkyv0N8lxIZVfCEJ9Qpuckw
+```
 
 Agora vamos fazer um bom teste utilizando o nosso Token.
 
-No Kubernetes é possível listar os recursos do cluster utilizando a API do Kubernetes, e para isso podemos utilizar o comando curl, mas antes vamos entender como funciona a autenticação com o Token.
+No Kubernetes é possível listar os recursos do cluster utilizando a API do Kubernetes, e para isso podemos utilizar o comando `curl`, mas antes vamos entender como funciona a autenticação com o Token.
 
-Para autenticar com o Token, precisamos enviar o Token no header Authorization da requisição, e o valor do header Authorization deve ser Bearer seguido do Token.
+Para autenticar com o Token, precisamos enviar o Token no header `Authorization` da requisição, e o valor do header `Authorization` deve ser `Bearer` seguido do Token.
 
-Vamos entender o endereco da API do Kubernetes, que é https://kubernetes.default.svc, e o recurso que queremos listar, que é pods, e o namespace que queremos listar, que é default, então a URL da nossa requisição será:
+Vamos entender o endereco da API do Kubernetes, que é `https://kubernetes.default.svc`, e o recurso que queremos listar, que é `pods`, e o namespace que queremos listar, que é `default`, então a URL da nossa requisição será:
 
+```sh
 https://kubernetes.default.svc/api/v1/namespaces/default/pods
+```
 
-Se eu quiser listar todos os Services do namespace default, a URL será:
+Se eu quiser listar todos os Services do namespace `default`, a URL será:
 
+```sh
 https://kubernetes.default.svc/api/v1/namespaces/default/services
+```
 
 Se for em um namespace específico, basta trocar o default pelo nome do namespace.
 
-Agora vamos fazer a requisição utilizando o curl, mas antes precisamos entrar no container do Pod, então vamos fazer isso:
+Agora vamos fazer a requisição utilizando o `curl`, mas antes precisamos entrar no container do Pod, então vamos fazer isso:
 
-kubectl exec-it pod-service-account -- sh
-
-
+```sh
+kubectl exec -it pod-service-account -- sh
+```
 
 Agora vamos fazer a requisição utilizando o curl:
 
-curl-k-H"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" https://kubernetes.default.svc/api/v1/namespaces/default/pods
+```sh
+curl -k -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" https://kubernetes.default.svc/api/v1/namespaces/default/pods
+```
 
+Com isso estamos utilizando o `curl` para fazer a requisição para a API do Kubernetes, passando o Token do Service Account no header `Authorization`, e estamos listando os `pods` do namespace `default`.
 
+Eu não vou colar a saída aqui, pois ela é gigante, então faça o teste e veja os detalhes dos Pods do namespace `default`.
 
-Com isso estamos utilizando o curl para fazer a requisição para a API do Kubernetes, passando o Token do Service Account no header Authorization, e estamos listando os Pods do namespace default.
+Se você tentar listar os Pods de outro namespace, você não terá permissão, pois a Role que criamos para o nosso Service Account é somente para o namespace `default`, e a mesma coisa para os outros recursos do cluster como Services, Deployments, etc.
 
-Eu não vou colar a saída aqui, pois ela é gigante, então faça o teste e veja os detalhes dos Pods do namespace default.
+Vamos tentar listar os Services do namespace `default`:
 
-Se você tentar listar os Pods de outro namespace, você não terá permissão, pois a Role que criamos para o nosso Service Account é somente para o namespace default, e a mesma coisa para os outros recursos do cluster como Services, Deployments, etc.
+```sh
+curl -k -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" https://kubernetes.default.svc/api/v1/namespaces/default/services
+```
 
-Vamos tentar listar os Services do namespace default:
+Recebemos um erro, pois o nosso Service Account não tem permissão para listar os Services do namespace `default`.
 
-curl-k-H"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" https://kubernetes.default.svc/api/v1/namespaces/default/services
-
-
-
-Recebemos um erro, pois o nosso Service Account não tem permissão para listar os Services do namespace default.
-
+```json
 {
-
-  "kind":"Status",
-
-  "apiVersion":"v1",
-
-  "metadata":{},
-
-  "status":"Failure",
-
-  "message":"services is forbidden: User \"system:serviceaccount:default:service-account-example\" cannot list resource \"services\" in API group \"\" in the namespace \"default\"",
-
-  "reason":"Forbidden",
-
-  "details":{
-
-    "kind":"services"
-
+  "kind": "Status",
+  "apiVersion": "v1",
+  "metadata": {},
+  "status": "Failure",
+  "message": "services is forbidden: User \"system:serviceaccount:default:service-account-example\" cannot list resource \"services\" in API group \"\" in the namespace \"default\"",
+  "reason": "Forbidden",
+  "details": {
+    "kind": "services"
   },
-
-  "code":403
-
+  "code": 403
 }
-
-
+```
 
 Pronto, com isso o nosso teste está completo, e vimos como utilizar o Token do Service Account para autenticar na API do Kubernetes.
 
@@ -1323,12 +1363,28 @@ Agora é só praticar e ficar uma pessoa expert no assunto!
 
 Para remover o Service Account é super simples, basta remover o Service Account, o Secret e a RoleBinding relacionado ao Service Account.
 
-kubectl delete serviceaccount NOME-DO-SERVICE-ACCOUNT
+```sh
+kubectl delete serviceaccount <NOME-DO-SERVICE-ACCOUNT>
+kubectl delete secret <NOME-DO-SECRET>
+kubectl delete rolebinding <NOME-DO-ROLEBINDING>
+```
 
-kubectl delete secret NOME-DO-SECRET
+Os comandos ficariam assim:
 
-kubectl delete rolebinding NOME-DO-ROLEBINDING
-
-
+```sh
+kubectl delete serviceaccounts service-account-example 
+kubectl delete secrets service-account-example-token
+kubectl delete rolebindings.rbac.authorization.k8s.io service-account-rolebinding 
+```
 
 Pronto, cluster limpo!
+
+## Removendo o ambiente de testes
+
+E para fechar vamos limpar nosso ambiente de testes:
+
+```sh
+make destroy
+```
+
+Pronto, ambiente limpo!
