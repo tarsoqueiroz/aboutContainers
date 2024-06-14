@@ -25,3 +25,29 @@ spec:
       port: 80
   selector:
     app: traefik
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-websec-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+    - targetPort: websec
+      port: 443
+  selector:
+    app: traefik
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-web9090-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+    - targetPort: web9090
+      port: 443
+  selector:
+    app: traefik

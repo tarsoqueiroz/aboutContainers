@@ -1,6 +1,7 @@
 CLUSTER_NAME=traefik
 TRAEFIK_NAMESPACE=traefik
 APP_NAMESPACE=default
+NIP_HOSTNAME=0a0f122c
 
 .PHONY: env
 # env
@@ -9,6 +10,8 @@ env:
 	@echo "CLUSTER_NAME      = $(CLUSTER_NAME)"
 	@echo "TRAEFIK_NAMESPACE = $(TRAEFIK_NAMESPACE)"
 	@echo "APP_NAMESPACE     = $(APP_NAMESPACE)"
+	@echo "NIP_HOSTNAME      = $(NIP_HOSTNAME)"
+	@echo ""
 
 .PHONY: build
 # build
@@ -33,6 +36,15 @@ deploy:
 	APP_NAMESPACE=$(APP_NAMESPACE) \
 	./deploy.sh
 	@echo "\nTry: http://localhost\n"
+
+.PHONY: deploytiny1
+# deploy
+deploytiny1:
+	@echo "*** Deploying tinyweb1 application...\n"
+	@TRAEFIK_NAMESPACE=$(TRAEFIK_NAMESPACE) \
+	APP_NAMESPACE=$(APP_NAMESPACE) \
+	./deploytinyweb1.sh
+	@echo "\nTry: http://localhost:9090\n"
 
 .PHONY: destroy
 # destroy
