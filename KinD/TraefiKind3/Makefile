@@ -17,7 +17,7 @@ env:
 # build
 build:
 	@echo "*** Creating a kind cluster...\n"
-	@kind create cluster --config kind-config.yaml --name ${CLUSTER_NAME}
+	@kind create cluster --config ./resources/kind-config.yaml --name ${CLUSTER_NAME}
 
 .PHONY: install
 # install
@@ -26,7 +26,7 @@ install:
 	@TRAEFIK_NAMESPACE=$(TRAEFIK_NAMESPACE) \
 	APP_NAMESPACE=$(APP_NAMESPACE) \
 	./install.sh
-	@echo "\nTry: http://localhost:8080\n"
+	@echo "\nTry: http://localhost:8888\n"
 
 .PHONY: deploy
 # deploy

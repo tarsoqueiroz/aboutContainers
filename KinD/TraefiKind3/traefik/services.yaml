@@ -1,5 +1,6 @@
-apiVersion: v1
+# Traefik dashboard service
 kind: Service
+apiVersion: v1
 metadata:
   name: traefik-dashboard-service
   namespace: ${TRAEFIK_NAMESPACE}
@@ -13,41 +14,58 @@ spec:
   selector:
     app: traefik
 ---
-apiVersion: v1
+# Web 80
 kind: Service
+apiVersion: v1
 metadata:
   name: traefik-web-service
   namespace: ${TRAEFIK_NAMESPACE}
 spec:
   type: NodePort
   ports:
-    - targetPort: web
-      port: 80
+    - port: 80
+      targetPort: web
   selector:
     app: traefik
 ---
-apiVersion: v1
+# Web sec 443
 kind: Service
+apiVersion: v1
 metadata:
   name: traefik-websec-service
   namespace: ${TRAEFIK_NAMESPACE}
 spec:
   type: NodePort
   ports:
-    - targetPort: websec
-      port: 443
+    - port: 443
+      targetPort: websec
   selector:
     app: traefik
 ---
-apiVersion: v1
+# Web high 8080
 kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-webhigh-service
+  namespace: ${TRAEFIK_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: webhigh
+  selector:
+    app: traefik
+---
+# Web 9090
+kind: Service
+apiVersion: v1
 metadata:
   name: traefik-web9090-service
   namespace: ${TRAEFIK_NAMESPACE}
 spec:
   type: NodePort
   ports:
-    - targetPort: web9090
-      port: 443
+    - port: 9090
+      targetPort: web9090
   selector:
     app: traefik

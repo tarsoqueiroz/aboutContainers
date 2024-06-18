@@ -29,10 +29,11 @@ spec:
           args:
             - --api.insecure
             - --providers.kubernetesingress
-            # - --entryPoints.dashboard.address=:8888
+            - --entryPoints.traefik.address=:8888
             - --entryPoints.web.address=:80
             - --entryPoints.websec.address=:443
-            - --entryPoints.websechigh.address=:8443
+            - --entryPoints.webhigh.address=:8080
+            - --entryPoints.webhighsec.address=:8443
             - --entryPoints.web9090.address=:9090
 
             # Enable tracing
@@ -46,18 +47,21 @@ spec:
             - name: web
               containerPort: 80
               hostPort: 80
-            - name: dashboard
-              containerPort: 8080
-              hostPort: 8080
             - name: websec
               containerPort: 443
               hostPort: 443
+            - name: webhigh
+              containerPort: 8080
+              hostPort: 8080
             - name: websechigh
               containerPort: 8443
               hostPort: 8443
             - name: web9090
               containerPort: 9090
               hostPort: 9090
+            - name: dashboard
+              containerPort: 8888
+              hostPort: 8888
       nodeSelector:
         ingress-ready: "true"
       tolerations:
