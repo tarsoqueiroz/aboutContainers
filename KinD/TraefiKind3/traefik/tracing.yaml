@@ -47,9 +47,13 @@ kind: Ingress
 metadata:
   name: zipkin-ingress
   namespace: ${TRAEFIK_NAMESPACE}
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - http:
+    - host: zipkin.0a0f122c.nip.io
+      http:
         paths:
           - path: /zipkin
             pathType: Prefix

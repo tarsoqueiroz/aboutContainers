@@ -43,8 +43,8 @@ deploytiny1:
 	@echo "*** Deploying tinyweb1 application...\n"
 	@TRAEFIK_NAMESPACE=$(TRAEFIK_NAMESPACE) \
 	APP_NAMESPACE=$(APP_NAMESPACE) \
-	./deploytinyweb1.sh
-	@echo "\nTry: http://localhost:9090\n"
+	./deploytiny1.sh
+	@echo "\nTry: http://tiny1.0a0f122c.nip.io:80\n"
 
 .PHONY: destroy
 # destroy

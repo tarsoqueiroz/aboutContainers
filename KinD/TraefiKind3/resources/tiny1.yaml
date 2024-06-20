@@ -1,23 +1,28 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: nginx
-  namespace: default #${APP_NAMESPACE}
+  name: tiny1
+  namespace: ${APP_NAMESPACE}
   labels:
-    app: nginx
+    app: tiny1
 spec:
   replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
   selector:
     matchLabels:
-      app: nginx
+      app: tiny1
   template:
     metadata:
       labels:
-        app: nginx
+        app: tiny1
     spec:
       containers:
-        - name: nginx
-          image: nginx:1.14.2
+        - name: tiny1
+          image: tarsoqueiroz/tinywebinfo:1.0
           resources:
             limits:
               cpu: "250m"
@@ -26,46 +31,39 @@ spec:
               cpu: "125m"
               memory: "32Mi"
           ports:
-            # - name: web
-            #   containerPort: 80
-            - containerPort: 80
+            - name: web
+              containerPort: 80
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx
-  namespace: default #${APP_NAMESPACE}
+  name: tiny1
+  namespace: ${APP_NAMESPACE}
 spec:
   ports:
     - name: web
       port: 80
-      targetPort: 80
+      targetPort: web
   selector:
-    app: nginx
+    app: tiny1
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: nginx-ingress
-  namespace: default #${APP_NAMESPACE}
+  name: tiny1-ingress
+  namespace: ${APP_NAMESPACE}
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: web9090
-    # traefik.ingress.kubernetes.io/router.tls.domains.0.main:college.net
-    # traefik.ingress.kubernetes.io/router.tls.domains.0.sans: demo.college.net
-
 spec:
-  # entryPoints:
-  #   - web
   rules:
-    - host: nginx.0a0f122c.nip.io
+    - host: tiny1.0a0f122c.nip.io
       http:
         paths:
           - path: /
-            pathType: Exact
+            pathType: Prefix
             backend:
               service:
-                name: nginx
+                name: tiny1
                 port: 
-                  name: web
-                  # number: 9090
+                  name: web9090

@@ -21,3 +21,10 @@ Once you are done you can cleanup the environment running `make cleanup`.
 
 - kind
 - kubectl
+
+## References
+
+- [Traefik over Kind](https://github.com/jcchavezs/traefik-kind/blob/main/README.md)
+- [Kind: Ingress](https://kind.sigs.k8s.io/docs/user/ingress/)
+- [Traefik & Kubernetes](https://doc.traefik.io/traefik/providers/kubernetes-ingress/)
+- [Traefik as K8S Ingress Controller](https://medium.com/@dusansusic/traefik-ingress-controller-for-k8s-c1137c9c05c4)
