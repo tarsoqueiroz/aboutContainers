@@ -28,3 +28,46 @@ Once you are done you can cleanup the environment running `make cleanup`.
 - [Kind: Ingress](https://kind.sigs.k8s.io/docs/user/ingress/)
 - [Traefik & Kubernetes](https://doc.traefik.io/traefik/providers/kubernetes-ingress/)
 - [Traefik as K8S Ingress Controller](https://medium.com/@dusansusic/traefik-ingress-controller-for-k8s-c1137c9c05c4)
+
+## Track
+
+```sh
+# 
+make build
+
+# 
+make install
+
+# 
+make deplo
+
+# 
+make deployhigh
+
+# 
+make deploytwi
+
+# 
+make deploytwi
+
+# 
+make deploytwi
+
+# 
+make undeplo
+
+# 
+make undeployhigh
+
+# 
+make undeploytwi
+
+# 
+make undeploytwi
+
+# 
+make undeploytwi
+
+# 
+make destroy
+```

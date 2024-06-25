@@ -6,23 +6,23 @@ metadata:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: httpbin
+  name: twi3
   namespace: ${APP_NAMESPACE}
   labels:
-    app: httpbin
+    app: twi3
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: httpbin
+      app: twi3
   template:
     metadata:
       labels:
-        app: httpbin
+        app: twi3
     spec:
       containers:
-        - name: httpbin
-          image: mccutchen/go-httpbin
+        - name: twi3
+          image: tarsoqueiroz/tinywebinfo:3.0
           resources:
             limits:
               cpu: "500m"
@@ -31,40 +31,40 @@ spec:
               cpu: "250m"
               memory: "32Mi"
           ports:
-            - name: web
+            - name: web9090
               containerPort: 8080
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: httpbin
+  name: twi3
   namespace: ${APP_NAMESPACE}
 spec:
   ports:
-    - name: web
+    - name: web9090
       port: 8080
-      targetPort: web
+      targetPort: web9090
   selector:
-    app: httpbin
+    app: twi3
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: httpbin-ingress
+  name: httpbin-ingresshigh
   namespace: ${APP_NAMESPACE}
   annotations:
     # kubernetes.io/ingress.class: traefik
     kubernetes.io/ingress.ingressClassName: traefik
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web9090
 spec:
   rules:
-    - host: 0a0f122c.nip.io
+    - host: twi3.0a0f122c.nip.io
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: httpbin
+                name: twi3
                 port:
-                  name: web
+                  name: web9090

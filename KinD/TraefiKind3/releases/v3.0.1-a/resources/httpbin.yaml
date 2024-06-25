@@ -1,28 +1,28 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${APP_NAMESPACE}
+---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: tinyweb1
+  name: httpbin
   namespace: ${APP_NAMESPACE}
   labels:
-    app: tinyweb1
+    app: httpbin
 spec:
   replicas: 1
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
   selector:
     matchLabels:
-      app: tinyweb1
+      app: httpbin
   template:
     metadata:
       labels:
-        app: tinyweb1
+        app: httpbin
     spec:
       containers:
-        - name: tinyweb1
-          image: tarsoqueiroz/tinywebinfo:1.0
+        - name: httpbin
+          image: mccutchen/go-httpbin
           resources:
             limits:
               cpu: "500m"
@@ -31,36 +31,40 @@ spec:
               cpu: "250m"
               memory: "32Mi"
           ports:
-            - name: web9090
+            - name: web
               containerPort: 8080
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: tinyweb1
+  name: httpbin
   namespace: ${APP_NAMESPACE}
 spec:
   ports:
-    - name: web9090
+    - name: web
       port: 8080
-      # port: 9090
-      targetPort: web9090
+      targetPort: web
   selector:
-    app: tinyweb1
+    app: httpbin
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: tinyweb1-ingress
+  name: httpbin-ingress
   namespace: ${APP_NAMESPACE}
+  annotations:
+    # kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - http:
+    - host: 0a0f122c.nip.io
+      http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: tinyweb1
+                name: httpbin
                 port:
-                  name: web9090
+                  name: web
