@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${APP_NAMESPACE}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: httpbinhigh
+  namespace: ${APP_NAMESPACE}
+  labels:
+    app: httpbinhigh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbinhigh
+  template:
+    metadata:
+      labels:
+        app: httpbinhigh
+    spec:
+      containers:
+        - name: httpbinhigh
+          image: mccutchen/go-httpbin
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "64Mi"
+            requests:
+              cpu: "250m"
+              memory: "32Mi"
+          ports:
+            - name: webhigh
+              containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbinhigh
+  namespace: ${APP_NAMESPACE}
+spec:
+  ports:
+    - name: webhigh
+      port: 8080
+      targetPort: webhigh
+  selector:
+    app: httpbinhigh
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: httpbin-ingresshigh
+  namespace: ${APP_NAMESPACE}
+  annotations:
+    # kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: webhigh
+spec:
+  rules:
+    - host: high.0a0f122c.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: httpbinhigh
+                port:
+                  name: webhigh
