@@ -1,0 +1,49 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bookinfo-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: webhigh
+spec:
+  rules:
+    - host: bookinfo.0a0f122c.nip.io
+      http:
+        paths:
+        - path: /productpage
+          pathType: Exact
+          backend:
+            service:
+              name: productpage
+              port: 
+                number: 9080
+        - path: /static
+          pathType: Prefix
+          backend:
+            service:
+              name: productpage
+              port: 
+                number: 9080
+        - path: /login
+          pathType: Exact
+          backend:
+            service:
+              name: productpage
+              port: 
+                number: 9080
+        - path: /logout
+          pathType: Exact
+          backend:
+            service:
+              name: productpage
+              port: 
+                number: 9080
+        - path: /api/v1/products
+          pathType: Prefix
+          backend:
+            service:
+              name: productpage
+              port: 
+                number: 9080

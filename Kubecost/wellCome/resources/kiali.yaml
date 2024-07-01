@@ -1,0 +1,21 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kiali-ingress
+  namespace: istio-system
+  annotations:
+    kubernetes.io/ingress.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: webhigh
+spec:
+  rules:
+    - host: kiali.0a0f122c.nip.io
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: kiali
+              port: 
+                number: 20001
