@@ -8,6 +8,6 @@ for i in {1..1080000}; do
 
   echo ${i}
   curl -s -o /dev/null "http://celepar.0a0f122c.nip.io:8080/productpage"
-  sleep .16s
+  sleep .33s
 
 done
