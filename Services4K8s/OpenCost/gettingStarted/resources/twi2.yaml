@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${APP_NAMESPACE}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: twi2
+  namespace: ${APP_NAMESPACE}
+  labels:
+    app: twi2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: twi2
+  template:
+    metadata:
+      labels:
+        app: twi2
+    spec:
+      containers:
+        - name: twi2
+          image: tarsoqueiroz/tinywebinfo:2.0
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "64Mi"
+            requests:
+              cpu: "250m"
+              memory: "32Mi"
+          ports:
+            - name: webhigh
+              containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: twi2
+  namespace: ${APP_NAMESPACE}
+spec:
+  ports:
+    - name: webhigh
+      port: 8080
+      targetPort: webhigh
+  selector:
+    app: twi2
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: httpbin-ingresshigh
+  namespace: ${APP_NAMESPACE}
+  annotations:
+    # kubernetes.io/ingress.class: traefik
+    kubernetes.io/ingress.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: webhigh
+spec:
+  rules:
+    - host: twi2.0a0f122c.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: twi2
+                port:
+                  name: webhigh
