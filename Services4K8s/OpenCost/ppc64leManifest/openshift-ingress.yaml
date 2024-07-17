@@ -1,0 +1,32 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: opencost
+  namespace: opencost
+  labels:
+    app: opencost
+  annotations:
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;
+spec:
+  host: opencost.paas.celepar.parana
+  port:
+    targetPort: 8080-tcp
+  tls:
+    termination: edge
+  to:
+    kind: Service
+    name: opencost
+    weight: 100
+  wildcardPolicy: None
+  # rules:
+  #   - host: opencost.0a0f122c.nip.io
+  #     http:
+  #       paths:
+  #       - path: /
+  #         pathType: Prefix
+  #         backend:
+  #           service:
+  #             name: opencost
+  #             port: 
+  #               number: 9003
