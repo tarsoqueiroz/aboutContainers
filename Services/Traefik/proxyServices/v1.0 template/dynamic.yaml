@@ -1,0 +1,40 @@
+## DYNAMIC CONFIG
+
+http:
+  routers:
+    dashboard:
+      # rule: Host(`<DOMAIN>`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      rule: PathPrefix(`/api`) || PathPrefix(`/dashboard`)
+      entrypoints:
+        - traefik
+      service: api@internal
+      middlewares:
+        - auth-dashboard
+  middlewares:
+    auth-dashboard:
+      basicAuth:
+        # Gen by: htpasswd -nB user <USER_NAME>
+        users:
+          # user/password
+          - "user:$2y$05$AK9dqJ0F34Oa5UVcXD7UK.tD.ZiVz8vEeViiLry0d.KBU8fNaWYeW"
+          # usuario/senha
+          - "usuario:$2y$05$20xfcxEtRDUK1RaQxyxL7.fLp3dbWrvLhNf/ifq3JvQNs5ZjuStqK"
+
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/<DOMAIN>.crt
+        keyFile: /certs/<DOMAIN>.key
+  certificates:
+    - certFile: /certs/<DOMAIN>.crt
+      keyFile: /certs/<DOMAIN>.key
+      stores:
+        - default
+# when testing certs, enable this so traefik doesn't use 
+# it's own self signed. By default if it can't find a matching
+# cert, it'll just create it's own which will cause cert warnings
+# in browser
+  # options:
+    # default:
+      # sniStrict: true

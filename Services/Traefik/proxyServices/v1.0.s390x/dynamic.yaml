@@ -1,0 +1,30 @@
+## DYNAMIC CONFIG
+
+http:
+  routers:
+    dashboard:
+      rule: PathPrefix(`/api`) || PathPrefix(`/dashboard`)
+      entrypoints:
+        - traefik
+      service: api@internal
+      middlewares:
+        - auth-dashboard
+  middlewares:
+    auth-dashboard:
+      basicAuth:
+        # Gen by: htpasswd -nB user <USER_NAME>
+        users:
+          - "user:$2y$05$AK9dqJ0F34Oa5UVcXD7UK.tD.ZiVz8vEeViiLry0d.KBU8fNaWYeW"
+          - "usuario:$2y$05$20xfcxEtRDUK1RaQxyxL7.fLp3dbWrvLhNf/ifq3JvQNs5ZjuStqK"
+
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/0a0f2746.nip.io.crt
+        keyFile: /certs/0a0f2746.nip.io.key
+  certificates:
+    - certFile: /certs/0a0f2746.nip.io.crt
+      keyFile: /certs/0a0f2746.nip.io.key
+      stores:
+        - default

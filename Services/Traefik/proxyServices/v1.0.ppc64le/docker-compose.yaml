@@ -1,0 +1,49 @@
+# version: "3.3"
+
+services:
+
+  traefik:
+    # traefik image on correct architecture
+    image: "ppc64le/traefik:v3.2"
+    container_name: "traefik"
+    command:
+    healthcheck:
+      test: 
+        - CMD
+        - traefik
+        - healthcheck
+        - --ping
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - "./traefik.yaml:/etc/traefik/traefik.yaml"
+      - "./.certs/:/certs/"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./dynamic.yaml:/etc/traefik/dynamic.yaml"
+
+  whoami:
+    # image for sample app on correct architecture
+    image: "ppc64le/nginx"
+    labels:
+      - "traefik.enable=true"
+      # <DOMAIN> to respond
+      - "traefik.http.routers.whoami.rule=Host(`whoami.0a0f5050.nip.io`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: .5
+          memory: 512M
+        reservations:
+          cpus: .125
+          memory: 128M
+    depends_on:
+      traefik:
+        condition: service_healthy

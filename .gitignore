@@ -1,6 +1,7 @@
 # Excluded by ME
 *.data
 broker-info.subm*
+.certs
 
 # Binaries for programs and plugins
 *.exe

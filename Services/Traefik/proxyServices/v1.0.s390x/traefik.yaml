@@ -1,0 +1,46 @@
+## STATIC CONFIG (restart traefik to update)
+
+# shows you a log msg if a newer image tag can be used
+global:
+  checkNewVersion: true
+
+# log default is ERROR, but WARN is more helpful
+log:
+  # level: DEBUG
+  # level: INFO
+  level: WARN
+  # level: ERROR
+
+# enable dashboard on 8080 with auth
+api:
+  # insecure: true
+  dashboard: true
+
+# enable ping so the `traefik healthcheck` works
+ping: {}
+
+# auto-proxy containers if they have proper labels
+# and also use this file for dynamic config (tls)
+providers:
+  docker:
+    exposedByDefault: false
+    watch: true
+  file:
+    fileName: /etc/traefik/dynamic.yaml
+    watch: true
+
+# listen on 8081, 8443 and 8080
+entryPoints:
+  web:
+    address: :8081
+    http:
+      # redirect all 8081 to 8443 via 301
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: :8443
+  traefik:
+    address: :8080
