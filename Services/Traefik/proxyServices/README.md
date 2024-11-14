@@ -49,6 +49,40 @@ At `dynamic.yaml`
   - Coded accounts: user/password and usuario/senha
 - Adjust of names for certificate and key files
 
+## Log rotating
+
+Tasks to do:
+
+- Create `/var/log/traefik` sub directory:
+
+```sh
+mkdir -p /var/log/traefik
+```
+
+- Create `/etc/logrotate.d/traefik`:
+
+```sh
+/var/log/traefik/traefik-access.log {
+  daily
+  rotate 5
+  compress
+  dateext
+  dateformat -%Y%m%d-%s
+  missingok
+  notifempty
+  postrotate
+    docker kill --signal="USR1" traefik
+  endscript
+}
+```
+
+- Insert in `/etc/cronttab` directives for rotating:
+
+```sh
+## Traefik Access.log rotation
+0 0 * * * root /usr/sbin/logrotate -f /etc/logrotate.d/traefik
+```
+
 ## Usefull commands
 
 ```sh

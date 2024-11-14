@@ -4,9 +4,20 @@
 global:
   checkNewVersion: true
 
-# log level: DEBUG, INFO, WARN (more helpful), ERROR (default)
+# log level: TRACE, DEBUG, INFO, WARN, ERROR (default), FATAL, and PANIC
 log:
   level: WARN
+  filePath: /var/log/traefik.log
+  format: common # or json
+  maxSize: 100
+  maxAge: 30 # days
+  compress: true   
+
+accessLog:
+  addInternals: false
+  filePath: /var/log/traefik-access.log
+  format: common # or json
+  bufferingSize: 100
 
 # enable dashboard on 8080 with auth
 api:
