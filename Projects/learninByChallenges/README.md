@@ -17,4 +17,5 @@
   - [Sidecar Containers in Kubernetes](https://dev.to/cicube/sidecar-containers-in-kubernetes-2kj0)
   - [Kubernetes Network Policies](https://dev.to/cicube/kubernetes-network-policies-5258)
   - [Understanding Namespaces in Kubernetes](https://dev.to/cicube/understanding-namespaces-in-kubernetes-3o2l)
+  - [Taints and Tolerations in Kubernetes: A Comprehensive Guide](https://dev.to/i_am_vesh/taints-and-tolerations-in-kubernetes-a-comprehensive-guide-4917)
 - Miscellaneous
