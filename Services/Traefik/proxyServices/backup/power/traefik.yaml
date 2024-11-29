@@ -1,0 +1,35 @@
+## STATIC CONFIG (restart traefik to update)
+
+global:
+  checkNewVersion: true
+
+log:
+  level: WARN
+
+api:
+  # insecure: true
+  dashboard: true
+
+ping: {}
+
+providers:
+  docker:
+    exposedByDefault: false
+    watch: true
+  file:
+    filename: /etc/traefik/dynamic.yaml
+    watch: true
+
+entryPoints:
+  web:
+    address: :80
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: :443
+  traefik:
+    address: :8080
