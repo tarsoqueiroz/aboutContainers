@@ -77,7 +77,7 @@ mkdir -p /var/log/traefik
 ```
 
 - Insert in `/etc/cronttab` directives for rotating:
-
+  
 ```sh
 ## Traefik Access.log rotation
 0 0 * * * root /usr/sbin/logrotate -f /etc/logrotate.d/traefik
