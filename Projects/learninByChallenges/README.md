@@ -4,6 +4,7 @@
 
 - Docker
 - Kubernetes
+  - [Understanding Kubernetes Volume Types](./Challenges/Understanding%20Kubernetes%20Volume%20Types/README.md)
 - Miscellaneous
 
 ## Challenges list

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: configmap-pod
+spec:
+  containers:
+  - name: app-container
+    image: busybox
+    command: ["sh", "-c", "cat /config/imperative/app.name.imperative ; cat /config/declarative/app.name.declarative ; sleep 3600"]
+    volumeMounts:
+    - mountPath: /config/imperative
+      name: config-volume-imperative
+    - mountPath: /config/declarative
+      name: config-volume-declarative
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+  volumes:
+  - name: config-volume-imperative
+    configMap:
+      name: app-config-imperative
+  - name: config-volume-declarative
+    configMap:
+      name: app-config-declarative

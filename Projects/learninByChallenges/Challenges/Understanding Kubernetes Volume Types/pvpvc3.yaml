@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: task-pv3-pod
+  labels:
+    name: myapp
+spec:
+  volumes:
+    - name: task-pv3-storage
+      persistentVolumeClaim:
+        claimName: pvcw3
+  containers:
+  - name: task-pv3-container
+    image: busybox
+    command: ["sh", "-c", "hostname >> /host-data/nameofhost.txt ; date >> /host-data/nameofhost.txt ; ls /host-data ; sleep 3600"]
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+    volumeMounts:
+      - mountPath: "/host-data/"
+        name: task-pv3-storage
