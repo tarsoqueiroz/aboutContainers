@@ -3,11 +3,9 @@
 ## Challenges
 
 - Docker
-  - [Docker MasterClass : Docker - Compose - SWARM - DevOps 2024](./Challenges/Docker%20MasterClass%20Compose%20SWARM%20DevOps%202024/README.md)
 - Kubernetes
   - [Understanding Kubernetes Volume Types](./Challenges/Understanding%20Kubernetes%20Volume%20Types/README.md)
 - Miscellaneous
-  - [Prometheus MasterClass: Infra Monitoring & Alerting](./Challenges/Prometheus%20MasterClass%20Infra%20Monitoring%20Alerting/README.md)
 
 ## Challenges list
 
