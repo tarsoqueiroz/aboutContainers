@@ -20,3 +20,8 @@
   - [Understanding Namespaces in Kubernetes](https://dev.to/cicube/understanding-namespaces-in-kubernetes-3o2l)
   - [Taints and Tolerations in Kubernetes: A Comprehensive Guide](https://dev.to/i_am_vesh/taints-and-tolerations-in-kubernetes-a-comprehensive-guide-4917)
 - Miscellaneous
+  - Trilogy
+    1. [Criando um cluster Kubernetes local com kubeadm](https://medium.com/@ramonriserio/criando-um-cluster-kubernetes-local-com-kubeadm-8af676567a35)
+    1. [Docker Essentials (handout)](https://medium.com/@ramonriserio/apostila-docker-7c3f2c820155)
+    1. [Kubernetes Essentials (handout)](https://medium.com/@ramonriserio/kubernetes-essentials-d26593c770f8)
+
