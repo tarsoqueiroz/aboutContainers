@@ -3,6 +3,7 @@
 ## Challenges
 
 - Docker
+  - [Building Minimal Docker Images](./Challenges/Building%20Minimal%20Docker%20Images/README.md)
 - Kubernetes
   - [Understanding Kubernetes Volume Types](./Challenges/Understanding%20Kubernetes%20Volume%20Types/README.md)
 - Miscellaneous
