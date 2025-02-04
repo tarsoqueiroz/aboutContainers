@@ -29,10 +29,10 @@ spec:
           args:
             - --api.insecure
             - --providers.kubernetesingress
-            - --entryPoints.traefik.address=:8888
             - --entryPoints.web.address=:80
-            - --entryPoints.websec.address=:443
+            - --entryPoints.traefik.address=:8888
             - --entryPoints.webhigh.address=:8080
+            - --entryPoints.websec.address=:443
             - --entryPoints.webhighsec.address=:8443
             - --entryPoints.web9090.address=:9090
 

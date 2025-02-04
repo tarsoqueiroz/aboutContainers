@@ -21,6 +21,7 @@
   - [Understanding Namespaces in Kubernetes](https://dev.to/cicube/understanding-namespaces-in-kubernetes-3o2l)
   - [Taints and Tolerations in Kubernetes: A Comprehensive Guide](https://dev.to/i_am_vesh/taints-and-tolerations-in-kubernetes-a-comprehensive-guide-4917)
   - [Rollout & Rollback Kubernetes Deployment with Hands-on Samples](https://dev.to/omerberatsezer/rollout-rollback-kubernetes-deployment-with-hands-on-sample-3534)
+  - [Monitoring Your Kubernetes Cluster: A Beginner’s Guide to Setting Up Prometheus and Grafana](https://dev.to/pravesh_sudha_3c2b0c2b5e0/monitoring-your-kubernetes-cluster-a-beginners-guide-to-setting-up-prometheus-and-grafana-lhk)
 - Miscellaneous
   - Trilogy
     1. [Criando um cluster Kubernetes local com kubeadm](https://medium.com/@ramonriserio/criando-um-cluster-kubernetes-local-com-kubeadm-8af676567a35)
