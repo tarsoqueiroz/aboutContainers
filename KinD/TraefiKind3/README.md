@@ -4,6 +4,14 @@ This repository has the required configuration files to run Traefik over kind.
 
 The manifests for traefik are mainly inspired in [this guide](https://doc.traefik.io/traefik/getting-started/quick-start-with-kubernetes/) however some tweaks have been added to be able to expose the ingress to the host network when using kind in mac/windows (based on [this guide](https://kind.sigs.k8s.io/docs/user/ingress/)).
 
+## References
+
+- [Traefik Releases](https://github.com/traefik/traefik/releases)
+- [Traefik Helm Chart: values.yaml](https://github.com/traefik/traefik-helm-chart/blob/master/traefik/values.yaml)
+- [Deploy K8ssandra and Traefik with Kind](https://docs.k8ssandra.io/tasks/connect/ingress/kind-deployment/)
+- [Getting started with Kubernetes Gateway API and Traefik](https://traefik.io/blog/getting-started-with-kubernetes-gateway-api-and-traefik/)
+- [Getting started with Kubernetes Gateway API and Traefik II](https://community.traefik.io/t/getting-started-with-kubernetes-gateway-api-and-traefik/23601)
+
 ## Getting started
 
 First we will create a kind cluster by running `make build`.
@@ -35,23 +43,25 @@ Once you are done you can cleanup the environment running `make cleanup`.
 # 
 make build
 
+
+
 # 
 make install
 
 # 
-make deplo
+make deploy
 
 # 
 make deployhigh
 
 # 
-make deploytwi
+make deploytwi1
 
 # 
-make deploytwi
+make deploytwi2
 
 # 
-make deploytwi
+make deploytwi3
 
 # 
 make undeplo

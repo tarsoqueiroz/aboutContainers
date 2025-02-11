@@ -1,0 +1,23 @@
+## File values.yaml ##
+image:
+  repository: traefik
+  tag: v3.1
+
+providers:
+  # Disable the Ingress provider (optional)
+  # We do not want to use Ingress objects anymore!
+  kubernetesIngress:
+    enabled: true
+  # Enable the GatewayAPI provider
+  # kubernetesGateway:
+  #   enabled: true
+
+# Allow the Gateway to expose HTTPRoute from all namespaces
+# gateway:
+#   namespacePolicy: All
+
+# Configure dashboard access if needed
+basicAuth:
+  enabled: true
+  secretName: traefik-dashboard-auth
+

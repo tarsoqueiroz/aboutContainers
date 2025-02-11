@@ -18,6 +18,7 @@ spec:
       serviceAccountName: traefik-account
       containers:
         - name: traefik
+          # OK image: traefik:v3.0.1, traefik:v3.0.4
           image: traefik:v3.0.1
           resources:
             requests:
