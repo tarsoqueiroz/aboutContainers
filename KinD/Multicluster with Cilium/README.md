@@ -2,7 +2,7 @@
 
 ## About
 
-> ```https://piotrminkowski.com/2021/10/25/kubernetes-multicluster-with-kind-and-cilium/```
+> [`https://piotrminkowski.com/2021/10/25/kubernetes-multicluster-with-kind-and-cilium/`](https://piotrminkowski.com/2021/10/25/kubernetes-multicluster-with-kind-and-cilium/)
 
 How to configure Kubernetes multicluster locally with Kind and Cilium.
 
