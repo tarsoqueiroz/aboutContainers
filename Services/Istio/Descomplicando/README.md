@@ -2,7 +2,11 @@
 
 ## About
 
-> [Descomplicando o Istio](https://school.linuxtips.io/path-player?courseid=descomplicando-o-istio)
+> [LINUXtips: Descomplicando o Istio](https://school.linuxtips.io/path-player?courseid=descomplicando-o-istio)
+
+- [Istio site](https://istio.io/)
+- [Istio GitHub](https://github.com/istio/istio)
+- [Istio Documentation](https://istio.io/latest/docs/)
 
 ## O que é Service Mesh?
 
@@ -41,4 +45,37 @@ Considerações:
 - **Complexidade:** Adiciona uma camada de complexidade à infraestrutura, exigindo conhecimento e expertise para configurar e gerenciar.
 - **Curva de aprendizado:** Requer tempo e investimento para aprender e dominar as ferramentas e conceitos do Service Mesh.
 
-## 
+## O que é o Istio?
+
+Istio é uma plataforma de código aberto que facilita a conexão, o gerenciamento e a proteção de microsserviços em um ambiente distribuído. Ele oferece uma camada de infraestrutura que permite que os desenvolvedores se concentrem na lógica de negócios de seus aplicativos, em vez de se preocuparem com os desafios complexos da comunicação entre serviços, segurança e observabilidade.
+
+Principais recursos e funcionalidades do Istio:
+
+- **Gerenciamento de tráfego:** Istio permite controlar o fluxo de tráfego entre os microsserviços, facilitando a implementação de estratégias como balanceamento de carga, roteamento baseado em regras, injeção de falhas e testes A/B.
+- **Segurança:** Istio oferece recursos avançados de segurança, como autenticação mútua, autorização e criptografia de ponta a ponta, garantindo a proteção dos microsserviços contra ameaças externas e internas.
+- **Observabilidade:** Istio coleta dados detalhados sobre o desempenho e o comportamento dos microsserviços, fornecendo insights valiosos para monitorar, depurar e otimizar os aplicativos.
+
+Como o Istio funciona:
+
+Istio utiliza um modelo de **"malha de serviço" (service mesh)**, onde um proxy chamado **Envoy** é implantado como um **"sidecar"** junto a cada microsserviço. Esse proxy intercepta todo o tráfego de entrada e saída do microsserviço, permitindo que o Istio controle e gerencie a comunicação entre os serviços de forma transparente.
+
+![Istio](./images/service-mesh.svg)
+
+## Instalando o cluster KKubernetes com Kind
+
+Kind local cluster:
+
+```bash
+## create kind cluster
+kind create cluster --config ./manifests/kind-istio.yaml
+
+## install NGINX gateway fabric
+kubectl kustomize "https://github.com/nginxinc/nginx-gateway-fabric/config/crd/gateway-api/standard?ref=v1.4.0" | kubectl apply -f -
+kubectl apply -f https://raw.githubusercontent.com/nginxinc/nginx-gateway-fabric/v1.4.0/deploy/crds.yaml
+kubectl apply -f https://raw.githubusercontent.com/nginxinc/nginx-gateway-fabric/v1.4.0/deploy/nodeport/deploy.yaml
+
+## configuring NGINX gateway fabric
+kubectl apply -f ./manifests/nginx-gateway.yaml
+```
+
+## Instalando o Istio
