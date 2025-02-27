@@ -61,7 +61,7 @@ Istio utiliza um modelo de **"malha de serviço" (service mesh)**, onde um proxy
 
 ![Istio](./images/service-mesh.svg)
 
-## Instalando o cluster KKubernetes com Kind
+## Instalando o cluster Kubernetes com Kind
 
 Kind local cluster:
 
