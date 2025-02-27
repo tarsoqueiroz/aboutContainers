@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tea-post
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tea-post
+  template:
+    metadata:
+      labels:
+        app: tea-post
+    spec:
+      containers:
+      - name: tea-post
+        image: nginxdemos/nginx-hello:plain-text
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "256Mi"
+          requests:
+            cpu: "0.25"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tea-post-svc
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: tea-post
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tea-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tea-v1
+  template:
+    metadata:
+      labels:
+        app: tea-v1
+    spec:
+      containers:
+      - name: tea
+        image: nginxdemos/nginx-hello:plain-text
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "256Mi"
+          requests:
+            cpu: "0.25"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tea-v1-svc
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: tea-v1
