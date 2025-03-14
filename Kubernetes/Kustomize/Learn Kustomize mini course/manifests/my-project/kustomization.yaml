@@ -1,0 +1,12 @@
+#apiversion and kind, these are not mandatory to include in the file
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# k8s resources to be managed by Kustomize - mandatory
+resources:
+  - deployment.yaml
+  - service.yaml
+
+# example customization that needs to be made
+commonLabels:
+  app: web-server
