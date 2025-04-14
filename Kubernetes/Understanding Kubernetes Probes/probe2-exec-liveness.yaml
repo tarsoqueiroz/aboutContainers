@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-exec
+  labels:
+    test: liveness
+spec:
+  containers:
+  - name: liveness
+    image: registry.k8s.io/busybox:1.27.2
+    args:
+    - /bin/sh
+    - -c
+    - touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 120
+    livenessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/healthy
+      initialDelaySeconds: 5
+      periodSeconds: 5
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"

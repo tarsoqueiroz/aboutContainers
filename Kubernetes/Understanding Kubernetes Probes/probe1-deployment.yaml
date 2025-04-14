@@ -14,9 +14,9 @@ spec:
     spec:
       containers:
       - name: k8s-probes-golang
-        # image: nginxdemos/nginx-hello:plain-text
+        image: nginxdemos/nginx-hello:plain-text
         # image: tarsoqueiroz/k8s-probes-golang:latest
-        image: tarsoqueiroz/k8s-probes-golang:readiness0s
+        # image: tarsoqueiroz/k8s-probes-golang:readiness0s
         # image: tarsoqueiroz/k8s-probes-golang:readiness10s
         resources:
           limits:
