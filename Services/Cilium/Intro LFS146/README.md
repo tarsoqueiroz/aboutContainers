@@ -92,7 +92,7 @@ kubectl get deployments --all-namespaces
 
 ## Network Policy
 
-### Prerequisites
+### Prerequisites for Network Policy
 
 - You’ll need a Kubernetes cluster with Cilium installed.
 - You’ll also need to deploy a Death Star application, including the service definition, service backend pods, and pods acting as TIE fighter clients that access the service using internal-only cluster communications. The Cilium project has an example [Death Star demo application](https://docs.cilium.io/en/latest/gettingstarted/demo/#deploy-the-demo-application) manifest you can use.
@@ -158,3 +158,64 @@ kubectl exec tiefighter -- curl -v -s -XPUT deathstar.default.svc.cluster.local/
 ```
 
 We’ve successfully limited access to the Death Star API so TIE fighters can make landing requests, without giving them access to the exhaust port. And we’ve kept any X-wings in the cluster from accessing the Death Star API at all. Lord Vader will be pleased.
+
+## Network Observability using Hubble
+
+### Hubble
+
+Hubble is a fully distributed networking observability platform. It is built on top of Cilium and eBPF to enable deep visibility into the communication and behavior of services, as well as the networking infrastructure in a completely transparent manner.
+
+### Prerequisites for Hubble
+
+This lab assumes you have completed the labs from Chapter 3 & 4. You should have the following:
+
+- A Cilium-managed Kubernetes cluster with Hubble components enabled.
+- The Cilium CLI tool installed into your local workstation environment.
+- The Death Star demo application deployed in the default namespace, with a CiliumNetworkPolicy resource defined to limit internal cluster access to the Death Star service.
+
+### Install the Hubble Client
+
+- [Install client](https://docs.cilium.io/en/stable/observability/hubble/setup/index.html#install-the-hubble-client)
+
+```bash
+HUBBLE_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/hubble/master/stable.txt)
+HUBBLE_ARCH=amd64
+
+if [ "$(uname -m)" = "aarch64" ]; then HUBBLE_ARCH=arm64; fi
+curl -L --fail --remote-name-all https://github.com/cilium/hubble/releases/download/$HUBBLE_VERSION/hubble-linux-${HUBBLE_ARCH}.tar.gz{,.sha256sum}
+sha256sum --check hubble-linux-${HUBBLE_ARCH}.tar.gz.sha256sum
+sudo tar xzvfC hubble-linux-${HUBBLE_ARCH}.tar.gz /usr/local/bin
+rm hubble-linux-${HUBBLE_ARCH}.tar.gz{,.sha256sum}
+
+hubble version
+```
+
+## Prometheus Metrics
+
+Cilium and Hubble can both be configured to serve Prometheus metrics. Moreover, Cilium and Hubble metrics can be enabled independently of each other to give you granular control. Broadly speaking, Cilium metrics show how Cilium’s components are operating, while Hubble metrics provide information about network flows and network performance.
+
+In this chapter, we’ll review the metrics Cilium and Hubble are able to provide, and then get hands-on enabling metrics collection in our cluster. The Cilium project documentation has the [full details](https://docs.cilium.io/en/stable/observability/metrics/) for configuring metrics collection.
+
+```bash
+kind create cluster --name cilium --config ./kind-config.yaml
+
+kubectl cluster-info
+kubectl get nodes
+
+helm install cilium cilium/cilium --version 1.16.3 --set prometheus.enabled=true --set operator.prometheus.enabled=true --namespace kube-system
+
+kubectl get nodes 
+kubectl get pods -A
+
+cilium status
+
+cilium hubble enable
+cilium status
+
+kubectl apply -f https://raw.githubusercontent.com/cilium/cilium/refs/heads/main/examples/minikube/http-sw-app.yaml
+
+kubectl apply -f https://raw.githubusercontent.com/cilium/cilium/refs/heads/main/examples/minikube/sw_l3_l4_l7_policy.yaml
+
+kubectl get pods -A
+cilium status
+```
