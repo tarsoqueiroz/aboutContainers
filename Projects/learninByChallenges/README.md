@@ -7,6 +7,7 @@
 - Kubernetes
   - [Understanding Kubernetes Volume Types](./Challenges/Understanding%20Kubernetes%20Volume%20Types/README.md)
   - [KUBERNETES OPERATOR EM GO - Criando o primeiro operador para Kubernetes com GoLang](./Challenges/Kubernetes%20Operator%20em%20Go/README.md)
+  - [How To Build a Kubernetes Operator From Scratch](./Challenges/Build%20an%20Operator%20from%20scratch/README.md)
 - Miscellaneous
 
 ## Challenges list
