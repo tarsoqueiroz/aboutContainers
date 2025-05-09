@@ -6,6 +6,7 @@
   - [Building Minimal Docker Images](./Challenges/Building%20Minimal%20Docker%20Images/README.md)
 - Kubernetes
   - [Understanding Kubernetes Volume Types](./Challenges/Understanding%20Kubernetes%20Volume%20Types/README.md)
+  - [KUBERNETES OPERATOR EM GO - Criando o primeiro operador para Kubernetes com GoLang](./Challenges/Kubernetes%20Operator%20em%20Go/README.md)
 - Miscellaneous
 
 ## Challenges list
