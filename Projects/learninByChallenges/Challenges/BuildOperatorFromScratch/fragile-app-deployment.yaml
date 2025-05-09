@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fragile-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fragile-app
+  template:
+    metadata:
+      labels:
+        app: fragile-app
+    spec:
+      containers:
+      - name: app
+        image: fragile-app:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 2
+          periodSeconds: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
