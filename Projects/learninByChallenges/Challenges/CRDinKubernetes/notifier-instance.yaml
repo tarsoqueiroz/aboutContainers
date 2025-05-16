@@ -1,0 +1,8 @@
+apiVersion: tarsoqueiroz.io/v1
+kind: EmailNotifier
+metadata:
+  name: test-notification
+spec:
+  recipient: "user@tarsoqueiroz.io"
+  subject: "Test Notification"
+  message: "This is a test email notification from our K8s operator"

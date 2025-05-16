@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: email-notifier-operator
+  namespace: email-notifier-operator
+spec:
+  containers:
+  - name: email-notifier-operator
+    image: tarsoqueiroz/email-notifier-operator:1.0.0
+    imagePullPolicy: Never
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+  serviceAccountName: email-notifier
