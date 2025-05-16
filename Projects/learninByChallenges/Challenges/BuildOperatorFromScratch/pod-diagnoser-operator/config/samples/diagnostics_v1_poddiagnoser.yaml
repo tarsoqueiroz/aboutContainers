@@ -1,0 +1,9 @@
+apiVersion: diagnostics.7f000001.nip.io/v1
+kind: PodDiagnoser
+metadata:
+  labels:
+    app.kubernetes.io/name: pod-diagnoser-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: poddiagnoser-sample
+spec:
+  # TODO(user): Add fields here
