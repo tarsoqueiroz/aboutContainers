@@ -55,4 +55,11 @@ kubectl describe tlscertificates
 
 kubectl describe tlscertificate.tarsoqueiroz.io example-tls-cert
 kubectl describe tlscertificates.tarsoqueiroz.io example-tls-cert
+
+## cleaning up
+kubectl delete -f ./crd-instance.yaml 
+kubectl get tlscertificates.tarsoqueiroz.io -A
+
+kubectl delete -f ./crd.yaml 
+kubectl get crds
 ```
