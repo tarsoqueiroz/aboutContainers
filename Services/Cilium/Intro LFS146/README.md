@@ -21,7 +21,7 @@ Thanks to [eBPF](https://ebpf.io/what-is-ebpf/), Cilium’s networking, security
 - [`kind-config.yaml`](./kind-config.yaml)
 
 ```bash
-kind create cluster --config=./kind-config.yaml
+kind create cluster --config=./kind-config.yaml --name lfs146-cilium
 
 kubectl config current-context
 
@@ -219,3 +219,73 @@ kubectl apply -f https://raw.githubusercontent.com/cilium/cilium/refs/heads/main
 kubectl get pods -A
 cilium status
 ```
+
+## Replacing Kube-Proxy
+
+We’ll need to start with a Kubernetes cluster created without kube-proxy installed for this lab.
+
+- [`kind-config-nokp.yaml`](./kind-config-nokp.yaml)
+
+```bash
+kind create cluster --config=./kind-config-nokp.yaml --name lfs146-cilium-nokp
+
+kubectl config current-context
+
+kubectl get nodes
+```
+
+Now let’s confirm the cluster does not have kube-proxy installed:
+
+```bash
+kubectl get -A daemonsets
+kubectl get -A daemonsets | grep kube-proxy
+kubectl get -A pods
+kubectl get -A pods | grep kube-proxy
+kubectl get -A configmaps
+kubectl get -A configmaps | grep kube-proxy
+```
+
+Install Cilium with kube-proxy:
+
+```bash
+cilium install
+
+🔮 Auto-detected Kubernetes kind: kind
+ℹ️  Using Cilium version 1.16.6
+🔮 Auto-detected cluster name: kind-lfs146-cilium-nokp
+ℹ️  Detecting real Kubernetes API server addr and port on Kind
+🔮 Auto-detected kube-proxy has not been installed
+ℹ️  Cilium will fully replace all functionalities of kube-proxy
+```
+
+o validate the kube-proxy replacement is working, we can use the Cilium CLI tool and have it run the complete set of connectivity tests now, and we should see NodePort services being created for testing:
+
+```bash
+cilium connectivity test --connect-timeout 30s --request-timeout 30s
+```
+
+Alternatively, we can manually test the NodePort connectivity:
+
+- [`nokp-nginx.yaml`](./nokp-nginx.yaml)
+
+```bash
+kubectl apply -f nokp-nginx.yaml
+
+kubectl get pods -l run=nokp-nginx -o wide
+```
+
+NodePort service for the nginx pod:
+
+```bash
+## expose a deployment
+kubectl expose deployment nokp-nginx --type=NodePort --port=80
+
+## verify the service
+kubectl get svc nokp-nginx
+
+## validating by Cilium client's service list
+kubectl -n kube-system exec ds/cilium -- cilium service list
+```
+
+## Transparent Encryption
+

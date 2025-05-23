@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nokp-nginx
+spec:
+  selector:
+    matchLabels:
+      run: nokp-nginx
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        run: nokp-nginx
+    spec:
+      containers:
+      - name: nokp-nginx
+        image: nginx
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+        ports:
+        - containerPort: 80
