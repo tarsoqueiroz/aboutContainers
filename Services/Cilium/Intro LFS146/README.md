@@ -1,4 +1,4 @@
-# IntroDuction to Cilium (LFS146)
+# Introduction to Cilium (LFS146)
 
 ## About
 
@@ -289,3 +289,12 @@ kubectl -n kube-system exec ds/cilium -- cilium service list
 
 ## Transparent Encryption
 
+**Why Use WireGuard or IPsec**?
+
+WireGuard and IPsec are both protocols that provide in-kernel transparent traffic encryption.
+
+WWireGuard is a simple-to-use, lightweight virtual Private Network (VPN) solution built into the Linux kernel. WireGuard is a peer-based VPN solution. A VPN connection is made between peers simply by exchanging public keys (similar to exchanging SSH keys).
+
+IPsec is a similar, older, and FIPS-compliant solution.
+
+When WireGuard or IPsec is enabled in Cilium, the Cilium agent running on each cluster node will establish a secure tunnel to other Cilium-managed nodes in the cluster.
