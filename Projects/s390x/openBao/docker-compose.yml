@@ -1,0 +1,20 @@
+version: '3.6'
+services:
+  openbao:
+    image: openbao/openbao:2.2.2-s390x
+    container_name: openbao
+    restart: on-failure:10
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./logs:/openbao/logs/:rw
+      - ./data:/openbao/data/:rw
+      - ./config:/openbao/config/:rw
+      - ./certs:/openbao/certs/:rw
+    healthcheck:
+      retries: 5
+    entrypoint: /bin/bao server -config=/openbao/config/openbao.hcl
+    networks:
+      - obao_net

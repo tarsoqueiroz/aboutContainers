@@ -1,0 +1,39 @@
+version: "3.8"
+services:
+  openbao:
+    image: openbao/openbao:2.2.2-s390x
+    ports:
+      - "8200:8200"
+    container_name: openbao-s390x
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./logs:/openbao/logs/:rw
+      - ./data:/openbao/data/:rw
+      - ./config:/openbao/config/:rw
+      - ./certs:/certs/:rw
+      - ./file:/openbao/file/:rw
+  
+    environment:
+      BAO_ADDR: "https://openbao.0a0f6017.nip.io:8200"
+      BAO_API_ADDR: "https://openbao.0a0f6017.nip.io:8200"
+      BAO_ADDRESS: "https://openbao.0a0f6017.nip.io:8200"
+      BAO_TOKEN: changeme
+      BAO_UI: true
+    command: server -config=/openbao/config/config.hcl
+    restart: always
+
+  openbao2:
+    image: openbao/openbao:latest
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - openbao-data:/openbao/data
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: "root"
+      BAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      BAO_DEV_STORAGE_PATH: "/openbao/data"
+volumes:
+  openbao-data:

@@ -1,0 +1,22 @@
+version: '3.6'
+services:
+  openbao:
+    image: openbao/openbao:2.2.2-s390x
+    container_name: openbao
+    restart: on-failure:10
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_ADDR: 'https://0.0.0.0:8200'
+      VAULT_LOCAL_CONFIG: '{"listener": [{"tcp":{"address": "0.0.0.0:8200","tls_disable":"0", "tls_cert_file":"/data/vault-volume/certificate.pem", "tls_key_file":"/data/vault-volume/key.pem"}}], "default_lease_ttl": "168h", "max_lease_ttl": "720h"}, "ui": true}'
+      VAULT_DEV_ROOT_TOKEN_ID: '12345678-1234-1234-1234-123456789012'
+      VAULT_TOKEN: '12345678-1234-1234-1234-123456789012'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-volume:/data
+    healthcheck:
+      retries: 5
+    command: server -dev -dev-root-token-id="12345678-1234-1234-1234-123456789012"
+    networks:
+      - obao_network
