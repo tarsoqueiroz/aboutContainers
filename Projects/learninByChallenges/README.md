@@ -17,6 +17,7 @@
   - [Hands On Docker For Beginners Golang Dev](https://dev.to/bagashyt/hands-on-docker-for-beginners-golang-dev-3kpo)
   - [Writing a Dockerfile: Beginners to Advanced](https://dev.to/prodevopsguytech/writing-a-dockerfile-beginners-to-advanced-31ie)
   - [Docker Image Optimization: Reducing Size for Faster Deployments](https://dev.to/thenanjay/docker-image-optimization-reducing-size-for-faster-deployments-489g)
+
 - Kubernetes
   - [Essential Kubernetes Concepts Explained: Pods, Namespaces, ConfigMaps, Ingress, and Deployments](https://dev.to/oliverbennet/essential-kubernetes-concepts-explained-pods-namespaces-configmaps-ingress-and-deployments-1a51)
   - [Sidecar Containers in Kubernetes](https://dev.to/cicube/sidecar-containers-in-kubernetes-2kj0)
@@ -29,6 +30,8 @@
   - [Private "ChatGPT" in 30 Minutes with Kubernetes, Ollama, and NVIDIA](https://dev.to/romulofrancas/unlock-the-future-build-your-own-private-chatgpt-in-30-minutes-with-kubernetes-ollama-and-1npp)
   - [Deploying a Node.js Application with Kustomize on Minikube](https://dev.to/bansikah/deploying-a-nodejs-application-with-kustomize-on-minikube-443k)
   - [GitOps implementation with ArgoCD](https://dev.to/rahulkarda/gitops-implementation-with-argocd-1b05)
+  - [Kubernetes cluster Tenancy and OIDC Login made easy with Capsule, Keycloak and Kubelogin](https://dev.to/agileactors/kubernetes-cluster-tenancy-and-oidc-login-made-easy-with-capsule-keycloak-and-kubelogin-376p)
+
 - Miscellaneous
   - Trilogy
     1. [Criando um cluster Kubernetes local com kubeadm](https://medium.com/@ramonriserio/criando-um-cluster-kubernetes-local-com-kubeadm-8af676567a35)
