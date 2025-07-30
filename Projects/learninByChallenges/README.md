@@ -9,6 +9,7 @@
   - [KUBERNETES OPERATOR EM GO - Criando o primeiro operador para Kubernetes com GoLang](./Challenges/Kubernetes%20Operator%20em%20Go/README.md)
   - [How To Build a Kubernetes Operator From Scratch](./Challenges/BuildOperatorFromScratch/README.md)
   - [What are CRDs in Kubernetes](./Challenges/CRDinKubernetes/README.md)
+  - [Kubernetes Tutorials with CKA and CKAD Prep Guide](./Challenges/Tutorials%20with%20CKA%20and%20CKAD%20prep%20guide/README.md)
 - Miscellaneous
 
 ## Challenges list
