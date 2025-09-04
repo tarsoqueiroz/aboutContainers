@@ -4,9 +4,9 @@
 
 > [Udemy: Tekton - The quick start](https://www.udemy.com/course/tekton-the-quick-start)
 
-This course promises an introduction with practical exercises to learn Tekton CI/CD Pipelines at an expert level.
+Este curso é uma introdução com exercícios práticos para estudar Tekton CI/CD Pipelines para um nível melhor.
 
-## Introduction
+## Introdução
 
 In recent years, the IT landscape has experienced significant transformations, with the emergence of Cloud, DevOps, and GitOps, each advocating a particular philosophy and introducing a multitude of tools. These philosophies share a common goal: to enhance companies' software development and application delivery procedures. Within this context, the concepts of Continuous Integration and Continuous Delivery (CI/CD) have gained prominence, referring to the mechanisms facilitating seamless integration and deployment processes.
 
@@ -18,13 +18,170 @@ Compared to Jenkins, Travis CI, CircleCI, and similar platforms, Tekton stands o
 
 If you're passionate about cloud-native technologies and you want to keep up with recent technologies, this course is tailored specifically for you.
 
-## Setup
+Tekton é um projeto da CDF (Continuous Delivery Foundation), composto por CRDs que definem pipelines como objetos de primeira classe no cluster.
 
-**Prereq tools**:
+## CI/CD (Integração e Entrega Contínua) - Visão de Infra
+
+Automatizar e padronizar o caminho do código (dev) até a produção (infra), reduzindo erros e acelerando entregas.
+
+### CI (Integração Contínua)
+
+**Foco**: Desenvolvedores.
+
+**O que faz**: Automatiza a validação do código.
+
+**Ações típicas**:
+
+- Build (compilação)
+- Testes unitários e de integração
+- Análise estática de código (linting, segurança)
+
+**Resultado**: Um artefato válido e pronto (ex: imagem de container, binário).
+
+**Diferença**: O CI é sobre garantia de qualidade do código. É o "como" se constrói.
+
+### CD (Entrega Contínua)
+
+**Foco**: Operações/Infra.
+
+**O que faz**: Automatiza a implantação do artefato em ambientes (homolog, produção).
+
+**Ações típicas**:
+
+- Deploy em ambientes
+- Testes end-to-end (E2E)
+- Rollback automático em caso de falha
+
+**Resultado**: O software entregue e rodando no ambiente destino.
+
+**Diferença**: O CD é sobre garantia de entrega e confiabilidade operacional. É o "como" se implanta e opera.
+
+### Resumo para Infra:
+
+- **CI** cria o pacote de software de forma confiável.
+- **CD** pega esse pacote e o coloca para rodar de forma confiável.
+
+**Preocupação para Infraestrutura**: O **CD** é onde a infraestrutura (K8s, redes, segurança) é ativada. Você garante que o processo de deploy seja seguro, estável e reversível.
+
+## Tekton
+
+Tekton é um orquestrador de CI/CD nativo para Kubernetes. 
+
+### Conceitos-Chave para o Tekton
+
+- **Task**: Unidade atômica de trabalho (e.g., clonar repo, buildar imagem, rodar testes). Uma `Task` define uma série de `Steps` (containers).
+- **Pipeline**: Sequência de `Tasks` organizadas em DAG (Grafo Acíclico Direcionado), definindo dependências e ordem de execução.
+- **PipelineRun**: Instância de execução de uma `Pipeline`. Fornece os parâmetros concretos (e.g., git repo, tag da imagem).
+- **TaskRun**: Instância de execução de uma `Task`. Criada automaticamente por uma `PipelineRun` ou manualmente.
+- **Workspace**: Mecanismo para persistir dados e compartilhar estado entre `Tasks` (e.g., volume PVC, emptyDir, configMap).
+- **Trigger (Tekton Triggers)**: Permite acionar `PipelineRuns` automaticamente baseado em eventos (e.g., webhook do GitHub).
+
+### Por que Tekton?
+
+- **Kubernetes-Nativo**: Escala com o cluster, usa RBAC, Secrets, Service Accounts nativamente.
+- **Reutilizável**: `Tasks` e `Pipelines` são declarativas e modularizáveis.
+- **Portável**: A definição da pipeline é abstracta do runner, evitando vendor lock-in.
+- **Extensível**: Escreva suas próprias `Tasks` em qualquer linguagem (container é a unidade).
+
+### Exemplos Práticos
+
+> *Os exemplos que seguem apresentam um YAML simplificado.*
+
+- [Task para clonar repositório](./resources/git-clone.yaml)
+- [Pipeline que usa a Task](./resources/ci-pipeline.yaml)
+- [Executando](./resources/pipelinerun.yaml)
+
+### Ferramentas do Ecossistema
+
+- **tkn**: CLI oficial para interagir com o Tekton.
+- **Tekton Dashboard**: UI para visualizar pipelines e logs.
+- **Tekton Catalog**: Repositório de `Tasks` reutilizáveis e confiáveis (prefira as do catalog às caseiras).
+- **Tekton Chains**: Para assinar digitalmente artefatos da CI/CD (ex.: imagens OCI).
+
+### Arquitetura do Tekton (Componentes Principais)
+
+- **Controlador (Tekton Controller)**: O cérebro. Reconhece os CRDs (Custom Resource Definitions) do Tekton (Task, Pipeline, etc.) e orquestra a criação dos Pods para execução.
+- **CRDs (Custom Resource Definitions)**: Os blocos de construção. Extendem a API do Kubernetes para definir os recursos do Tekton.
+- **Tekton Pipelines Pod**: O executor. Cada `TaskRun` e `PipelineRun` cria um ou mais Pods no cluster onde os `Steps` (containers) são executados.
+- **Tekton Triggers (Opcional)**: O gatilho. Detecta eventos externos (ex: webhook do Git) e inicia automaticamente uma `PipelineRun`.
+
+### Elementos/CRDs Chave
+
+- **Task**: Define os passos de uma tarefa (cada passo é um container).
+- **Pipeline**: Define uma sequência de Tasks com dependências.
+- **PipelineRun**: Instância de execução de uma Pipeline (fornece inputs reais).
+- **TaskRun**: Instância de execução de uma Task.
+- **Workspace**: Abstração de um volume (PVC, emptyDir, etc.) para compartilhar dados entre tarefas.
+
+### Fluxo de Execução (Simplificado)
+
+- **Declaração**: O usuário aplica os manifests de Task e Pipeline no cluster.
+- **Acionamento**:
+  - **Manual**: O usuário cria um recurso PipelineRun (via kubectl ou tkn).
+  - **Automático**: O Tekton Triggers intercepta um evento e cria o PipelineRun.
+- **Orquestração**: O Controlador do Tekton:
+  - Interpreta a PipelineRun.
+  - Cria um TaskRun para cada Task na pipeline.
+- **Execução**: Cada TaskRun criado:
+  - Agenda um Pod no Kubernetes.
+  - Cada Step da Task é executado como um container dentro deste Pod, na ordem definida.
+- **Resultado**: O Controlador atualiza o status dos recursos (TaskRun, PipelineRun) para Succeeded ou Failed.
+
+![Diagrama de Fluxo de Execução](./resources/Diagrama_Fluxo_Execucao.svg)
+
+***Diagrama de fluxo de execução***
+
+### Ponto de Atenção Crucial
+
+Tekton abstrai a complexidade do Jenkins mas a substitui pela complexidade operacional do Kubernetes. Você precisa dominar:
+
+- Gerenciamento de **Workspaces** (volumes).
+- Configuração de **ServiceAccounts** e **Secrets** para registros e git.
+- **Monitoramento** de recursos (PipelineRun consome CPU/memória como qualquer Pod).
+
+## Instalação
+
+**Pre-requisitos**:
 
 - [Docker](https://github.com/tarsoqueiroz/fastITips/tree/primary/Docker/Install)
 - [Kind (Kubernetes)](https://github.com/tarsoqueiroz/fastITips/tree/primary/Kubernetes/KinD)
 - [kubectl](https://github.com/tarsoqueiroz/fastITips/tree/primary/Kubernetes/KubeCTL)
 
+```sh
+# create kind cluster
+kind create cluster --config resources/kind-tekton.yaml
+```
+
 **Tekton installation**:
 
+- [Tekton.dev](https://tekton.dev/)
+
+```sh
+# install tekton last release
+tekton_cluster="tekton-cluster"
+kubectl config use "kind-$tekton_cluster"
+kubectl config current-context
+
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+
+# check install
+kubectl get ns
+
+kubectl get pods -n tekton-pipelines
+
+kubectl get pods -n tekton-pipelines-resolvers
+```
+
+## Tasks e Pipelines
+
+
+
+## Troggers e Eventlisteners
+
+## Utilitários do Tekton
+
+## Tekton Enterprise
+
+## That's all
+
+...folks!!!

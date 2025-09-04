@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-app
+spec:
+  workspaces:
+    - name: shared-data
+  tasks:
+    - name: fetch-source
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: "https://github.com/meu/repo"
+      workspaces:
+        - name: output
+          workspace: shared-data
+
+    - name: build-image
+      runAfter: [fetch-source] # Define a dependência
+      taskRef:
+        name: buildah # Task comum para build de imagens
+      workspaces:
+        - name: source
+          workspace: shared-data
+      params:
+        - name: IMAGE
+          value: "registry.com/app:latest"

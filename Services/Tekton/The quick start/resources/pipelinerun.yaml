@@ -1,0 +1,16 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: build-app-run-01
+spec:
+  pipelineRef:
+    name: build-app
+  workspaces:
+    - name: shared-data
+      volumeClaimTemplate: # Tekton provisiona um PVC sob demanda
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
