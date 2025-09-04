@@ -174,7 +174,27 @@ kubectl get pods -n tekton-pipelines-resolvers
 
 ## Tasks e Pipelines
 
+Task: 
 
+- Unidade atômica e reutilizável de trabalho.
+
+```sh
+kubectl apply -f resources/4.01-task.yaml 
+kubectl get task 
+kubectl get task 4-01-echo-task 
+kubectl describe task 4-01-echo-task 
+```
+
+TaskRun:
+
+- Execução individual de Task
+
+```sh
+kubectl apply -f resources/4.02-taskrun.yaml 
+kubectl get taskrun
+kubectl get pods
+kubectl logs 4-02-echo-task-run-pod 
+```
 
 ## Troggers e Eventlisteners
 

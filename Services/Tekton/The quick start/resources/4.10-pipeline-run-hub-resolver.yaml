@@ -1,0 +1,7 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: 4-10-curl-pipeline-run
+spec:
+  pipelineRef:
+    name: 4-10-curl-pipeline

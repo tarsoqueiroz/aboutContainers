@@ -1,0 +1,22 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: 4-10-curl-pipeline
+spec:
+  tasks:
+    - name: curl
+      taskRef:
+        resolver: hub
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: curl
+          - name: version
+            value: 0.1
+      params:
+        - name: url
+          value: "www.google.com"
+        - name: "options"
+          value:
+            - "-I"

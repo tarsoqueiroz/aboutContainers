@@ -1,0 +1,11 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: 4-08-git-clone
+spec:
+  steps:
+    - name: git-clone
+      image: alpine/git:2.40.1
+      script: |
+        #!/bin/sh
+        git clone https://github.com/c-linse/tekton-test-repo .

@@ -1,0 +1,11 @@
+apiVersion: tekton.dev/v1beta1
+kind: ClusterTask
+metadata:
+  name: 4-09-cluster-task-echo
+spec:
+  steps:
+    - name: echo-step
+      image: alpine:3.14
+      script: |
+        #!/bin/sh
+        echo "Hello, from ClusterTask!"
