@@ -1,0 +1,23 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: 5-09-tt
+  namespace: default
+spec:
+  params:
+    - name: firstname
+    - name: lastname
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: simple-pipeline-run-
+        namespace: default
+      spec:
+        pipelineRef:
+          name: 5-09-pipeline
+        params:
+          - name: firstname
+            value: $(tt.params.firstname)
+          - name: lastname
+            value: $(tt.params.lastname)

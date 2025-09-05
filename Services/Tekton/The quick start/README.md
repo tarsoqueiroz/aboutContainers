@@ -174,8 +174,9 @@ kubectl get pods -n tekton-pipelines-resolvers
 
 ## Tasks e Pipelines
 
-Task: 
+### Task
 
+- A definição do trabalho. É um modelo que descreve os passos (containers) para executar uma tarefa (ex.: build, teste). É o "o quê" fazer.
 - Unidade atômica e reutilizável de trabalho.
 
 ```sh
@@ -185,20 +186,154 @@ kubectl get task 4-01-echo-task
 kubectl describe task 4-01-echo-task 
 ```
 
-TaskRun:
+### TaskRun
 
+- A execução de uma Task. É uma instância concreta que fornece os parâmetros reais (ex.: URL do repositório Git) e roda os containers. É o "como" e "quando" fazer.
 - Execução individual de Task
 
 ```sh
 kubectl apply -f resources/4.02-taskrun.yaml 
 kubectl get taskrun
 kubectl get pods
-kubectl logs 4-02-echo-task-run-pod 
+kubectl logs 4-02-echo-task-run-pod
+```
+
+### Pipeline
+
+- A orquestração de Tasks. Define a sequência e as dependências entre várias Tasks, formando um fluxo de trabalho completo (ex.: `build -> test -> deploy`). É o "fluxo" do processo.
+- Tekton Pipelines are a way to define and manage CI/CD workflows.
+- Enablement to string together a sequence of Tasks to create CI/CD.
+- With possibility to customise execution conditions according to the required business needs
+
+```sh
+kubectl apply -f resources/4.03-pipeline.yaml 
+kubectl get pipelines
+kubectl describe pipelines 4-03-example-pipeline 
+```
+
+### PipelineRun
+
+- A execução de uma Pipeline. É uma instância concreta que aciona toda a sequência de Tasks definida na Pipeline, fornecendo os parâmetros e workspaces necessários. É a "corrida" completa do fluxo.
+
+```sh
+kubectl apply -f resources/4.04-pipelinerun.yaml 
+kubectl get pipelineruns
+kubectl get taskruns
+kubectl delete pipelinerun 4-04-example-pipeline-run 
+kubectl get taskruns
+```
+
+### Analogia: Receita de Bolo
+
+- **Task**: Receita de um recheio.
+- **TaskRun**: Você fazendo o recheio (com os ingredientes reais).
+- **Pipeline**: O livro de receitas que ordena: massa -> recheio -> cobertura.
+- **PipelineRun**: Você assando o bolo inteiro do começo ao fim.
+
+### Input-Parameterizing
+
+```sh
+kubectl apply -f ./resources/4.05-task-with-input.yaml 
+kubectl apply -f ./resources/4.05-task-run-with-input.yaml 
+kubectl get pods
+kubectl logs 4-05-example-taskrun-override-pod 
+kubectl apply -f ./resources/4.05-pipeline-with-input.yaml 
+kubectl apply -f ./resources/4.05-pipelinerun-with-input.yaml 
+kubectl get pods
+kubectl logs 4-05-example-pipeline-with-input-run-task-run-1-pod 
+kubectl logs 4-05-example-pipeline-with-input-run-task-run-2-pod 
+```
+
+### Results
+
+```sh
+kubectl apply -f ./resources/4.06-uppercase-task-with-input-and-result.yaml -f ./resources/4.06-example-uppercase-pipeline.yaml 
+kubectl apply -f ./resources/4.06-example-uppercase-pipeline-run.yaml 
+kubectl get taskrun
+kubectl describe taskrun 4-06-example-uppercase-pipeline-run-task-process-input 
+kubectl get po
+kubectl logs 4-06-example-uppercase-pipeline-run-print-message-pod 
+```
+
+### Workspaces
+
+```sh
+kubectl apply -f ./resources/4.07-task-write-on-workspace.yaml -f ./resources/4.07-task-read-from-workspace.yaml 
+kubectl apply -f ./resources/4.07-example-pipeline-workspace.yaml 
+kubectl get pvc -A
+
+kubectl describe pvc 4-07-tekton-test-claim
+kubectl apply -f ./resources/4.07-example-pipeline-run-workspace.yaml 
+kubectl get pvc -A
+kubectl describe pvc 4-07-tekton-test-claim
+
+kubectl get pipelinerun
+kubectl logs 4-07-example-pipeline-run-workspace-demo-read-message-pod 
+```
+
+### Authentication
+
+```sh
+kubectl apply -f ./resources/4.08-task-git-clone.yaml 
+kubectl apply -f ./resources/4.08-task-run-git-clone.yaml 
+kubectl get taskrun
+kubectl get pods
+kubectl logs 4-08-task-run-git-clone-pod 
+kubectl apply -f ./resources/4.08-git-secret.yaml 
+kubectl edit serviceaccount default
+kubectl delete taskrun 4-08-task-run-git-clone 
+kubectl apply -f ./resources/4.08-task-run-git-clone.yaml 
+kubectl logs 4-08-task-run-git-clone-pod 
+```
+
+### ClusterTask
+
+```sh
+kubectl apply -f ./resources/4.09-cluster-task-echo.yaml 
+kubectl apply -f ./resources/4.09-task-run-echo.yaml 
+kubectl get taskruns -n default
+```
+
+### Resolvers
+
+```sh
+kubectl apply -f ./resources/4.10-pipeline-hub-resolver.yaml 
+kubectl apply -f ./resources/4.10-pipeline-run-hub-resolver.yaml 
+kubectl logs 4-10-curl-pipeline-run-curl-pod 
 ```
 
 ## Troggers e Eventlisteners
 
+### Setup Tekton Triggers
+
+- [tekton.dev: Triggers and EventListeners](https://tekton.dev/docs/triggers/)
+
+```sh
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/release.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/interceptors.yaml
+kubectl get pods -n tekton-pipelines
+```
+
+### Tekton Triggers
+
+```sh
+
+```
+
 ## Utilitários do Tekton
+
+### Tekton Cli
+
+- [Tekton.dev: Install Tekton cli](https://tekton.dev/docs/cli/#installation)
+
+### Tekton Plugins
+
+### Tekton Dashboards
+
+### Tekton Hub
+
+- [Tekton Hub](https://tekton.dev/docs/operator/tektonhub/)
+- [Tekton Hub (deprecated)](https://hub.tekton.dev/)
 
 ## Tekton Enterprise
 

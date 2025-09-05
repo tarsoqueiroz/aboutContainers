@@ -1,0 +1,20 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: 5-09-pipeline
+  namespace: default
+spec:
+  params:
+    - name: firstname
+      type: string
+    - name: lastname
+      type: string
+  tasks:
+    - name: print-fields-task
+      taskRef:
+        name: 5-09-task
+      params:
+        - name: firstname
+          value: $(params.firstname)
+        - name: lastname
+          value: $(params.lastname)

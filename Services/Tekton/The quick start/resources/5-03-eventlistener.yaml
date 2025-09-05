@@ -1,0 +1,9 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: 5-03-el
+  namespace: default
+spec:
+  triggers:
+    - triggerRef: trigger
+  serviceAccountName: tekton-triggers-example-sa
