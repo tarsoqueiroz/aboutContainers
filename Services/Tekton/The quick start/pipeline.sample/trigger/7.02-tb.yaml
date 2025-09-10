@@ -1,0 +1,23 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: 7-02-github-tb
+  namespace: default
+spec:
+  params:
+    - name: git-repository-url
+      value: $(body.repository.clone_url)
+    - name: git-repo-full-name
+      value: $(body.repository.full_name)
+    - name: git-revision
+      value: $(body.head_commit.id)
+    - name: app-name
+      value: $(body.repository.name)
+    - name: image-tag
+      value: $(extensions.image-tag)
+    - name: chart-tag
+      value: $(extensions.chart-tag)
+    - name: is-main-branch
+      value: $(extensions.is-main-branch)
+    - name: is-git-tag
+      value: $(extensions.is-git-tag)

@@ -337,6 +337,108 @@ kubectl get pods -n tekton-pipelines
 
 ## Tekton Enterprise
 
+Tekton CICD example project
+
+- [Infrastructure setup (part 1/3)](https://onlu.ch/en/tekton-cicd-example-project-infrastructure-setup-part-1-3/)
+- [Pipeline design & implementation (part 2/3)](https://onlu.ch/tekton-cicd-example-project-pipeline-design-implementation-part-2-3/)
+- [GitHub Integration & testing (part 3/3)](https://onlu.ch/tekton-cicd-example-project-github-integration-testing-part-3-3/)
+
+### Infrastructure setup (part 1/3)
+
+Step work:
+
+- Install Kind
+- Install Tekton
+
+```sh
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/release.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/latest/interceptors.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboard/latest/release.yaml
+
+kubectl get pods -n tekton-pipelines
+kubectl get pods -n tekton-pipelines-resolvers
+```
+
+### Pipeline design & implementation (part 2/3)
+
+**Directory structure**: 
+
+Configuration YAML in `./pipeline.sample`.
+
+- `./pipelines`: Contains the Tekton pipeline configuration file.
+- `./rbac`: Contains the rbac for the trigger and the deployer service-account
+- `./secrets`: Includes secrets such as for quay & github.
+- `./tasks`: Holds self-maintained task definitions used within the pipeline.
+- `./trigger`: Contains configuration files for triggering pipeline execution.
+
+**Pipeline definition**:
+
+- `7.02-go-pipeline.yaml` file: This file outlines the workflow of our CI/CD pipeline.
+
+**Task installation**:
+
+```sh
+tkn hub install task git-clone --version 0.9 --namespace default
+tkn hub install task golangci-lint --version 0.2 --namespace default
+tkn hub install task golang-test --version 0.2 --namespace default
+tkn hub install task buildah --version 0.7 --namespace default
+tkn hub install task helm-upgrade-from-repo --version 0.2 --namespace default
+tkn hub install task github-set-status --version 0.4 --namespace default
+```
+
+**Custom helm task**:
+
+- `7.02-helm-build-push.yaml`: This file task is a custom Tekton task designed to lint and package a Helm chart into a tar.gz file and push it to a web server.
+
+**Secrets**:
+
+- `7.02-github-repo-secret.yaml`: This secret contains the authentication credentials required to access the GitHub repository hosting the application code.
+- `7.02-github-status-api-secret.yaml`: This secret holds a GitHub token used for authentication when interacting with GitHub status api. It will be used to update the state of the git-revision the pipeline executes.
+- `7.02-github-interceptor-secret.yaml`: This secret holds a GitHub token used for authentication when interacting with GitHub repositories.
+- `7.02-quay-secret.yaml`: This secret stores the authentication credentials necessary for pushing container images to the `https://quay.io` container registry.
+
+**Trigger definition**:
+
+- `7.02-eventlistener.yaml`: The eventlistener resource 7-02-github-el will be additionally exposed by a loadbalancer.
+- `7.02-tb.yaml`: The TriggerBinding resource named 7-02-github-tb defines parameters that extract information from GitHub webhook
+payloads.
+- `7.02-tt.yaml`: The TriggerTemplate resource named 7-02-github-tt defines parameters and resource templates for pipeline runs.
+- `7.02-trigger.yaml`: The Trigger resource 7-02-github-trigger binds to the 7-02-github-tb TriggerBinding and references the
+7-02-github-tt TriggerTemplate.
+
+**RBAC**:
+
+```sh
+kubectl create namespace dev
+kubectl create namespace qa
+```
+
+- `7.02-rbac-trigger.yaml`
+- `7.02-rbac-deployer.yaml`
+
+### GitHub Integration & testing (part 3/3)
+
+A simple GoLang project app is available under `https://github.com/c-linse/go-add-app`.
+
+**Testing pipeline execution happy path**:
+
+```sh
+git fetch origin
+git checkout main
+git checkout -b feature/division
+git push --set-upstream origin feature/division
+```
+
+**Creating a git tag**:
+
+```sh
+git fetch origin
+git checkout 
+git tag -a  -m "Description of the tag"
+git push origin
+```
+
 ## That's all
 
 ...folks!!!

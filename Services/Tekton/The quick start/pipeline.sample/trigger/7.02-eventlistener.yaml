@@ -1,0 +1,21 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: 7-02-github-el
+spec:
+  triggers:
+    - triggerRef: 7-02-github-trigger
+  serviceAccountName: 7-02-tekton-triggers-sa
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lb-tekton-event-listener-service
+spec:
+  selector:
+    eventlistener: 7-02-github-el
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer

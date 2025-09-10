@@ -1,0 +1,59 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: 7-02-helm-build-push
+spec:
+  description: This task run helm lint and packages a helm chart to tar.gz and pushes it into a webserver
+  params:
+    - name: HELM_CHART_NAME
+      description: Chart name to use for packaging and pushing
+      type: string
+    - name: HELM_CHART_TAG
+      description: Tag to be used for helm build and push
+      type: string
+    - name: HELM_TARGET_ARTIFACTORY
+      description: Server to be used for publishing helm package
+      type: string
+      default: https://github.com/c-linse/tekton-course-charts.git
+  workspaces:
+    - name: source
+    - name: helm-repo
+  steps:
+    - name: helm-lint
+      image: dtzar/helm-kubectl:3.14.1
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+        cd helm
+        helm lint . 
+
+    - name: helm-package
+      image: dtzar/helm-kubectl:3.14.1
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+        cd helm
+        helm package . \
+        --version "$(params.HELM_CHART_TAG)" \
+        --app-version "$(params.HELM_CHART_TAG)" \
+        -d "$(workspaces.source.path)/$(params.HELM_CHART_NAME)"
+
+    - name: helm-publish
+      image: dtzar/helm-kubectl:3.14.1
+      workingDir: $(workspaces.helm-repo.path)
+      script: |
+        #!/bin/bash
+        set -e
+        git clone $(params.HELM_TARGET_ARTIFACTORY) .
+        git config user.name "c-linse"
+        git config user.email "christophlinse@googlemail.com"
+        mkdir -p "$(params.HELM_CHART_NAME)"
+        cp -R \
+        "$(workspaces.source.path)/$(params.HELM_CHART_NAME)/$(params.HELM_CHART_NAME)-$(params.HELM_CHART_TAG).tgz" \
+        "$(params.HELM_CHART_NAME)/"
+        helm repo index .
+        git add index.yaml "$(params.HELM_CHART_NAME)" 
+        git commit -m "$(params.HELM_CHART_NAME)-$(params.HELM_CHART_TAG)"
+        git push origin main

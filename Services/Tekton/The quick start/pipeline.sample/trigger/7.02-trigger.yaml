@@ -1,0 +1,33 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: Trigger
+metadata:
+  name: 07-github-trigger
+  namespace: default
+spec:
+  bindings:
+    - ref: 07-github-tb
+  template:
+    ref: 07-github-tt
+  interceptors:
+    - ref:
+        name: "github"
+        kind: ClusterInterceptor
+        apiVersion: triggers.tekton.dev
+      params:
+        - name: "secretRef"
+          value:
+            secretName: 07-github-interceptor-secret
+            secretKey: token
+    - ref:
+        name: "cel"
+      params:
+        - name: overlays
+          value:
+            - key: is-main-branch
+              expression: body.ref.matches('refs/heads/main')
+            - key: is-git-tag
+              expression: body.ref.matches('refs/tags/.*')
+            - key: image-tag
+              expression: body.ref.split('/')[2].replace('main','latest')
+            - key: chart-tag
+              expression: body.ref.split('/')[2].replace('main','1.0.0')

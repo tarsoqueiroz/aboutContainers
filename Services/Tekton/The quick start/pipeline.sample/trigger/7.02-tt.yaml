@@ -1,0 +1,64 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: 7-02-github-tt
+  namespace: default
+spec:
+  params:
+    - name: git-repository-url
+    - name: git-revision
+    - name: git-repo-full-name
+    - name: image-tag
+    - name: chart-tag
+    - name: app-name
+    - name: is-main-branch
+    - name: is-git-tag
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: go-pipeline-run-
+        namespace: default
+      spec:
+        pipelineRef:
+          name: 7-02-go-pipeline
+        podTemplate:
+          securityContext:
+            fsGroup: 65532 # to make the volumes accessible by the non-root user, we need to either configure the permissions manually or set the fsGroup
+        taskRunSpecs:
+          - pipelineTaskName: deploy-dev
+            taskServiceAccountName: 7-02-deployer-sa
+          - pipelineTaskName: deploy-qa
+            taskServiceAccountName: 7-02-deployer-sa
+        params:
+          - name: git-url
+            value: $(tt.params.git-repository-url)
+          - name: git-revision
+            value: $(tt.params.git-revision)
+          - name: git-repo-full-name
+            value: $(tt.params.git-repo-full-name)
+          - name: app-name
+            value: $(tt.params.app-name)
+          - name: image-tag
+            value: $(tt.params.image-tag)
+          - name: chart-tag
+            value: $(tt.params.chart-tag)
+          - name: is-main-branch
+            value: $(tt.params.is-main-branch)
+          - name: is-git-tag
+            value: $(tt.params.is-git-tag)
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce # access mode may affect how you can use this volume in parallel tasks
+                resources:
+                  requests:
+                    storage: 10Mi
+          - name: dockerconfig-ws
+            secret:
+              secretName: 7-02-quay-secret
+          - name: helm-workspace
+            emptyDir:
+              medium: Memory

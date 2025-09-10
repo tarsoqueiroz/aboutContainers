@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: 7-02-deployer-sa
+  namespace: default
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: dev
+  name: 7-02-deployer-role-dev
+rules:
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps", "deployments", "serviceaccounts","services"]
+    verbs: ["get", "list", "create", "update", "delete", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "create", "update", "delete", "patch"]
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: qa
+  name: 7-02-deployer-role-qa
+rules:
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps", "deployments", "serviceaccounts", "services"]
+    verbs: ["get", "list", "create", "update", "delete", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "create", "update", "delete", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: 7-02-deployer-dev-rolebinding
+  namespace: dev
+subjects:
+  - kind: ServiceAccount
+    name: 7-02-deployer-sa
+    namespace: default
+roleRef:
+  kind: Role
+  name: 7-02-deployer-role-dev
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: 7-02-deployer-qa-rolebinding
+  namespace: qa
+subjects:
+  - kind: ServiceAccount
+    name: 7-02-deployer-sa
+    namespace: default
+roleRef:
+  kind: Role
+  name: 7-02-deployer-role-qa
+  apiGroup: rbac.authorization.k8s.io

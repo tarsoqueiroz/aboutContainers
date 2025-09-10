@@ -1,0 +1,200 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: 7-02-go-pipeline
+  namespace: default
+spec:
+  workspaces:
+    - name: shared-workspace
+    - name: helm-workspace
+    - name: dockerconfig-ws
+  params:
+    - name: git-url
+      description: Git Repo to checkout the desired git repository
+      type: string
+    - name: git-revision
+      description: Revision to be used from repo of the code for building and testing
+      type: string
+      default: main
+    - name: git-repo-full-name
+      description: Used to leverage git status api
+      type: string
+    - name: is-main-branch
+      description: Flag to be used for conditional pipeline executing (CI CD up to dev namespace)
+      type: string
+      default: false
+    - name: is-git-tag
+      description: Flag to be used for conditional pipeline executing (CI CD up to qa namespace)
+      type: string
+      default: false
+    - name: image-repository
+      description: Image registry where images are going to be pushed
+      type: string
+      default: quay.io/christoph_linse
+    - name: app-name
+      description: App name to be used for container-image and helm-chart build
+      type: string
+    - name: image-tag
+      description: Container-image tag to be used
+      type: string
+      default: latest
+    - name: chart-tag
+      description: Default helm-chart tag to be used
+      type: string
+      default: 1.0.0
+    - name: golang-version
+      description: Version of golang to be used
+      type: string
+      default: "1.22"
+  tasks:
+    - name: notify-github
+      taskRef:
+        name: github-set-status
+      params:
+        - name: REPO_FULL_NAME
+          value: "$(params.git-repo-full-name)"
+        - name: SHA
+          value: "$(params.git-revision)"
+        - name: DESCRIPTION
+          value: "Build has started"
+        - name: STATE
+          value: pending
+        - name: TARGET_URL
+          value: "http://localhost:9097/#/pipelineruns"
+    - name: fetch-source
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: deleteExisting
+          value: "true"
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+    - name: test-code
+      taskRef:
+        name: golang-test
+      params:
+        - name: package
+          value: "$(params.app-name)"
+        - name: version
+          value: "$(params.golang-version)"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - fetch-source
+    - name: lint-code
+      taskRef:
+        name: golangci-lint
+      params:
+        - name: package
+          value: "$(params.app-name)"
+        - name: flags
+          value: --verbose
+        - name: version
+          value: "v$(params.golang-version)"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - fetch-source
+    - name: build-image
+      taskRef:
+        name: buildah
+      params:
+        - name: IMAGE
+          value: $(params.image-repository)/$(params.app-name):$(params.image-tag)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: dockerconfig-ws
+      runAfter:
+        - lint-code
+        - test-code
+      when:
+        - input: "true"
+          operator: in
+          values: [ "$(params.is-main-branch)", "$(params.is-git-tag)" ]
+    - name: build-helm
+      taskRef:
+        name: 7-02-helm-build-push
+      params:
+        - name: HELM_CHART_NAME
+          value: "$(params.app-name)"
+        - name: HELM_CHART_TAG
+          value: "$(params.chart-tag)"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: helm-repo
+          workspace: helm-workspace
+      runAfter:
+        - build-image
+      when:
+        - input: "true"
+          operator: in
+          values: [ "$(params.is-main-branch)", "$(params.is-git-tag)" ]
+    - name: deploy-dev
+      taskRef:
+        name: helm-upgrade-from-repo
+      params:
+        - name: helm_repo
+          value: https://c-linse.github.io/tekton-course-charts
+        - name: chart_name
+          value: "tekton-course-charts/$(params.app-name)"
+        - name: release_version
+          value: "$(params.chart-tag)"
+        - name: release_name
+          value: "$(params.app-name)"
+        - name: release_namespace
+          value: dev
+      runAfter:
+        - build-helm
+      when:
+        - input: "true"
+          operator: in
+          values: [ "$(params.is-main-branch)" ]
+    - name: deploy-qa
+      taskRef:
+        name: helm-upgrade-from-repo
+      params:
+        - name: helm_repo
+          value: https://c-linse.github.io/tekton-course-charts
+        - name: chart_name
+          value: "tekton-course-charts/$(params.app-name)"
+        - name: release_version
+          value: "$(params.chart-tag)"
+        - name: release_name
+          value: "$(params.app-name)"
+        - name: release_namespace
+          value: qa
+      runAfter:
+        - build-helm
+      when:
+        - input: "true"
+          operator: in
+          values: [ "$(params.is-git-tag)" ]
+  finally:
+    - name: notify-git-state-success
+      taskRef:
+        name: github-set-status
+      when:
+        - input: "$(tasks.status)"
+          operator: notin
+          values: [ "Failed" ]
+      params:
+        - name: REPO_FULL_NAME
+          value: "$(params.git-repo-full-name)"
+        - name: SHA
+          value: "$(params.git-revision)"
+        - name: DESCRIPTION
+          value: "Build has been successful"
+        - name: STATE
+          value: success
+        - name: TARGET_URL
+          value: "http://localhost:9097/#/pipelineruns"
