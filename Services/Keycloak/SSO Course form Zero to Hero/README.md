@@ -160,16 +160,223 @@ Running PostgreSQL within Docker provides a convenient, isolated, and portable w
 docker volume create postgresql_data
 docker run -d --rm --name postgresql -e POSTGRES_PASSWORD=changeit -p 5432:5432 -v postgresql_data:/var/lib/postgresql/data postgres
 
-
-
 docker network create service-network
 
-docker volume  create postgres_data
+docker volume create postgres_data
 docker volume create pgadm_data
 
 docker run --rm -d --name postgres --network=service-network -e POSTGRES_PASSWORD=changeit123! -p 5432:5432 -v postgres_data:/var/lib/postgresql/data postgres
 docker run --rm -d --name pgadmin  --network=service-network -e PGADMIN_DEFAULT_EMAIL=tarsoqueiroz@gmail.com -e PGADMIN_DEFAULT_PASSWORD=changeit123! -p 8432:80 dpage/pgadmin4
 ```
+
+### Install Keycloak + PostgreSQL by Docker Compose
+
+- [`docker-compose.yaml`](./manifest/docker-compose.yaml)
+
+### Connect Keycloak with PostgreSQL Database
+
+To connect keycloak with pgadmin, you need to have both keycloak and postgresql running on the same network, and configure keycloak to use postgresql as its database. You also need to have pgadmin installed and running on your system and create a server connection to PostgreSQL.
+
+Here are some possible steps to follow:
+
+- Run keycloak and postgresql using docker, and create a custom network for them. For example, you can use the following commands:
+
+```sh
+docker network create keycloak-network
+ 
+docker run -p 5432:5432 --name postgresP -d --net keycloak-network -e POSTGRES_PASSWORD=admin -e POSTGRES_USER=admin -e POSTGRES_DB=keycloakDB postgres:latest
+ 
+docker run -p 8080:8080 --name keycloakP --net keycloak-network -e KEYCLOAK_USER=admin -e KEYCLOAK_PASSWORD=admin -e DB_VENDOR=postgres -e DB_ADDR=postgresP -e DB_DATABASE=keycloakDB -e DB_USER=admin -e DB_PASSWORD=admin quay.io/keycloak/keycloak:latest
+```
+
+- Run pgadmin using docker, and expose its port to your host. For example, you can use the following command:
+
+```sh
+docker run -p 5050:80 --name pgadmin -e PGADMIN_DEFAULT_EMAIL=admin@pgadmin.dev -e PGADMIN_DEFAULT_PASSWORD=admin dpage/pgadmin4
+```
+
+- Access pgadmin from your browser at `http://localhost:5050` and log in with the email and password you set.
+- Create a new server connection to postgresql by clicking on the Add New Server button. Give it a name, such as keycloak, and enter the connection details. You need to use the container name of postgresql as the host name, and the credentials you set. For example:
+- Save the server connection and expand it to see the keycloakDB database and its tables. You can query the data using the Query Tool or the Browser panel.
+
+I hope this helps you connect keycloak with pgadmin. 😊
+
+If you want to learn more about keycloak, postgresql, or pgadmin, you can check out these resources:
+
+- [Keycloak Documentation](https://medium.com/@gantong.eu/docker-compose-file-for-keycloak-with-without-postgresql-deployment-dcf5028829c8)
+- [PostgreSQL Documentation](https://docs.oracle.com/en/learn/podman-keycloak/)
+- [pgAdmin Documentation](https://simonscholz.dev/tutorials/keycloak-quarkus-postgres-docker-compose)
+
+## Using Keycloak
+
+### Use of Keycloak Admin Console
+
+The **Keycloak Admin Console** is where the magic happens—it’s the control center for managing all aspects of your Keycloak server. Whether you’re an administrator or a realm manager, this console is your gateway to configuring, securing, and orchestrating the entire Keycloak ecosystem.
+
+Here’s what you can do with the Keycloak Admin Console:
+
+- **Realm Management:**
+  - Create and manage realms. Realms act as isolated security domains, allowing you to separate different applications, users, and configurations.
+  - Define roles, permissions, and policies within realms.
+  - Configure identity providers (like LDAP, social logins, or custom providers) for authentication.
+- **User Management:**
+  - Create and manage users and groups.
+  - Set up user federation to synchronize users from external systems (LDAP, Active Directory, etc.).
+  - Control user sessions and view user history.
+- **Application Management:**
+  - Register and configure applications (clients) that rely on Keycloak for authentication and authorization.
+  - Define fine-grained access policies for each application.
+  - Set up identity brokering (integrating with external identity providers).
+- **Security Configuration:**
+  - Enable or disable various features (e.g., Single Sign-On, Two-Factor Authentication).
+  - Manage keys and certificates for secure communication.
+  - Configure password policies and token lifetimes.
+- **Fine-Grained Authorization:**
+  - Define and manage authorization policies based on roles, attributes, or custom logic.
+  - Control access to specific resources within applications.
+- **Themes and Customization:**
+  - Customize the look and feel of login pages, emails, and other UI elements.
+  - Brand your Keycloak instance to match your organization’s style.
+
+And that’s just the tip of the authentication iceberg! The Keycloak Admin Console empowers you to wield the power of identity and access management like a pro. So, whether you’re securing a small app or orchestrating a complex microservices architecture, this console is your trusty sidekick.
+
+### What is Keycloak Realm ?
+
+Let’s dive into the concept of **realms** in Keycloak.
+
+**What Is a Realm**?
+
+- A realm in Keycloak refers to a security and administrative domain. It’s like a namespace where you manage all your metadata, configurations, users, applications, and roles.
+- Think of a realm as a self-contained area where authentication, authorization, and user management occur.
+- You can create multiple realms based on your requirements.
+
+**Why Use Realms**?
+
+- **Isolation and Organization**: Realms allow you to isolate different parts of your system. For example:
+  - If you’re building an application with both internal employees and external customers, you can create separate realms—one for employees and one for customers.
+  - Each realm has its own set of users, roles, and applications.
+- **Security Boundaries**: Realms act as security boundaries. Users within a realm can’t directly access resources (like applications or APIs) in another realm.
+- **Configuration Flexibility**: Each realm has its own configuration settings, themes, and policies. You can customize authentication flows, password policies, and more at the realm level.
+- **Scalability and Management**: Realms make it easier to manage large numbers of users and applications. You can delegate administration to different teams, each responsible for their own realm.
+
+**Master Realm**:
+
+- Keycloak comes with a default realm called the “master” realm.
+- The master realm is primarily for administration purposes. It’s where you manage Keycloak itself, including users with administrative privileges.
+- It’s generally recommended not to use the master realm for your actual applications. Instead, create separate realms for your projects.
+
+Remember, realms are a powerful way to organize and secure your applications within Keycloak. Whether you’re building a single application or a complex ecosystem, realms provide the flexibility and control you need!
+
+### Keycloak Clients
+
+**What is a client in Keycloak**?
+
+Clients are entities that can request authentication of a user.
+
+**Types of clients**:
+
+- **Type 1:** An application that wants to participate in single-sign-on
+- **Type 2:** An application that requests an access token to invoke other services on behalf of the authenticated user.
+
+**Client communication protocols**:
+
+1. **OpenID Connect**
+2. **SAML**
+
+- Keycloak supports both OpenID Connect (OIDC) and SAML protocols for communicating with clients.
+- OIDC is preferred since it was designed to be web-friendly and work well with HTML5 & JavaScript applications.
+- SAML is a mature protocol but it tends to be a bit more verbose than OIDC
+- But with Keycloak, developers have the freedom to choose any of the above protocols based on their requirements.
+
+![Keycloak client auth flow 1](./resources/Keycloak-Client-SSO1.png)
+
+![Keycloak client auth flow 2](./resources/Keycloak-Client-SSO2.png)
+
+### Keycloak Clients Scope
+
+**Pre-requisites**:
+
+- Protocol mappers
+- Role scope mapping
+
+**Client Scope**:
+
+- Contains a set of protocol mappers & role scope mappings
+- Can be associated with any number of clients
+- Sharable among multiple Keycloak clients
+
+## Sending Email via Keycloak using MailHog
+
+### Install MailHog via Docker
+
+MailHog is an email testing tool that allows you to send and receive emails from your web application using a fake SMTP server. It also provides a web interface and an API to view and manage the emails. MailHog is useful for developers who want to test their app’s email functionality without using a real email service or inbox.
+
+There are different ways to install MailHog, depending on your preferred platform and method.
+
+You can download the binary file from GitHub, use Docker, or use other tools such as Homebrew, Chocolatey, or Snap. [You can find the detailed installation instructions for each option on the MailHog website or on other sources](https://www.hunker.com/13417805/how-to-install-a-well-pressure-tank).
+
+### Run MailHog via Docker
+
+```sh
+docker run -p 8025:8025 -p 1025:1025 mailhog/mailhog
+```
+
+After installing MailHog, you can run it with the default settings or configure it according to your needs. You can access the web interface at `http://localhost:8025` and the SMTP server at `localhost:1025`. You can also use the HTTP API to interact with MailHog programmatically.
+
+I hope this helps you understand what MailHog is and how to install it. 😊
+
+If you want to learn more about MailHog, you can check out these resources:
+
+- [MailHog Documentation](https://github.com/mailhog/MailHog)
+- [MailHog Tutorial](http://iankent.uk/project/mailhog/)
+- [MailHog: web application e-mail testing](https://www.faqshub.com/linux/installing-and-configuring-mailhog-on-ubuntu)
+
+## Using Keycloak RestAPIs
+
+The Keycloak REST API is essential for several reasons:
+
+- **Automation:** It allows for the automation of administrative tasks such as creating, updating, and deleting users, roles, clients, and realms. This is particularly useful for large-scale deployments where manual management would be impractical.
+- **Integration:** The REST API facilitates the integration of Keycloak with other systems, services, or custom applications. This enables developers to extend the functionality of Keycloak and tailor it to specific use cases.
+- **Programmatic Access:** It provides programmatic access to Keycloak’s features, enabling developers to manage Keycloak entities through code, which can be more efficient and less error-prone than manual management.
+- **Flexibility:** With the REST API, Keycloak can be managed using any programming language that supports HTTP requests, offering flexibility in the choice of technology stack.
+- **Remote Management:** The API allows Keycloak to be managed remotely, which is beneficial for distributed systems and for administrators who need to manage the system from different locations.
+- **Consistency:** Using the REST API ensures that changes made to the Keycloak configuration are consistent and in line with the best practices defined by the Keycloak team.
+
+For more detailed information on how to use the Keycloak REST API, you can refer to the official [Keycloak Admin REST API documentation](https://www.keycloak.org/docs-api/21.1.1/rest-api/) or explore resources that provide insights on [authentication and authorization using the Keycloak REST API](https://developers.redhat.com/blog/authentication-and-authorization-using-the-keycloak-rest-api). Additionally, [there are tutorials available that guide you through securing frontend and backend applications with Keycloak](https://www.mastertheboss.com/keycloak/how-to-use-keycloak-admin-rest-api/)
+
+## Creating Keycloak custom templates
+
+### Best Practices for designing Keycloak Custom Templates
+
+When designing custom templates for Keycloak, it’s important to follow best practices to ensure that your themes are effective, maintainable, and secure. Here are some best practices based on the information I found:
+
+
+- **Extend Existing Themes:** Instead of modifying the existing themes directly, create a new theme that extends one of the pre-built themes. This way, you can maintain the core functionality while customizing the look and feel.
+- **Use Freemarker Templates:** Keycloak uses Freemarker templates for its themes. Familiarize yourself with Freemarker syntax to effectively customize your templates.
+- **Maintain a Clear Structure:** Organize your theme into the correct subdirectories for each type of theme (e.g., login, admin, account). This helps keep your customizations organized and easier to manage.
+- **Keep Security in Mind:** When customizing themes, especially those that involve user input, ensure that you’re not introducing security vulnerabilities. Sanitize and validate all inputs to prevent XSS and other attacks.
+- **Test Thoroughly:** Before deploying your custom theme, test it extensively to ensure that it works correctly across different browsers and devices.
+- **Version Control:** Use version control systems like Git to manage your theme files. This allows you to track changes, revert to previous versions if necessary, and collaborate with others.
+- **Documentation:** Document your customizations and the structure of your themes. This is helpful for future maintenance and for other developers who may work with your themes.
+- **Responsive Design:** Ensure that your themes are responsive and provide a good user experience on both desktop and mobile devices.
+- **Customization Over Replacement:** If you only need to make minor changes, consider adding custom CSS or JavaScript to override the default styles rather than replacing entire files.
+- **Leverage Keycloak’s Features:** Take advantage of Keycloak’s built-in features, such as internationalization and theme properties, to make your themes more dynamic and adaptable.
+
+By following these best practices, you can create custom Keycloak templates that are not only visually appealing but also robust and secure. [For more detailed guidance, you can refer to resources like Baeldung, DEV Community, and Mastertheboss](https://www.baeldung.com/spring-keycloak-custom-themes) which provide insights into customizing Keycloak themes.
+
+### Why we need Keycloak custom templates ?
+
+Custom templates in Keycloak are needed for several reasons:
+
+
+- **Branding:** Custom templates allow you to align the look and feel of the authentication pages with your company’s branding guidelines, providing a consistent user experience across your applications and services.
+- **User Experience:** They enable you to design an intuitive and user-friendly user interface, improving the overall experience for end-users during the authentication process.
+- **Custom Features:** You can add custom features or modify existing ones to meet specific business requirements not covered by the default templates.
+- **Localization:** Custom templates can provide localization support, ensuring that the authentication pages are available in multiple languages to cater to a global audience.
+- **Compliance:** They help in adhering to various compliance and regulatory requirements by allowing you to include necessary legal disclaimers, privacy policies, or terms of service on the authentication pages.
+- **Security:** By customizing templates, you can implement additional security measures, such as custom captcha or password policies, to enhance the security of the authentication process.
+
+For more detailed insights into customizing Keycloak themes, you can refer to resources like the DEV Community, Baeldung, and Mastertheboss which guide creating and managing custom Keycloak themes. 
 
 ## That's all
 
