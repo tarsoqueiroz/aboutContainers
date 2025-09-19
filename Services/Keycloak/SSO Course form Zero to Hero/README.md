@@ -378,6 +378,148 @@ Custom templates in Keycloak are needed for several reasons:
 
 For more detailed insights into customizing Keycloak themes, you can refer to resources like the DEV Community, Baeldung, and Mastertheboss which guide creating and managing custom Keycloak themes. 
 
+## Keycloak Integration with Full Stack App
+
+![Architecture Diagram](./resources/Architecture+Diagram.drawio.png)
+
+***Architecture Diagram***
+
+Integrating Keycloak with a full-stack application involves securing both the frontend and backend components with Keycloak’s authentication and authorization capabilities. Here’s a high-level overview of how you can achieve this:
+
+**Frontend Integration**:
+
+- Use Keycloak’s JavaScript adapter for Single Page Applications (SPAs) like React or Angular.
+- Implement the login flow using Keycloak’s APIs to authenticate users.
+- Handle the tokens (access, ID, and refresh tokens) provided by Keycloak to manage user sessions.
+
+**Backend Integration**:
+
+- Secure your backend services, such as APIs built with Spring Boot or Node.js, by validating the tokens from the front end.
+- Set up Keycloak adapters or gateways on the server side to intercept requests and check for valid tokens.
+- Configure roles and permissions in Keycloak to manage access control to your backend resources.
+
+**Keycloak Configuration**:
+
+- Set up realms, clients, and roles in Keycloak to match your application’s security requirements.
+- Configure identity providers and user federations to support various user sources.
+- Utilize Keycloak’s features like Social Login, Two-Factor Authentication, and Single Sign-On (SSO) for enhanced security.
+
+[For a detailed guide on securing full-stack web applications with technologies like React, Spring Boot, and Keycloak, you can refer to resources that provide step-by-step instructions and best practices. Additionally, there are guides available for integrating Keycloak with Angular applications](https://walkingtree.tech/securing-full-stack-web-applications-react-spring-boot-keycloak/), which can be adapted for other frontend frameworks as well.
+
+> [`https://walkingtree.tech/securing-full-stack-web-applications-react-spring-boot-keycloak/`](https://walkingtree.tech/securing-full-stack-web-applications-react-spring-boot-keycloak/)
+
+Remember, the goal is to ensure that your application is not only functional and user-friendly but also secure from various cyber threats by leveraging Keycloak’s robust authentication and authorization mechanisms.
+
+### FastAPI Keycloak Integration
+
+Getting Started With The Fast API Application
+
+```sh
+git clone https://github.com/raj713335/python-keycloak-fast-api.git
+cd python-keycloak-fast-ap
+pip install -r requirements.txt
+python main.py
+```
+
+Recursos para esta aula: [`python-keycloak-fast-api1.zip`](./resources/python-keycloak-fast-api1.zip)
+
+### Initialise a React Project
+
+To create a new React project, you can use the `create-react-app` command-line utility which sets up everything you need for a React application. Here’s how you can do it:
+
+- **Ensure Node.js is Installed**: You’ll need to have Node.js version 14.0.0 or later on your machine.
+- **Create a New React App**: Open your terminal and run the following command to create a new app named “my-app”:
+
+```sh
+npx create-react-app react-keycloak
+```
+
+- **Start the Development Server**: Change into your new app’s directory and start the development server:
+
+```sh
+cd react-keycloak
+npm start
+```
+
+This will create a new React application in the “`my-app`” directory and start a development server `localhost:3000` where you can see your app running. When you’re ready to deploy your app, you can create a production build with `npm run build`.
+
+For more detailed instructions, you can refer to the official [Create React App documentation](https://create-react-app.dev/docs/getting-started/). 😊
+
+### React Repository
+
+Getting Started With React Application
+
+```sh
+git clone https://github.com/raj713335/react-keycloak.git
+cd react-keycloak
+npm i
+npm start
+```
+Recursos para esta aula: [`react-keycloak1.zip`](./resources/react-keycloak1.zip)
+
+### Adding Api.js to make API calls with Keycloak token
+
+Recursos para esta aula: [`react-keycloak2.zip`](./resources/react-keycloak2.zip)
+
+### Fixing the CORS issue
+
+Recursos para esta aula: [`python-keycloak-fast-api2.zip`](./resources/python-keycloak-fast-api2.zip)
+
+## Keycloak Sprint Boot integration
+
+### GitHub Repo
+
+GitHub Repo: [`https://github.com/raj713335/keycloak-spring-boot`](https://github.com/raj713335/keycloak-spring-boot)
+
+### Setting up Keycloak
+
+- [`Keyclaok-Spring-Boot.postman_collection.json`](./resources/Keyclaok-Spring-Boot.postman_collection.json)
+- [`keycloak-spring-boot.zip`](./resources/keycloak-spring-boot.zip)
+
+## Keycloak Angular integration
+
+### Initialize Keycloak
+
+- [`keycloak-angular-app.zip`](./resources/keycloak-angular-app.zip)
+
+### Keycloak Integration with Angular (Docs)
+
+Visit the GitHub Repository for further details:
+
+- [`https://github.com/raj713335/keycloak-angular-app`](https://github.com/raj713335/keycloak-angular-app)
+
+## Keycloak Event Listener
+
+### Introduction
+
+Keycloak event listeners are components that listen to events and perform an action based on that event.
+
+Keycloak supports almost 100 different event types.
+
+Two built-in listeners come with Keycloak:
+
+- **Logging Event Listener**: Writes to a log file whenever an event occurs. It is enabled by default.
+- **Email Event Listener**: Sends an email based on the event.
+
+You can also create custom event listeners. For example, you can create an event listener that emails an admin whenever a new user registers. This involves implementing the `org.keycloak.events.EventListenerProvider` interface.
+
+In addition to the built-in and custom event listeners, there are also useful Keycloak event listener implementations and utilities available, such as:
+
+- Generic script event listener
+- Event emitter to send events to an HTTP endpoint
+- A mechanism for retrieving event listener configurations from realm attributes
+- A mechanism for running multiple event listeners of the same type with different configurations.
+
+These event listeners can be particular and tailored to your needs, providing a powerful tool for monitoring and responding to events within your Keycloak environment.
+
+Recursos para esta aula: [`keycloak-demo-event-listener.zip`](./resources/keycloak-demo-event-listener.zip)
+
+Git Hub Repository: [`https://github.com/raj713335/keycloak-demo-event-listener`](https://github.com/raj713335/keycloak-demo-event-listener)
+
+## Conclusion
+
+- [`Keycloak+SSO+Course+From+Zero+to+Hero.zip`](./resources/Keycloak+SSO+Course+From+Zero+to+Hero.zip)
+
 ## That's all
 
 ...folks!!!
