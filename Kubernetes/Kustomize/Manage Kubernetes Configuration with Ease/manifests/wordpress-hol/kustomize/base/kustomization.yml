@@ -1,0 +1,11 @@
+labels:
+- pairs:
+    version: v1
+  includeSelectors: true
+
+resources:
+- deployment.yaml
+- service.yaml
+
+
+

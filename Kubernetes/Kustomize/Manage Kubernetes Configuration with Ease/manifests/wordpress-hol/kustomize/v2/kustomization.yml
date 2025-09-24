@@ -1,0 +1,10 @@
+labels:
+- pairs:
+    version: v2
+  includeSelectors: true
+
+resources:
+- ../base
+
+
+

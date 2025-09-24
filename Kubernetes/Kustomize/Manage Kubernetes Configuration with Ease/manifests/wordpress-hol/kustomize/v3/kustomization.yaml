@@ -1,0 +1,11 @@
+labels:
+- pairs:
+    version: v3
+  includeSelectors: true
+
+# commonLabels:
+#   version: v3
+
+resources:
+- mysql # kustomize will look for a kustomization.yaml in the mysql directory
+- ../base
