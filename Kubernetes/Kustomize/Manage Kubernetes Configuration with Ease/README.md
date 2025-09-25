@@ -143,6 +143,148 @@ kubectl delete ns wordpress-v2
 kubectl delete ns wordpress-v3
 ```
 
+## Introduction
+
+### Getting Course Resources
+
+All the examples and assignment files are in a single code repository on [GitHub](https://github.com/galonge/udemy-kustomize-mastery).
+
+Each folder represents a single lecture section (but not all lectures have a folder, as not all need code).
+
+You should clone [this repo](https://github.com/galonge/udemy-kustomize-mastery) to a folder on your desktop or somewhere on your computer.
+
+Clone the GitHub repository:
+
+```sh
+git clone https://github.com/galonge/udemy-kustomize-mastery
+```
+
+If you're rather new to GitHub, you can download the GUI to make it very easy to push/pull code at `https://desktop.github.com/` for Mac and Windows.
+
+A great alternative Git client is `https://www.gitkraken.com/`.
+
+We won't use git much in this course, but knowing the basics of pulling code, committing code, and pushing updates could be helpful.
+
+Join our online learning community on slack:
+
+- [`https://join.slack.com/t/kustomizemastery/shared_invite/zt-1majqkdwj-3wtm9l0RV3JchDv_cnPQPQ`](https://join.slack.com/t/kustomizemastery/shared_invite/zt-1majqkdwj-3wtm9l0RV3JchDv_cnPQPQ)
+
+Subscribe to my YouTube channel to stay updated on new resources about Kubernetes, DevOps and SRE:
+
+- [`https://www.youtube.com/@galonge`](https://www.youtube.com/@galonge)
+
+> **PS:** For some sections with code samples in the repo, the section numbers may not match directly due to the order in which the videos are uploaded. Please use the section title in such cases. 
+
+### Installing Kustomize
+
+- [Install Kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/)
+
+## The Kustomization file
+
+- [The Kustomization File](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/)
+- [Kustomize Docs: ConfigMapGenerator usage via `kustomization.yaml`](https://kubectl.docs.kubernetes.io/references/kustomize/builtins/#_configmapgenerator_)
+- [Kustomize Docs: SecretGenerator usage via `kustomization.yaml`](https://kubectl.docs.kubernetes.io/references/kustomize/builtins/#_secretgenerator_)
+- [Kubernetes Types of Secret](https://kubernetes.io/docs/concepts/configuration/secret/#secret-types)
+- [Hashicorp URL Format](https://github.com/hashicorp/go-getter#url-format)
+- [Kustomize Docs: resources](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/resource/)
+- [Kustomize Docs: namespace](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/namespace/)
+- [Kustomize Docs: labels](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/labels/)
+- [Kustomize Docs: commonAnnotations](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/commonannotations/)
+- [Kustomize Docs: commonLabels](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/commonannotations/)
+
+### Transformers
+
+```sh
+# @manifests/wordpress-s3/v1
+kubectl kustomize . > result-v1.yaml
+```
+
+### Generators
+
+```sh
+# @manifests/wordpress-s3/v112
+kubectl create ns v112
+kubectl config get-contexts
+kubectl get ns
+kubectl config set-context --current --namespace=v112
+kubectl get ns
+kubectl config get-contexts
+kubectl get pods
+kubectl kustomize .
+ll
+kubectl kustomize .
+kubectl kustomize . > result-v112.yaml
+kubectl apply -k .
+kubectl get pods
+kubectl logs pods/v112-mysql-6969b67746-4z8m9 
+kubectl get cm
+kubectl describe cm/v112-mysql-config 
+kubectl get pods
+kubectl logs pods/v112-mysql-6969b67746-4z8m9 
+kubectl describe pods/v112-mysql-6969b67746-4z8m9 
+kubectl delete -k .
+kubectl delete -k . > result-v112.yaml 
+kubectl kustomize . > result-v112.yaml
+kubectl apply -k .
+kubectl get pods
+kubectl exec -it v112-mysql-6969b67746-km92k 
+kubectl exec -it v112-mysql-6969b67746-km92k  -- sh
+kubectl get pods
+kubectl logs pods/v112-mysql-6969b67746-km92k 
+kubectl get pods
+kubectl get pods -w
+kubectl get cm
+kubectl get pods -w
+kubectl delete -k .
+kubectl apply -k .
+kubectl get pods 
+kubectl get pods -w
+kubectl delete -k .
+```
+
+### Secret Generator
+
+```sh
+# @manifests/wordpress-s3/v113
+kubectl kustomize .
+kubectl kustomize . > result-v113.yaml
+echo "d29yZHByZXNz" | base64 -d
+echo "YWRtaW4=" | base64 -d
+kubectl config get-contexts 
+kubectl apply -k .
+kubectl get pods -w
+kubectl describe secrets v113-mysql-secret 
+kubectl delete -k .
+```
+### Kubernetes Resources Abbreviations
+
+Some kubernetes resources abbreviations:
+
+- all
+- certificatesigningrequests (aka 'csr')
+- componentstatuses (aka 'cs')
+- configmaps (aka 'cm')
+- daemonsets (aka 'ds')
+- deployments (aka 'deploy')
+- endpoints (aka 'ep')
+- events (aka 'ev')
+- horizontalpodautoscalers (aka 'hpa')
+- ingresses (aka 'ing')
+- limitranges (aka 'limits')
+- namespaces (aka 'ns')
+- networkpolicies
+- nodes (aka 'no')
+- persistentvolumeclaims (aka 'pvc')
+- persistentvolumes (aka 'pv')
+- pods (aka 'po')
+- poddisruptionbudgets (aka 'pdb')
+- podsecuritypolicies (aka 'psp')
+- replicasets (aka 'rs')
+- replicationcontrollers (aka 'rc')
+- resourcequotas (aka 'quota')
+- serviceaccounts (aka 'sa')
+- services (aka 'svc')
+
 ## That's
 
 ...all folks!!!

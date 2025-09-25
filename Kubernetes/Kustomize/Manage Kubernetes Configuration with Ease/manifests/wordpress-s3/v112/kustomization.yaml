@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# commonLabels:
+#   version: v112
+labels:
+- pairs:
+    version: v112
+  includeSelectors: true
+
+namePrefix: v112-
+
+resources:
+- mysql
+- ../base
