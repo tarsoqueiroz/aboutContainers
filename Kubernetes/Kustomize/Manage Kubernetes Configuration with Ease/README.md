@@ -285,6 +285,33 @@ Some kubernetes resources abbreviations:
 - serviceaccounts (aka 'sa')
 - services (aka 'svc')
 
+## Working with Patches
+
+- [Kustomize docs: patchesStrategicMerge](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patchesstrategicmerge/)
+- [Directives: Strategic Merge Patch](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md)
+- [Server-Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
+- [JSON 6902 standard: JavaScript Object Notation (JSON) Patch](https://www.rfc-editor.org/rfc/rfc6902)
+- [Kustomize docs: patchesJson6902](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patchesjson6902/)
+
+### Strategic Merge
+
+Files on `resources / Github_udemy-kustomize-mastery / code-samples / 4-patches / wordpress / kustomize / lec-18-strategic-merge`.
+
+### Patches - JSON6902
+
+Files on `resources / Github_udemy-kustomize-mastery / code-samples / 4-patches / wordpress / kustomize / lec-19-json-6902`.
+
+## Working with Custom Resource Definitions (CRDs)
+
+Files on `resources / Github_udemy-kustomize-mastery / code-samples / 5-crds / wordpress / kustomize`.
+
+## Managing Multiple Environments with Overlays
+
+Files on `resources / Github_udemy-kustomize-mastery / code-samples / 6-multiple-envs`.
+
+- [**Online Boutique** is a cloud-first microservices demo application](https://github.com/GoogleCloudPlatform/microservices-demo)
+- []()
+
 ## That's
 
 ...all folks!!!
