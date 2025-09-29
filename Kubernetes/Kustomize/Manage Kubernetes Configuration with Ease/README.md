@@ -310,7 +310,38 @@ Files on `resources / Github_udemy-kustomize-mastery / code-samples / 5-crds / w
 Files on `resources / Github_udemy-kustomize-mastery / code-samples / 6-multiple-envs`.
 
 - [**Online Boutique** is a cloud-first microservices demo application](https://github.com/GoogleCloudPlatform/microservices-demo)
-- []()
+
+## Reusing Kustomize Configurations
+
+Files on `resources / Github_udemy-kustomize-mastery / code-samples / 7-re-using-configurations / wordpress / kustomize`.
+
+- [Kustomize docs: components](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/components/)
+- [Kustomize docs: Kustomize components guide](https://kubectl.docs.kubernetes.io/guides/config_management/components/)
+- [Kustomize docs: replacements](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/replacements/)
+- [Wordpress: Docker Official Image](https://hub.docker.com/_/wordpress)
+
+## Continuous Integration and Deployment Pipelines (CI/CD)
+
+- [Configuring OpenID Connect in Google Cloud Platform](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-google-cloud-platform)
+- [How does the GCP Workload Identity Federation work with Github Provider?](https://medium.com/google-cloud/how-does-the-gcp-workload-identity-federation-work-with-github-provider-a9397efd7158)
+- [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart)
+- [GCP Workload Identity Federeation](https://cloud.google.com/iam/docs/workload-identity-federation?_ga=2.246785924.-164099188.1663652343#mapping)
+
+## Conclusion
+
+- [Join Slack](https://join.slack.com/t/devopswithgeorge/shared_invite/zt-1majqkdwj-3wtm9l0RV3JchDv_cnPQPQ)
+
+## Additional Kustomize Contents
+
+Files on `resources / Github_udemy-kustomize-mastery / code-samples / k-cli / wordpress / kustomize`.
+
+- [Commands: Reference for the kustomize CLI](https://kubectl.docs.kubernetes.io/references/kustomize/cmd/)
+
+Files on `resources / Github_udemy-kustomize-mastery / code-samples / using-helmcharts`.
+
+- [Kustomize docs: helmCharts](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/helmcharts/)
+- [Helm Install](https://helm.sh/docs/intro/install/)
+- [`Artifacthub.io`: Find, install and publish Cloud Native packages](https://artifacthub.io/)
 
 ## That's
 
