@@ -94,6 +94,237 @@ Extensions:
 
 ## Helm Fundamentals
 
+### Installing Helm Charts
+
+Below you will find a series of steps you can follow in case you start seeing Image Pull Errors when installing the Helm charts. There are a couple of options you could adopt here:
+
+#### Set the Docker repositories to point to the `bitnamilegacy` registry.
+
+This is a short-term solution that will enable you to continue working with the exact same chart versions I use in the videos. However, it does require you to explicitly set a couple of values when running Helm commands. We haven't explored this at this specific point of the course, but the process is fairly straightforward:
+
+1. Create a new YAML file, for example `wp-repo-overrides.yaml`.
+2. For the Wordpress chart, add the following contents to the file:
+
+```sh
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/wordpress
+     
+    mariadb:
+      image:
+        registry: docker.io
+        repository: bitnamilegacy/mariadb
+```
+
+3. Once the file is created, add the following to the `helm template`, `helm install`, and `helm upgrade` commands we execute: `--values <path to file>`. For example:
+
+- `helm template bitnami/wordpress` becomes `helm template bitnami/wordpress --values wp-repo-overrides.yaml`
+- `helm install local-wp bitnami/wordpress` becomes `helm install local-wp bitnami/wordpress --values wp-repo-overrides.yaml`
+
+This will enable you to continue using the same chart versions from the lectures for the moment, and you should still be able to install the applications on your Kubernetes cluster.
+
+. **⚠️ IMPORTANT:** You will also need to set these values at later points in the course when we discuss chart dependencies and Helm plugins.
+
+2. Pick another Helm chart to follow along.
+
+This is perhaps the more stable option, although also far from optimal for the time being. It simply requires you to pick another Helm chart instead of the Wordpress one we will use in the upcoming lectures. This will lead to some divergence between what I demonstrate on the videos and the exact commands you need to execute, but perhaps this can also work as a good learning opportunity! Here are a few suggestions:
+
+- **Grafana:** [`https://artifacthub.io/packages/helm/grafana/grafana`](https://artifacthub.io/packages/helm/grafana/grafana)
+- **Prometheus:** [`https://artifacthub.io/packages/helm/prometheus-community/prometheus`](https://artifacthub.io/packages/helm/prometheus-community/prometheus)
+- **Kubernetes dashboard:** [`https://artifacthub.io/packages/helm/k8s-dashboard/kubernetes-dashboard`](https://artifacthub.io/packages/helm/k8s-dashboard/kubernetes-dashboard)
+
+In practice, this means that you should follow the installation instructions from the respective chart instead of the ones I execute in the terminal.
+
+### Managing Helm repositories
+
+```sh
+# list repos
+helm repo list
+# add repository
+helm repo add bitnami https://charts.bitnami.com/bitnami
+# 
+helm repo list
+# update info about charts on repo
+helm repo update 
+# search specific chart
+helm search repo wordpress
+helm search repo prometheus
+```
+
+Go to `https://artifacthub.io/packages/helm/prometheus-community/prometheus?modal=install` (result search for `prometheus`). Add repository on tips.
+
+```sh
+# add repo
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+# show list of repos
+helm repo list
+# search prometheus
+helm search repo prometheus
+# limit col width
+helm search repo prometheus --max-col-width 60
+# show info about specific chart
+helm show chart bitnami/wordpress
+# search repo by functionality
+helm search repo cms
+# show versions of a chart
+helm search repo wordpress --versions
+# show readm (instructions) of chart
+helm show readme bitnami/wordpress
+# help
+helm repo --help
+# update repo info
+helm repo update
+# show repos
+helm repo list
+# remove repo
+helm repo remove bitnami
+# show repos
+helm repo list
+# show charts
+helm search repo prometheus
+# add repo
+helm repo add bitnami https://charts.bitnami.com/bitnami
+# show repos
+helm repo list
+```
+
+### Installing the Wordpress Helm chart
+
+```sh
+# 
+helm repo list
+# 
+kubectl version
+# 
+kubectl config current-context
+# 
+helm search repo wordpress
+# 
+helm install --help
+# 
+helm install local-wp bitnami/wordpress --version=26.0.0
+# 
+kubectl get pod -o wide
+# 
+kubectl get svc
+# 
+kubectl describe secrets local-wp-wordpress 
+# 
+kubectl get secrets 
+# 
+kubectl get pod -o wide
+# 
+kubectl describe pod local-wp-wordpress-668c4cd775-7ff5k 
+# 
+kubectl get deployments.apps 
+# 
+kubectl expose deployment local-wp-wordpress --type=NodePort
+# 
+kubectl expose deployment local-wp-wordpress --type=NodePort --name=local-wp
+# 
+kubectl get svc
+```
+
+### Exploring the default Wordpress chart configuration
+
+```sh
+# 
+kubectl get pod
+# 
+kubectl get secrets local-wp-wordpress -o jsonpath='{.data.wordpress-password}' | base64 -d
+# 
+helm get values local-wp 
+# 
+helm get values local-wp --all
+# 
+helm get notes local-wp 
+# 
+helm get metadata local-wp 
+```
+
+### Uninstalling Helm charts
+
+```sh
+# 
+helm list
+# 
+helm uninstall local-wp 
+# 
+kubectl get pod
+# 
+kubectl get svc
+# 
+kubectl delete svc local-wp 
+# 
+kubectl get pv,pvc
+# 
+kubectl describe pvc data-local-wp-mariadb-0 
+# 
+kubectl describe storageclasses.storage.k8s.io standard 
+# 
+kubectl delete pvc data-local-wp-mariadb-0 
+# 
+kubectl get pv,pvc
+# 
+kubectl get secrets 
+```
+
+### Cleaning up Kubernetes resources
+
+```sh
+#
+helm install tq-wp bitnami/wordpress --version=23.1.20
+#
+kubectl get pod
+#
+kubectl describe pods tq-wp-wordpress-6884b755c7-jlhnf 
+#
+kubectl get secrets 
+#
+kubectl get secret tq-wp-mariadb 
+#
+kubectl describe secret tq-wp-mariadb 
+#
+kubectl get secret --namespace default tq-wp-wordpress -o jsonpath="{.data.wordpress-password}" | base64 -d
+#
+kubectl get secret --namespace default tq-wp-mariadb -o jsonpath='{.data.mariadb-password}' | base64 -d
+#
+helm uninstall tq-wp 
+#
+kubectl get pvc
+#
+kubectl delete pvc data-tq-wp-mariadb-0 
+#
+kubectl get pvc
+#
+kubectl get secret,pod,deploy,svc
+```
+
+### Setting custom values via the Helm cli
+
+```sh
+#
+helm install local-wp bitnami/wordpress --version=23.1.20 --set "mariadb.auth.rootPassword=myawesomepassword" --set "mariadb.auth.password=myuserpassword"
+#
+kubectl get pod
+#
+kubectl logs local-wp-wordpress-544b68769-pztl7 
+#
+kubectl get secrets 
+#
+kubectl get secret local-wp-mariadb -o jsonpath='{.data.mariadb-password}' | base64 -d
+#
+kubectl get secret local-wp-mariadb -o jsonpath='{.data.mariadb-root-password}' | base64 -d
+#
+helm get values local-wp 
+#
+helm uninstall local-wp 
+#
+kubectl get pod,deploy,secret
+#
+kubectl get pv,pvc
+```
+
 ## Conclusion
 
 ## That's all
