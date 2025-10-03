@@ -325,6 +325,253 @@ kubectl get pod,deploy,secret
 kubectl get pv,pvc
 ```
 
+### Setting custom values via files
+
+```sh
+#
+kubectl create secret generic custom-wp-credentials --from-literal=wordpress-password=lauropassword
+#
+kubectl get secrets 
+#
+helm install local-wp bitnami/wordpress --version=23.1.20 --values resources/custom-values.yaml 
+#
+helm get values local-wp 
+#
+kubectl get pods
+#
+kubectl get deployments.apps 
+#
+helm list
+```
+
+### Upgrading Helm releases: Setting new values
+
+```sh
+#
+helm list
+#
+helm upgrade --reuse-values --values ./resources/custom-values-v2.yaml local-wp bitnami/wordpress --version 23.1.20
+#
+kubectl get pods
+#
+helm get values local-wp
+#
+helm history local-wp 
+#
+helm get values local-wp 
+#
+helm get values local-wp --revision 1
+#
+kubectl get secrets 
+```
+
+### Upgrading Helm releases: Settings new values
+
+```sh
+#
+helm repo update
+#
+helm search repo bitnami/wordpress --versions
+#
+helm list
+#
+helm upgrade --reuse-values --values ./resources/custom-values-v2.yaml local-wp bitnami/wordpress --version 23.1.28
+#
+kubectl get pods
+#
+helm history local-wp 
+```
+
+### Rollbacks in Helm
+
+```sh
+#
+helm history local-wp 
+#
+helm upgrade --reuse-values --values resources/custom-values-v2.yaml --set "image.tag=nonexistent" local-wp bitnami/wordpress --version 23.1.28
+#
+kubectl get pod
+#
+kubectl describe pod local-wp-wordpress-7f8dc8694b-f5phl 
+#
+helm history local-wp
+#
+helm rollback local-wp 3
+#
+helm history local-wp
+#
+kubectl get pod
+#
+kubectl describe pod local-wp-wordpress-7f8dc8694b-f5phl 
+#
+kubectl describe pod local-wp-wordpress-859ff4d9bb-l9pmt 
+#
+kubectl get pod
+#
+kubectl get rs
+#
+kubectl get deployments.apps 
+#
+kubectl delete rs local-wp-wordpress-859ff4d9bb 
+#
+kubectl delete rs local-wp-wordpress-cf9cbb7d 
+#
+kubectl get rs
+#
+kubectl get secrets 
+```
+
+### Upgrading Helm releases: Useful CLI flags
+
+```sh
+#
+kubectl get svc
+#
+kubectl delete svc local-wp-wordpress 
+#
+helm upgrade --reuse-values --values ./resources/custom-values-v3.yaml local-wp bitnami/wordpress --version 23.1.28
+#
+kubectl get pod
+#
+kubectl get svc
+#
+helm upgrade --reuse-values --values ./resources/custom-values-v3.yaml local-wp bitnami/wordpress --version 23.1.28
+#
+kubectl get pod
+#
+kubectl get svc
+#
+helm history local-wp 
+#
+helm upgrade --reuse-values --values resources/custom-values-v3.yaml --set "image.tag=nonexistent" local-wp bitnami/wordpress --version 23.1.28 --atomic --cleanup-on-fail --debug --timeout 2m
+#
+kubectl get pod
+#
+helm history local-wp 
+#
+helm get values local-wp --revision 9
+#
+helm get values local-wp --revision 8
+#
+kubectl get rs
+#
+helm uninstall local-wp 
+#
+kubectl delete pvc data-local-wp-mariadb-0 
+#
+kubectl get pv,pvc
+#
+kubectl get pod,rs,deploy,secret
+#
+kubectl delete pv pvc-8dd3ab68-de34-4cd9-bc80-459990c73f64 
+#
+helm list
+```
+
+## Creating Our Own Helm Charts
+
+### Helm chart structure and files
+
+```sh
+|
+|___ charts /
+|___ templates /
+     |___ tests /
+     |___ deploy.yaml
+     |___ svc.yaml
+     |___ <others>.yaml
+     |___ NOTES.txt
+     |___ _helpers.tpl
+```
+
+Roles and requirements of each file present in the chart:
+
+- `charts/`: Contains any chart dependencies (subcharts). These dependencies should be informed in the `Chart.yaml` file, and will be downloaded and saved locally.
+- `templates/`: This directory contains multiple files that are relevant for Helm projects, including the multiple Kubernetes manifest templates that are rendered by Helm.
+  - `tests/`: Contains tests to be executed when running the `helm test` command.
+  - `NOTES.txt`: It's contents are printed on the screen upon successful chart installation or upgrade.
+  - `_helpers.tpl`: Contains template helper functions, which can be used to reduce duplication. Files preceded with an underscore are not included in the final renderin from Helm.
+
+### Creating the first Helm chart
+
+```sh
+#
+mkdir creating-charts
+#
+cd creating-charts/
+#
+mkdir nginx
+#
+touch nginx/Chart.yaml
+#
+touch nginx/values.yaml
+#
+mkdir nginx/templates
+#
+touch nginx/templates/deployment.yaml
+#
+touch nginx/templates/service.yaml
+#
+touch nginx/.helmignore
+#
+helm template nginx
+#
+helm lint nginx
+#
+helm install tq-mynginx nginx
+#
+kubectl get pods
+#
+kubectl get svc
+#
+helm uninstall tq-mynginx 
+```
+
+### Go Templates
+
+```sh
+#
+mkdir intro-go-templating
+#
+cd intro-go-templating/
+#
+touch Chart.yaml values.yaml
+#
+mkdir templates
+#
+helm template .
+#
+# add something on sandbox.yaml
+#
+helm template .
+#
+# add things on sandbox.yaml and value.yaml
+#
+helm template .
+#
+# add things on sandbox.yaml and value.yaml
+#
+helm template .
+
+# many time
+helm template .
+```
+
+### Adding first values to `values.yaml` file
+
+```sh
+# directory base
+cd creating-charts/nginx-v1
+
+# adding values
+
+#
+helm template .
+```
+
+### Using release and chart information in templates
+
+
 ## Conclusion
 
 ## That's all

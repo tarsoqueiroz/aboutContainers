@@ -1,0 +1,6 @@
+apiVersion: v2
+name: intro-go-templating
+version: 0.1.0
+appVersion: 0.1.0
+description: Introduction to Go templating
+# type: application
