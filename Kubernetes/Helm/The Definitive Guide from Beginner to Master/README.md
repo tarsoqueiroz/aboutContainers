@@ -571,6 +571,107 @@ helm template .
 
 ### Using release and chart information in templates
 
+### Conditionally deploy Kubernetes resources
+
+### Packaging our Helm chart
+
+```sh
+#
+helm template nginx-v1
+#
+helm install local-nginx nginx-v1
+#
+helm list
+#
+kubectl get deploy,svc,pod,rs
+#
+helm uninstall local-nginx 
+#
+helm package --help
+#
+helm package nginx-v1
+#
+helm install local-nginx ./nginx-v1-0.1.0.tgz 
+#
+kubectl get deploy,svc,pod,rs
+#
+helm uninstall local-nginx 
+#
+helm list
+```
+
+### Publishing our Helm chart with GitHub Pages
+
+Steps to create:
+
+- Create a repository on GitHub
+  - Inform `Repository name` and `Description`
+  - Set `Public`
+  - Set `Add a README file`
+  - Unset `Add .gitignore`
+  - `License` chose `MIT`
+  - `Create repository`
+- Select `Settings`
+- On left-side menu select `Pages`
+  - `Build and deployment`
+    - `Source`: select `Deploy form a branch`
+    - `Branch`: select `primary`
+    - `Save` 
+- On left-side menu select `Actions`
+  - `Build and deployment`
+    - `Source`: select `Deploy form a branch`
+    - `Branch`: select `primary`
+    - `Save` 
+- Git clone this repository
+- Copy helm chart for cloned git path
+- Git update info
+- Verify:
+  - On left-side menu select `Actions`
+  - On browser: `<repository>/index.yaml`
+
+```sh
+# 
+git clone https://github.com/tarsoqueiroz/helm-charts.git
+# 
+cd helm-charts/
+# 
+cp ../aboutContainers/Kubernetes/Helm/The\ Definitive\ Guide\ from\ Beginner\ to\ Master/creating-charts/nginx-v1-0.1.0.tgz ../helm-charts/.
+# 
+helm repo index .
+# 
+ll
+# 
+cat index.yaml 
+# 
+git status
+# 
+git add .
+# 
+git commit -m"nginx-v1: publish version 0.1.0"
+# 
+git push
+```
+
+### Installing our newly published Helm chart
+
+```sh
+# 
+helm repo add tarepo https://tarsoqueiroz.github.io/helm-charts/
+# 
+helm repo list
+# 
+helm search repo nginx
+# 
+helm install tarso-nginx tarepo/nginx-v1 
+# 
+kubectl get deploy,svc,pod,rs
+```
+
+### Leveraging the Helm CLI for creating new charts
+
+```sh
+helm create backend-app
+```
 
 ## Conclusion
 
