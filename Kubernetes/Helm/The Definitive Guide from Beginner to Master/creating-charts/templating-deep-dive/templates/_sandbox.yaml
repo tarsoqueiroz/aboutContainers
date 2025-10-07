@@ -1,0 +1,20 @@
+list: {{ list 1 2 3 }}
+
+list:
+{{ list 1 2 3 | toYaml }}
+
+list:
+{{ list 1 2 3 | toYaml | nindent 2 }}
+
+list:
+{{ toYaml (list 1 2 3) | nindent 2 }}
+
+list: {{ toYaml (list 1 2 3) | nindent 2 }}
+
+list: {{ list 1 2 3 | toYaml | nindent 2 }}
+
+list:
+  values:
+    example: {{ dict "primitive" "my sring" "complex" (dict "key1" "value" ) | toYaml | nindent 2 }}
+
+

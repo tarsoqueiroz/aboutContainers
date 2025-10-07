@@ -1,0 +1,29 @@
+# I am a YAML comment, and I will remain in the generated YAML
+{{- /* Iam a GO comment, and I will NOT remain.*/}}
+{{- /* test original____________________: {{ .Values.test }} */}}
+{{- /*test lower case__________________: {{ lower .Values.test }}*/}}
+{{- /*test replace case________________: {{ replace " " "-" .Values.test }}*/}}
+{{- /*test lower replace case__________: {{ lower (replace " " "-" .Values.test) }}*/}}
+{{- /*test replace lower case__________: {{ replace " " "-" (lower .Values.test) }}*/}}
+{{- /*test replace pipe lower case_____: {{ replace " " "-" .Values.test | lower }}*/}}
+test lower pipe replace case_____: {{ lower .Values.test | replace " " "-" }}
+
+labels:
+  {{- /* The app label comes from the Release */}}
+  app: {{ .Release.Name }}
+  app: {{ .Release.Namespace }}
+
+  {{- /* The chart label comes from the Chart information */}}
+  Chart: {{ .Chart.Name }}
+  Version: {{ .Chart.Version }}
+  Description: {{ .Chart.Description }}
+
+  {{- if eq .Values.environment "production" }}
+  environment: production
+  build: stable
+  public-ingress: true
+  {{- else }}
+  environment: dev
+  build: alpha
+  public-ingress: false
+  {{- end }}

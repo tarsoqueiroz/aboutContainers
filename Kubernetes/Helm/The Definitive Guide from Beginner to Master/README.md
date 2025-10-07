@@ -673,6 +673,100 @@ kubectl get deploy,svc,pod,rs
 helm create backend-app
 ```
 
+## Go Template Deep-Dive
+
+### Introduction
+
+### Template functions and pipelines
+
+- [Template Function List](https://helm.sh/docs/chart_template_guide/function_list/)
+- [`sandbox.yaml.V01`](./creating-charts/templating-deep-dive/templates/_sandbox.v01.yaml)
+
+```sh
+helm template .
+```
+
+### Named templates
+
+- `_helpers.tpl`
+
+```yaml
+{{- define "templating-deep-dive.fullname" -}}
+{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "templating-deep-dive.selectorLabels" -}}
+app: {{ .Chart.Name }}
+release: {{ .Release.Name }}
+created-by: "Tarso"
+{{- end -}}
+```
+
+- Included on manifest`.yaml`
+
+```yaml
+...
+metadata:
+  name: {{ include "templating-deep-dive.fullname" . }}
+  labels: 
+    {{- include "templating-deep-dive.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: 
+      {{- include "templating-deep-dive.selectorLabels" . | nindent 6 }}
+...
+```
+
+### If ad If-Eklse statements
+
+```yaml
+...
+{{- if .Values.service.enabled }}
+kind: Service
+apiVersion: v1
+.
+.
+.
+{{ end }}
+...
+
+...
+      containers:
+        - name: nginx
+          image: "{{ .Values.image.name }}:{{ .Values.image.tag }}"
+          {{- if .Values.service.enabled }}
+          ports:
+            - containerPort: {{ .Values.containerPorts.http }}
+          {{- end }}
+...
+
+...
+spec:
+  replicas: {{ if eq .Values.environment "production" -}} 5 {{- else -}} 2 {{- end }}
+  selector:
+...
+```
+
+### Variables
+
+```yaml
+...
+{{- $defaultName := printf "%s-%s" .Release.Name .Chart.Name }}
+{{- .Values.customName | default $defaultName | trunc 63 | trimSuffix "-" -}}
+...
+```
+
+### Variables' Scope
+
+### Using "range" to iterate over lists
+
+### Using "range" to iterate over dictionaries
+
+### Understanding the "dot" variable
+
+### Using "with" blocks
+
 ## Conclusion
 
 ## That's all
