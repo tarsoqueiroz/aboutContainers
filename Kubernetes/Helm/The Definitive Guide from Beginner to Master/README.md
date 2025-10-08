@@ -773,6 +773,16 @@ spec:
 
 ## Coding a Key-Value Store API
 
+### Project setup
+
+### Express and app setup
+
+### PostgreSQL setup
+
+### Implement API routes
+
+### Testing, building and pushing the Docker Images
+
 ## Conclusion
 
 ## That's all
