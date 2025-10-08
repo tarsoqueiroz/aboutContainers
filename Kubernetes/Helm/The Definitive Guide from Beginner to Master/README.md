@@ -767,6 +767,12 @@ spec:
 
 ### Using "with" blocks
 
+### Validation functions
+
+### Implementing custom validation logic
+
+## Coding a Key-Value Store API
+
 ## Conclusion
 
 ## That's all

@@ -29,7 +29,7 @@ image:
 ## @param securityContext.runAsUser User ID to run the NGINX container
 ## @param securityContext.fsGroup Group ID to assign to the NGINX container
 securityContext:
-  enabled: false
+  enabled: true
   runAsUser: 1000
   fsGroup: 2000
 
