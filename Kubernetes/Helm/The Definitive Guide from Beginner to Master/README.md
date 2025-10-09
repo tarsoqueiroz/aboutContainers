@@ -783,6 +783,86 @@ spec:
 
 ### Testing, building and pushing the Docker Images
 
+## Managing Chart Dependencies
+
+### What are Subcharts?
+
+### Bootstrap the config store Help chart
+
+- [Subchart](https://github.com/lm-academy/helm-course/tree/main/subcharts)
+
+**⚠️ IMPORTANT I - PostgreSQL Chart Updates ⚠️**
+
+This is a quick note on a recent new Chart version for PostgreSQL that requires a small change in the `values.yaml` file in the upcoming lectures, in case you wish to use the version 16.6.6 or later of the chart.
+
+> **Context:** The [release of version 16.6.0](https://github.com/bitnami/charts/releases/tag/postgresql%2F16.6.0) changed the default value for the `usePasswordFiles` to `true` in the `values.yaml` file. This might break the upcoming implementation where we rely on environment variables instead of password files.
+
+How to proceed? To address this with minimal changes, there are two ways we can proceed:
+
+1. Use the same chart version as the lectures
+
+Set the chart version to 16.2.2 in the chart dependencies list. While this does have the drawback of using an older version, it is more than enough to follow along with the lectures.
+
+2. Explicitly set the value of `usePasswordFiles` to false
+
+If you wish to use a more recent version, simply set the option `usePasswordFiles: false` in the `postgresql` section of our chart's `values.yaml` file:
+
+```yaml
+    # Other values in our values.yaml 
+     
+    postgresql:
+      auth:
+        # Keep other values...
+        usePasswordFiles: false
+      # Keep other values...
+```
+
+Hopefully, this will help those facing any issues with using more recent versions of the PostgreSQL chart!
+
+**⚠️ IMPORTANT II! Breaking Changes to Bitnami Charts and Images ⚠️**
+
+This is a brief reminder regarding the latest breaking changes in Bitnami charts and Docker repositories. In case you are already midway through the course and didn't happen to see the announcement in earlier lectures, please take the time to go through the explanation in Lecture 18: IMPORTANT! Changes to Bitnami Charts and Images. This article will cover the necessary changes you need to implement so that the PostgreSQL dependency continues to work as in the lectures.
+Uninstalling Broken Helm Charts
+
+If you run into the `ErrImagePull` problem, make sure to first uninstall the existing Chart installation.
+
+The commands you need to run are as follows:
+
+```sh
+helm uninstall config-store (or the name of your release)
+
+kubectl delete pvc data-postgresql-db-0 
+```
+
+If the chart you have installed created other resources that are not removed when running the `helm uninstall` command, make sure to clean them up manually!
+
+**Installing Helm Charts**
+
+Below you will find a series of steps you can follow in case you start seeing Image Pull Errors when installing the Helm charts. After uninstalling the problematic Helm Chart by following the instructions from above, here are the steps you should follow:
+
+1. In your `values.yaml` file, under the `postgresql` configuration key, add the instructions to point to the `bitnamilegacy` repository. It should look like the following:
+
+```yaml
+    postgresql:
+      image:
+        registry: docker.io
+        repository: bitnamilegacy/postgresql
+```
+
+2. Make sure that the configuration is correct by confirming that the values.yaml file is correctly used (you can run `helm template <config-store path> | grep bitnamilegacy/postgresql`, for example). This should show the following `image: docker.io/bitnamilegacy/postgresql:17.2.0-debian-12-r0`. This will enable you to continue using the same chart versions from the lectures for the moment, and you should still be able to install the applications on your Kubernetes cluster.
+
+### Add PostgreSQL subchart as chart dependency
+
+### Passing values from parent to subchart
+
+### Global values
+
+### Including names templates from subchart in parent
+
+### Conditionally enabling subcharts
+
+### Integrate PostgreSQL into our Kubernetes resources
+
 ## Conclusion
 
 ## That's all
