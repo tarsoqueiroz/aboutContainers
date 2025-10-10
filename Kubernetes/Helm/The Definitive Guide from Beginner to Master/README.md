@@ -863,6 +863,24 @@ Below you will find a series of steps you can follow in case you start seeing Im
 
 ### Integrate PostgreSQL into our Kubernetes resources
 
+## Advanced Topics
+
+### Accessing files
+
+- [Github `accessing-files`](https://github.com/lm-academy/helm-course/tree/main/accessing-files)
+
+### Chart hooks
+
+- [Github `helm-hooks`](https://github.com/lm-academy/helm-course/tree/main/helm-hooks)
+
+### Library charts
+
+- [Github `helm-course/library-charts/parent-chart/`](https://github.com/lm-academy/helm-course/tree/main/library-charts/parent-chart)
+
+### Test hook
+
+return here on 84 class.
+
 ## Conclusion
 
 ## That's all
