@@ -879,7 +879,27 @@ Below you will find a series of steps you can follow in case you start seeing Im
 
 ### Test hook
 
-return here on 84 class.
+- [Github `helm-course/library-charts/test-hook/`](https://github.com/lm-academy/helm-course/tree/main/test-hook)
+
+### Breakink changes to Bitnami Charts
+
+**⚠️ IMPORTANT! Breaking Changes to Bitnami Charts and Images and What To Do⚠️**
+
+Hello everyone! This is a brief reminder regarding the latest breaking changes in Bitnami charts and Docker repositories. In case you are already midway through the course and didn't happen to see the announcement in earlier lectures, please take the time to go through the explanation in Lecture 18: IMPORTANT! Changes to Bitnami Charts and Images.
+
+**Demoing Helm Plugins**.
+
+Since the upcoming lectures are more targeted towards plugin demonstration, my recommendation is that you pick another Helm chart instead of the Bitnami-backed ones that I use in the upcoming lectures. This will lead to some divergence between what I demonstrate on the videos and the exact commands you need to execute, but perhaps this can also work as a good learning opportunity! Here are a few suggestions:
+
+- **Grafana:** `https://artifacthub.io/packages/helm/grafana/grafana`
+- **Prometheus:** `https://artifacthub.io/packages/helm/prometheus-community/prometheus`
+- **Kubernetes dashboard:** `https://artifacthub.io/packages/helm/k8s-dashboard/kubernetes-dashboard`
+
+In practice, this means that you should search for the respective Helm repos from these charts instead of Bitnami, and that some of the values and exact commands might slightly change.
+
+### Helm plugins
+
+- [Related Projects and Documentation](https://helm.sh/docs/community/related/)
 
 ## Conclusion
 
