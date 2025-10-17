@@ -75,5 +75,22 @@ It's the system you use when your primary challenge is **structuring and governi
 
 - [Drupal case studies](https://www.drupal.org/case-studies)
 
+### Drupal on Kubernetes
+
+- [Drupal on Kubernetes (a.k.a stateful application)](https://blogit.michelin.io/statefull-application-on-kubernetes/)
+
 ## Setting up Drupal
 
+```sh
+#
+mkdir -p drupal.data/{modules,profiles,sites,themes}
+
+# Start
+docker compose -f ./manifests/Docker-compose.yaml up -d
+
+# Connect to drupal container
+docker exec -it manifests-drupal-1 /bin/bash
+
+# Down and remove all
+docker compose -f ./manifests/Docker-compose.yaml down -v
+```

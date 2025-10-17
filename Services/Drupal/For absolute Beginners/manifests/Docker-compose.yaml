@@ -1,0 +1,43 @@
+# Example docker-compose.yml for Drupal with MySQL
+# version: '3.8'
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: drupal_db
+      MYSQL_USER: drupal_user
+      MYSQL_PASSWORD: pass0123_drupal_user
+      MYSQL_ROOT_PASSWORD: pass0123_drupal_root
+    networks:
+      - drupal_net
+    volumes:
+      - db_data:/var/lib/mysql
+  drupal:
+    image: drupal:9.5.11
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    environment:
+      DRUPAL_DATABASE_HOST: db
+      DRUPAL_DATABASE_NAME: drupal_db
+      DRUPAL_DATABASE_USER: drupal_user
+      DRUPAL_DATABASE_PASSWORD: pass0123_drupal_user
+    networks:
+      - drupal_net
+    volumes:
+      - drupal_modules:/var/www/html/modules
+      - drupal_profiles:/var/www/html/profiles
+      - drupal_sites:/var/www/html/sites
+      - drupal_themes:/var/www/html/themes
+      - ./drupal.data:/drupal
+
+networks:
+  drupal_net:
+
+volumes:
+  db_data:
+  drupal_modules:
+  drupal_profiles:
+  drupal_sites:
+  drupal_themes:
