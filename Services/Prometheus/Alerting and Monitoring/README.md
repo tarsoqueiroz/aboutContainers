@@ -30,4 +30,6 @@ At the end of the course, you will have a basic Prometheus setup, which will be 
 - Setup the Prometheus Datasource inside Grafana
 - Setup Prometheus Dashboards for the main Prometheus service and Node exporters
 
-## 
+## Install Prometheus
+
+- [Install Prometheus](https://sbcode.net/prometheus/install-prometheus/)
