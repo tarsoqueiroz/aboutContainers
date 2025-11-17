@@ -133,5 +133,10 @@ kubectl get pod
 kubectl create -f ./manifests/0201-simple-pod.yaml 
 kubectl describe pod
 
-## 
+## create and apply
+kubectl create -f ./manifests/0201b-simple-pod.yaml # ngins v1.14
+kubectl describe pod my-podv
+kubectl apply -f ./manifests/0201b-simple-pod.yaml  # ngins v1.15
+kubectl describe pod my-podv
+
 ```
