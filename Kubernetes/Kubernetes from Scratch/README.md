@@ -1,6 +1,6 @@
 # Mastering Kubernetes From Scratch (Hands-On)
 
-## About
+# About
 
 > [Udemy: Mastering Kubernetes From Scratch (Hands-On)](https://www.udemy.com/course/kubernetes-cloud-native)
 
@@ -47,7 +47,7 @@ Who's this course for:
 - Developers who want to deploy applications to Kubernetes
 - DevOps and platform engineers who want hands on experience
 
-## Introduction
+# Introduction
 
 Course Materials:
 
@@ -56,9 +56,9 @@ Please find the resources which might be helpful for you.
 - The Source Code for this course is available here: [Github: kubernetes-course](https://github.com/vinsguru/kubernetes-course).
 - Kubernetes commands we discuss in this course is here: [PDF k8s-commands](./resources/k8s-commands.pdf).
 
-## Kubernetes Clusters
+# Kubernetes Clusters
 
-- Kubernetes cluster components: k8s-commands page 2
+- Kubernetes cluster components: [PDF k8s-commands](./resources/k8s-commands.pdf) page 2
 - [Kubernetes Documentation](https://kubernetes.io/docs/home/)
 
 Tools:
@@ -110,33 +110,111 @@ docker ps -as
 kubectl version --output=yaml
 ```
 
-## Pod
+# Pod
 
 ```sh
-## Create K8s ckyster
+# Create K8s ckyster
 kind create cluster --config ./manifests/0101-cluster.yaml 
 kubectl get nodes -o wide
 
-## create first pod
+# create first pod
 kubectl get pod
 
-## terminal alternative
+# terminal alternative
 watch -t -x kubectl get pod
 kubectl create -f ./manifests/0201-simple-pod.yaml 
 kubectl get pod
 
-## delete first pod
+# delete first pod
 kubectl delete -f ./manifests/0201-simple-pod.yaml 
 kubectl get pod
 
-## describe a pod
+# describe a pod
 kubectl create -f ./manifests/0201-simple-pod.yaml 
 kubectl describe pod
+kubectl delete -f ./manifests/0201-simple-pod.yaml 
 
-## create and apply
+# create and apply
 kubectl create -f ./manifests/0201b-simple-pod.yaml # ngins v1.14
 kubectl describe pod my-podv
 kubectl apply -f ./manifests/0201b-simple-pod.yaml  # ngins v1.15
 kubectl describe pod my-podv
+kubectl delete -f ./manifests/0201b-simple-pod.yaml # ngins v1.14
 
+# image Pull Backoff
+kubectl create -f ./manifests/0201c-simple-pod.yaml 
+kubectl describe pod my-podv 
+kubectl delete -f ./manifests/0201c-simple-pod.yaml
+
+# image Crash Loop Backoff
+kubectl create -f ./manifests/0202-failing-pod.yaml 
+kubectl describe pod my-pod 
+kubectl delete -f ./manifests/0202-failing-pod.yaml 
 ```
+
+- Kubernetes Pod status: [PDF k8s-commands](./resources/k8s-commands.pdf) page 6
+
+```sh
+# pod labels
+kubectl create -f ./manifests/0203-multiple-pods.yaml 
+kubectl describe pod
+kubectl get pod
+kubectl get pod pod-1
+kubectl describe pod pod-3
+kubectl get pod --show-labels 
+kubectl get pod -l dept=dept-1
+kubectl get pod -l dept=dept-1 --show-labels
+kubectl get pod -l team=team-a --show-labels
+kubectl get pod -l team!=team-a --show-labels
+kubectl get pod -l dept=dept-1,team=team-a --show-labels
+kubectl get pod -l dept=dept-2,team=team-a --show-labels
+kubectl get pod -l dept=dept-2,team=team-b --show-labels
+kubectl delete -f ./manifests/0203-multiple-pods.yaml 
+
+# formating output
+kubectl get pods
+kubectl get pods -o wide
+kubectl get pods pod-1 -o yaml
+kubectl delete -f ./manifests/0203-multiple-pods.yaml
+
+# deleting a pod
+kubectl get pods
+kubectl create -f ./manifests/0203-multiple-pods.yaml
+kubectl get pods
+kubectl delete pod pod-2
+kubectl delete pod/pod-3
+kubectl get pods
+kubectl describe pod/pod-1
+kubectl delete -f ./manifests/0203-multiple-pods.yaml
+
+# port forward
+kubectl get pods
+kubectl create -f ./manifests/0204-pod-port.yaml 
+kubectl get pods
+kubectl port-forward my-pod 80:80
+kubectl port-forward my-pod 8888:80
+####### At browse try: `http://localhost:8888/`
+####### CTRL + C
+####### At browse try: `http://localhost:8888/`
+kubectl delete -f ./manifests/0204-pod-port.yaml 
+
+# restartPolicy
+kubectl create -f ./manifests/0205-restart-policy.yaml # without restartPolicy
+kubectl get pod -o yaml
+kubectl delete -f ./manifests/0205-restart-policy.yaml 
+kubectl create -f ./manifests/0205-restart-policy.yaml # with restartPolicy: Never
+kubectl delete -f ./manifests/0205-restart-policy.yaml 
+
+# pod args and logs
+kubectl create -f ./manifests/0206-pod-args.yaml 
+kubectl logs my-pod 
+kubectl delete -f ./manifests/0206-pod-args.yaml 
+
+# pod args shell form
+kubectl create -f ./manifests/0207-pod-shell-args.yaml 
+kubectl logs my-pod 
+kubectl delete -f ./manifests/0207-pod-shell-args.yaml 
+
+#
+```
+
