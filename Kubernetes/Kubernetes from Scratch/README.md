@@ -1,6 +1,6 @@
 # Mastering Kubernetes From Scratch (Hands-On)
 
-# About
+## About
 
 > [Udemy: Mastering Kubernetes From Scratch (Hands-On)](https://www.udemy.com/course/kubernetes-cloud-native)
 
@@ -47,7 +47,7 @@ Who's this course for:
 - Developers who want to deploy applications to Kubernetes
 - DevOps and platform engineers who want hands on experience
 
-# Introduction
+## Introduction
 
 Course Materials:
 
@@ -56,7 +56,7 @@ Please find the resources which might be helpful for you.
 - The Source Code for this course is available here: [Github: kubernetes-course](https://github.com/vinsguru/kubernetes-course).
 - Kubernetes commands we discuss in this course is here: [PDF k8s-commands](./resources/k8s-commands.pdf).
 
-# Kubernetes Clusters
+## Kubernetes Clusters
 
 - Kubernetes cluster components: [PDF k8s-commands](./resources/k8s-commands.pdf) page 2
 - [Kubernetes Documentation](https://kubernetes.io/docs/home/)
@@ -110,11 +110,11 @@ docker ps -as
 kubectl version --output=yaml
 ```
 
-# Pod
+## Pod
 
 ```sh
 # Create K8s ckyster
-kind create cluster --config ./manifests/0101-cluster.yaml 
+kind create cluster --config ./manifests/sec01/0101-cluster.yaml 
 kubectl get nodes -o wide
 
 # create first pod
@@ -122,41 +122,41 @@ kubectl get pod
 
 # terminal alternative
 watch -t -x kubectl get pod
-kubectl create -f ./manifests/0201-simple-pod.yaml 
+kubectl create -f ./manifests/sec02/0201-simple-pod.yaml 
 kubectl get pod
 
 # delete first pod
-kubectl delete -f ./manifests/0201-simple-pod.yaml 
+kubectl delete -f ./manifests/sec02/0201-simple-pod.yaml 
 kubectl get pod
 
 # describe a pod
-kubectl create -f ./manifests/0201-simple-pod.yaml 
+kubectl create -f ./manifests/sec02/0201-simple-pod.yaml 
 kubectl describe pod
-kubectl delete -f ./manifests/0201-simple-pod.yaml 
+kubectl delete -f ./manifests/sec02/0201-simple-pod.yaml 
 
 # create and apply
-kubectl create -f ./manifests/0201b-simple-pod.yaml # ngins v1.14
+kubectl create -f ./manifests/sec02/0201b-simple-pod.yaml # ngins v1.14
 kubectl describe pod my-podv
-kubectl apply -f ./manifests/0201b-simple-pod.yaml  # ngins v1.15
+kubectl apply -f ./manifests/sec02/0201b-simple-pod.yaml  # ngins v1.15
 kubectl describe pod my-podv
-kubectl delete -f ./manifests/0201b-simple-pod.yaml # ngins v1.14
+kubectl delete -f ./manifests/sec02/0201b-simple-pod.yaml
 
 # image Pull Backoff
-kubectl create -f ./manifests/0201c-simple-pod.yaml 
+kubectl create -f ./manifests/sec02/0201c-simple-pod.yaml 
 kubectl describe pod my-podv 
-kubectl delete -f ./manifests/0201c-simple-pod.yaml
+kubectl delete -f ./manifests/sec02/0201c-simple-pod.yaml
 
 # image Crash Loop Backoff
-kubectl create -f ./manifests/0202-failing-pod.yaml 
+kubectl create -f ./manifests/sec02/0202-failing-pod.yaml 
 kubectl describe pod my-pod 
-kubectl delete -f ./manifests/0202-failing-pod.yaml 
+kubectl delete -f ./manifests/sec02/0202-failing-pod.yaml 
 ```
 
 - Kubernetes Pod status: [PDF k8s-commands](./resources/k8s-commands.pdf) page 6
 
 ```sh
 # pod labels
-kubectl create -f ./manifests/0203-multiple-pods.yaml 
+kubectl create -f ./manifests/sec02/0203-multiple-pods.yaml 
 kubectl describe pod
 kubectl get pod
 kubectl get pod pod-1
@@ -169,52 +169,150 @@ kubectl get pod -l team!=team-a --show-labels
 kubectl get pod -l dept=dept-1,team=team-a --show-labels
 kubectl get pod -l dept=dept-2,team=team-a --show-labels
 kubectl get pod -l dept=dept-2,team=team-b --show-labels
-kubectl delete -f ./manifests/0203-multiple-pods.yaml 
+kubectl delete -f ./manifests/sec02/0203-multiple-pods.yaml 
 
 # formating output
 kubectl get pods
 kubectl get pods -o wide
 kubectl get pods pod-1 -o yaml
-kubectl delete -f ./manifests/0203-multiple-pods.yaml
+kubectl delete -f ./manifests/sec02/0203-multiple-pods.yaml
 
 # deleting a pod
 kubectl get pods
-kubectl create -f ./manifests/0203-multiple-pods.yaml
+kubectl create -f ./manifests/sec02/0203-multiple-pods.yaml
 kubectl get pods
 kubectl delete pod pod-2
 kubectl delete pod/pod-3
 kubectl get pods
 kubectl describe pod/pod-1
-kubectl delete -f ./manifests/0203-multiple-pods.yaml
+kubectl delete -f ./manifests/sec02/0203-multiple-pods.yaml
 
 # port forward
 kubectl get pods
-kubectl create -f ./manifests/0204-pod-port.yaml 
+kubectl create -f ./manifests/sec02/0204-pod-port.yaml 
 kubectl get pods
 kubectl port-forward my-pod 80:80
 kubectl port-forward my-pod 8888:80
 ####### At browse try: `http://localhost:8888/`
 ####### CTRL + C
 ####### At browse try: `http://localhost:8888/`
-kubectl delete -f ./manifests/0204-pod-port.yaml 
+kubectl delete -f ./manifests/sec02/0204-pod-port.yaml 
 
 # restartPolicy
-kubectl create -f ./manifests/0205-restart-policy.yaml # without restartPolicy
+kubectl create -f ./manifests/sec02/0205-restart-policy.yaml # without restartPolicy
 kubectl get pod -o yaml
-kubectl delete -f ./manifests/0205-restart-policy.yaml 
-kubectl create -f ./manifests/0205-restart-policy.yaml # with restartPolicy: Never
-kubectl delete -f ./manifests/0205-restart-policy.yaml 
+kubectl delete -f ./manifests/sec02/0205-restart-policy.yaml 
+kubectl create -f ./manifests/sec02/0205-restart-policy.yaml # with restartPolicy: Never
+kubectl delete -f ./manifests/sec02/0205-restart-policy.yaml 
 
 # pod args and logs
-kubectl create -f ./manifests/0206-pod-args.yaml 
+kubectl create -f ./manifests/sec02/0206-pod-args.yaml 
 kubectl logs my-pod 
-kubectl delete -f ./manifests/0206-pod-args.yaml 
+kubectl delete -f ./manifests/sec02/0206-pod-args.yaml 
 
 # pod args shell form
-kubectl create -f ./manifests/0207-pod-shell-args.yaml 
+kubectl create -f ./manifests/sec02/0207-pod-shell-args.yaml 
 kubectl logs my-pod 
-kubectl delete -f ./manifests/0207-pod-shell-args.yaml 
+kubectl delete -f ./manifests/sec02/0207-pod-shell-args.yaml 
 
-#
+# termination grace period
+kubectl create -f ./manifests/sec02/0208-pod-termination-grace-period.yaml  ## without terminationGracePeriodSeconds
+kubectl delete -f ./manifests/sec02/0208-pod-termination-grace-period.yaml  ## without terminationGracePeriodSeconds
+kubectl create -f ./manifests/sec02/0208-pod-termination-grace-period.yaml  ## with terminationGracePeriodSeconds
+kubectl delete -f ./manifests/sec02/0208-pod-termination-grace-period.yaml  ## with terminationGracePeriodSeconds
+
+# pod command
+kubectl create -f ./manifests/sec02/0209-pod-command.yaml  ## with args
+kubectl logs pods/my-pod 
+kubectl delete -f ./manifests/sec02/0209-pod-command.yaml  ## with args
+kubectl create -f ./manifests/sec02/0209-pod-command.yaml  ## with command
+kubectl logs pods/my-pod 
+kubectl delete -f ./manifests/sec02/0209-pod-command.yaml  ## with command
+
+# environment variables
+kubectl create -f ./manifests/sec02/0210-pod-env.yaml 
+kubectl logs pods/my-pod 
+kubectl delete -f ./manifests/sec02/0210-pod-env.yaml 
+
+# exploring pod container
+kubectl create -f ./manifests/sec02/0201-simple-pod.yaml 
+kubectl get pods
+kubectl exec -it my-pod bash
+kubectl exec -it my-pod -- bash
+####### inside pod
+root@my-pod:/# history 
+    1  echo Inside pod my-pod
+    2  ls -alhF
+    3  curl
+    4  curl localhost
+    5  exit
+####### back to terminal
+kubectl get pods
+kubectl delete -f ./manifests/sec02/0201-simple-pod.yaml 
+
+# multi container pod
+kubectl create -f ./manifests/sec02/0211-multi-containers.yaml 
+kubectl get pod
+kubectl get pod -o wide
+kubectl logs my-pod 
+kubectl logs my-pod -c nginx-1
+kubectl logs my-pod -c util
+kubectl exec -it my-pod -- bash
+####### inside pod (mypod:nginx-1)
+root@my-pod:/# history 
+    1  hostname
+    2  ls -alhF
+    3  exit
+####### back to terminal
+kubectl exec -it my-pod -c util -- bash
+####### inside pod (mypod:util)
+root@my-pod:/# history 
+    1  hostname
+    2  ls -alhF
+    3  curl localhost
+    4  exit
+####### back to terminal
+kubectl delete -f ./manifests/sec02/0211-multi-containers.yaml 
 ```
 
+### ASSIGNMENT
+
+Please try to create this pod and analyze why it is failing. Please fix if possible.
+
+```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: pod-assignment
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: assignment
+        image: vinsdocker/k8s-pod-assignment
+```
+
+```sh
+# assignment
+kubectl create -f ./manifests/sec02/0212-pod-assignment.yaml 
+kubectl logs pods/pod-assignment
+### result
+You need to do the followings to make this work
+  1. Set an environment variable 'NUMBER' with the value 5
+  2. Pass the arg 'MY_ARG'
+###
+kubectl delete -f ./manifests/sec02/0212-pod-assignment.yaml 
+
+# assignment solution
+kubectl create -f ./manifests/sec02/0213-pod-assignment-solution.yaml 
+kubectl logs pods/pod-assignment 
+### result
+Good Job!!
+###
+kubectl delete -f ./manifests/sec02/0213-pod-assignment-solution.yaml
+```
+
+## ReplicaSet
+
+## That's all
+
+... folks!!!
