@@ -12,6 +12,8 @@ spec:
       name: my-pod
       labels:
         app: my-app
+        # app: my-app-1
+        team: team-a
     spec:
       containers:
       - name: nginx

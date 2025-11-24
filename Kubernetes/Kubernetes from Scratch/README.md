@@ -112,6 +112,8 @@ kubectl version --output=yaml
 
 ## Pod
 
+- [Kubernetes doc: Pod](https://kubernetes.io/docs/concepts/workloads/pods/)
+
 ```sh
 # Create K8s ckyster
 kind create cluster --config ./manifests/sec01/0101-cluster.yaml 
@@ -312,6 +314,55 @@ kubectl delete -f ./manifests/sec02/0213-pod-assignment-solution.yaml
 ```
 
 ## ReplicaSet
+
+- [Kubernetes doc: ReplicaSet](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
+
+```sh
+# creating replicaset
+kubectl get pods
+kubectl get replicaset
+kubectl get rs
+kubectl get all
+kubectl create -f manifests/sec03/0301-simple-rs.yaml 
+kubectl get pod --show-labels
+kubectl delete pod/my-rs-pxm9c 
+kubectl delete pod --all
+kubectl delete -f manifests/sec03/0301-simple-rs.yaml
+
+# replicaset labels
+kubectl apply -f manifests/sec03/0301-simple-rs.yaml # label my-app-1
+kubectl apply -f manifests/sec03/0301-simple-rs.yaml # label my-app and team
+kubectl get pod --show-labels
+kubectl delete -f manifests/sec03/0301-simple-rs.yaml
+
+# replicaset with existing pod
+kubectl create -f manifests/sec03/0302-multiple-pods.yaml 
+kubectl create -f manifests/sec03/0303-existing-pod-manager.yaml 
+kubectl get pod --show-labels
+kubectl delete pod/pod-1
+kubectl get pod --show-labels
+kubectl delete pod/pod-3
+kubectl get pod --show-labels
+kubectl delete -f manifests/sec03/0303-existing-pod-manager.yaml
+
+# multiple replicaset
+kubectl create -f manifests/sec03/0304-multiple-rs.yaml # without my-rs-2 
+kubectl create -f manifests/sec03/0304-multiple-rs.yaml # with my-rs-2
+kubectl get pod --show-labels
+kubectl delete pod/my-rs-1-2dmcs
+kubectl delete pod/my-rs-2-5ckcr
+kubectl delete -f manifests/sec03/0304-multiple-rs.yaml
+
+# describing replicaset
+kubectl create -f manifests/sec03/0304-multiple-rs.yaml # with my-rs-2
+kubectl describe rs/my-rs-1
+kubectl delete pod/my-rs-1-tvl6x 
+kubectl describe rs/my-rs-1
+```
+
+## Deployment
+
+- [Kubernetes doc: Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
 
 ## That's all
 
