@@ -114,6 +114,271 @@ kubectl version --output=yaml
 
 - [Kubernetes doc: Pod](https://kubernetes.io/docs/concepts/workloads/pods/)
 
+### Pod template
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: meu-pod-exemplo
+  namespace: default
+  labels:
+    app: minha-aplicacao
+    version: "1.0"
+    environment: production
+  annotations:
+    description: "Pod de exemplo com principais elementos"
+    maintainer: "equipe-dev@empresa.com"
+    kubernetes.io/change-cause: "Deploy da versão 1.0"
+spec:
+  # Contêineres principais do Pod
+  containers:
+  - name: aplicacao-principal
+    image: nginx:1.25
+    imagePullPolicy: IfNotPresent
+    
+    # Portas que o contêiner expõe
+    ports:
+    - name: http
+      containerPort: 80
+      protocol: TCP
+    - name: https
+      containerPort: 443
+      protocol: TCP
+    
+    # Variáveis de ambiente
+    env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: CONFIG_PATH
+      value: "/etc/config"
+    
+    # Variáveis de ambiente a partir de ConfigMap/Secret
+    envFrom:
+    - configMapRef:
+        name: meu-configmap
+    - secretRef:
+        name: meu-secret
+    
+    # Comando e argumentos de inicialização
+    command: ["nginx"]
+    args: ["-g", "daemon off;"]
+    
+    # Recursos computacionais
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "250m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+    
+    # Probes de saúde
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 80
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 1
+    
+    startupProbe:
+      httpGet:
+        path: /startup
+        port: 80
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      failureThreshold: 30
+    
+    # Configurações de segurança
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+        add:
+        - NET_BIND_SERVICE
+    
+    # Montagem de volumes
+    volumeMounts:
+    - name: config-volume
+      mountPath: /etc/nginx/conf.d
+      readOnly: true
+    - name: data-volume
+      mountPath: /var/log/nginx
+    
+    # Política de término
+    lifecycle:
+      preStop:
+        exec:
+          command: ["/bin/sh", "-c", "nginx -s quit; while killall -0 nginx; do sleep 1; done"]
+
+  # Contêineres de inicialização
+  initContainers:
+  - name: init-db
+    image: busybox:1.35
+    command: ['sh', '-c', 'echo "Inicializando banco de dados..." && sleep 10']
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+  
+  # Volumes
+  volumes:
+  - name: config-volume
+    configMap:
+      name: nginx-config
+      items:
+      - key: nginx.conf
+        path: nginx.conf
+  - name: data-volume
+    emptyDir: {}
+  
+  # Configurações de rede
+  hostNetwork: false
+  hostPID: false
+  hostIPC: false
+  dnsPolicy: ClusterFirst
+  dnsConfig:
+    nameservers:
+    - 8.8.8.8
+    searches:
+    - default.svc.cluster.local
+    - svc.cluster.local
+    - cluster.local
+    options:
+    - name: ndots
+      value: "2"
+  
+  # Configurações de segurança do Pod
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 2000
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # Afinidade e anti-afinidade
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: disktype
+            operator: In
+            values:
+            - ssd
+    
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - cache
+        topologyKey: kubernetes.io/hostname
+    
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - minha-aplicacao
+          topologyKey: kubernetes.io/hostname
+  
+  # Tolerations para nós com taints
+  tolerations:
+  - key: "node-type"
+    operator: "Equal"
+    value: "gpu"
+    effect: "NoSchedule"
+  - key: "spot-instance"
+    operator: "Exists"
+    effect: "NoExecute"
+  
+  # Prioridade da classe do Pod
+  priorityClassName: high-priority
+  
+  # Restart policy
+  restartPolicy: Always
+  
+  # Service Account
+  serviceAccountName: minha-service-account
+  
+  # Tempo para término gracioso
+  terminationGracePeriodSeconds: 60
+
+# Status (gerado automaticamente pelo Kubernetes)
+status:
+  phase: Pending
+  conditions: []
+  hostIP: ""
+  podIP: ""
+  startTime: null
+```
+
+### Minimalist Pod template
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-basico
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx:alpine
+    ports:
+    - containerPort: 80
+
+    # Comando e argumentos de inicialização
+    command: ["nginx"]
+    args: ["-g", "daemon off;"]
+    
+    # Recursos computacionais
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "250m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+```
+
+### Pod lab
+
 ```sh
 # Create K8s ckyster
 kind create cluster --config ./manifests/sec01/0101-cluster.yaml 
@@ -277,7 +542,7 @@ root@my-pod:/# history
 kubectl delete -f ./manifests/sec02/0211-multi-containers.yaml 
 ```
 
-### ASSIGNMENT
+### ASSIGNMENT for Pod
 
 Please try to create this pod and analyze why it is failing. Please fix if possible.
 
@@ -323,38 +588,38 @@ kubectl get pods
 kubectl get replicaset
 kubectl get rs
 kubectl get all
-kubectl create -f manifests/sec03/0301-simple-rs.yaml 
+kubectl create -f ./manifests/sec03/0301-simple-rs.yaml 
 kubectl get pod --show-labels
 kubectl delete pod/my-rs-pxm9c 
 kubectl delete pod --all
-kubectl delete -f manifests/sec03/0301-simple-rs.yaml
+kubectl delete -f ./manifests/sec03/0301-simple-rs.yaml
 
 # replicaset labels
-kubectl apply -f manifests/sec03/0301-simple-rs.yaml # label my-app-1
-kubectl apply -f manifests/sec03/0301-simple-rs.yaml # label my-app and team
+kubectl apply -f ./manifests/sec03/0301-simple-rs.yaml # label my-app-1
+kubectl apply -f ./manifests/sec03/0301-simple-rs.yaml # label my-app and team
 kubectl get pod --show-labels
-kubectl delete -f manifests/sec03/0301-simple-rs.yaml
+kubectl delete -f ./manifests/sec03/0301-simple-rs.yaml
 
 # replicaset with existing pod
-kubectl create -f manifests/sec03/0302-multiple-pods.yaml 
-kubectl create -f manifests/sec03/0303-existing-pod-manager.yaml 
+kubectl create -f ./manifests/sec03/0302-multiple-pods.yaml 
+kubectl create -f ./manifests/sec03/0303-existing-pod-manager.yaml 
 kubectl get pod --show-labels
 kubectl delete pod/pod-1
 kubectl get pod --show-labels
 kubectl delete pod/pod-3
 kubectl get pod --show-labels
-kubectl delete -f manifests/sec03/0303-existing-pod-manager.yaml
+kubectl delete -f ./manifests/sec03/0303-existing-pod-manager.yaml
 
 # multiple replicaset
-kubectl create -f manifests/sec03/0304-multiple-rs.yaml # without my-rs-2 
-kubectl create -f manifests/sec03/0304-multiple-rs.yaml # with my-rs-2
+kubectl create -f ./manifests/sec03/0304-multiple-rs.yaml # without my-rs-2 
+kubectl create -f ./manifests/sec03/0304-multiple-rs.yaml # with my-rs-2
 kubectl get pod --show-labels
 kubectl delete pod/my-rs-1-2dmcs
 kubectl delete pod/my-rs-2-5ckcr
-kubectl delete -f manifests/sec03/0304-multiple-rs.yaml
+kubectl delete -f ./manifests/sec03/0304-multiple-rs.yaml
 
 # describing replicaset
-kubectl create -f manifests/sec03/0304-multiple-rs.yaml # with my-rs-2
+kubectl create -f ./manifests/sec03/0304-multiple-rs.yaml # with my-rs-2
 kubectl describe rs/my-rs-1
 kubectl delete pod/my-rs-1-tvl6x 
 kubectl describe rs/my-rs-1
@@ -363,6 +628,129 @@ kubectl describe rs/my-rs-1
 ## Deployment
 
 - [Kubernetes doc: Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+
+### Deployment template
+
+### Minimalist Deployment template
+
+### Deployment lab
+
+```sh
+# demo, create & apply
+kubectl create -f ./manifests/sec04/0401-simple-deploy.yaml 
+kubectl get deploy
+kubectl create -f ./manifests/sec04/0401-simple-deploy.yaml 
+kubectl delete -f ./manifests/sec04/0401-simple-deploy.yaml 
+kubectl get all
+kubectl apply -f ./manifests/sec04/0401-simple-deploy.yaml 
+kubectl apply -f ./manifests/sec04/0401-simple-deploy.yaml 
+kubectl apply -f ./manifests/sec04/0401-simple-deploy.yaml 
+
+# log & port forward
+kubectl describe deployments.apps my-deploy 
+kubectl exec -it deployments/my-deploy -- bash
+####### inside pod
+ls -alhF
+exit
+#######
+kubectl port-forward deployments/my-deploy 8080:80
+####### at browser: http://localhost:8080/
+kubectl delete -f ./manifests/sec04/0401-simple-deploy.yaml
+
+# deploy revisions
+kubectl apply -f ./manifests/sec04/0402-deploy-rs.yaml # version :v1 & 3 replicas (revision 1)
+kubectl apply -f ./manifests/sec04/0402-deploy-rs.yaml # 2 replicas (revision 1)
+kubectl apply -f ./manifests/sec04/0402-deploy-rs.yaml # version :v2 (revision 2)
+kubectl apply -f ./manifests/sec04/0402-deploy-rs.yaml # env BUNNY  (revision 3)
+kubectl apply -f ./manifests/sec04/0402-deploy-rs.yaml # 4 replicas (revision 3)
+kubectl delete -f ./manifests/sec04/0402-deploy-rs.yaml
+
+# rollout history
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml  # without annotations
+kubectl port-forward deployments/order-service-deploy 8080:80
+####### on browser: http://localhost:8080 you'll see v1
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml  # without annotations & version :v2
+kubectl port-forward deployments/order-service-deploy 8080:80
+####### on browser: http://localhost:8080 you'll see v2
+kubectl rollout history deployment order-service-deploy 
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml  # without annotations & version :v3
+kubectl rollout history deployment order-service-deploy 
+kubectl port-forward deployments/order-service-deploy 8080:80
+####### on browser: http://localhost:8080  you'll see v3
+kubectl rollout undo deployment order-service-deploy 
+kubectl port-forward deployments/order-service-deploy 8080:80
+####### on browser: http://localhost:8080  you'll see v2
+kubectl rollout history deployment order-service-deploy 
+kubectl rollout undo deployment order-service-deploy 
+kubectl port-forward deployments/order-service-deploy 8080:80
+####### on browser: http://localhost:8080  you'll see v3
+kubectl rollout history deployment order-service-deploy 
+kubectl delete -f ./manifests/sec04/0403-deploy-rollout.yaml
+kubectl rollout history deployment order-service-deploy 
+
+# rollback
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml # with annotation v1
+kubectl rollout history deployment order-service-deploy 
+kubectl port-forward deployments/order-service-deploy 8080:80 
+####### on browser: http://localhost:8080 v1
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml # with annotation v2
+kubectl rollout history deployment order-service-deploy 
+kubectl port-forward deployments/order-service-deploy 8080:80 
+####### on browser: http://localhost:8080 v2
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml # with annotation v3
+kubectl rollout history deployment order-service-deploy 
+kubectl port-forward deployments/order-service-deploy 8080:80 
+####### on browser: http://localhost:8080 v3
+kubectl rollout undo deployment order-service-deploy 
+kubectl rollout history deployment order-service-deploy 
+kubectl rollout undo deployment order-service-deploy --to-revision=1
+kubectl rollout history deployment order-service-deploy 
+kubectl port-forward deployments/order-service-deploy 8080:80 
+####### on browser: http://localhost:8080 v1
+kubectl rollout undo deployment order-service-deploy --to-revision=3
+kubectl port-forward deployments/order-service-deploy 8080:80 
+####### on browser: http://localhost:8080 v3
+kubectl delete -f ./manifests/sec04/0403-deploy-rollout.yaml
+
+# checking rollout changes
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml # with annotation v1
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml # with annotation v2
+kubectl apply -f ./manifests/sec04/0403-deploy-rollout.yaml # with annotation v3
+kubectl rollout history deployment order-service-deploy 
+kubectl rollout undo deployment order-service-deploy
+kubectl rollout history deployment order-service-deploy 
+kubectl rollout undo deployment order-service-deploy --to-revision=3 
+kubectl rollout history deployment order-service-deploy 
+kubectl rollout undo deployment order-service-deploy --to-revision=1
+kubectl rollout history deployment order-service-deploy 
+kubectl rollout history deployment --revision=5
+kubectl rollout history deployment --revision=6
+kubectl rollout history deployment --revision=3
+kubectl delete -f ./manifests/sec04/0403-deploy-rollout.yaml
+
+# min ready seconds
+kubectl apply -f ./manifests/sec04/0404-min-ready-seconds.yaml 
+kubectl delete -f ./manifests/sec04/0404-min-ready-seconds.yaml 
+
+# deployment strategy
+# recreate strategy
+kubectl apply -f ./manifests/sec04/0405-deploy-recreate.yaml # v1
+kubectl apply -f ./manifests/sec04/0405-deploy-recreate.yaml # v2
+kubectl delete -f ./manifests/sec04/0405-deploy-recreate.yaml
+# rolling update strategy - maxsurge
+kubectl apply -f ./manifests/sec04/0406-deploy-max-surge.yaml # v1 maxsurge 100%
+kubectl apply -f ./manifests/sec04/0406-deploy-max-surge.yaml # v2 maxsurge 100%
+kubectl apply -f ./manifests/sec04/0406-deploy-max-surge.yaml # v3 maxsurge 1
+kubectl delete -f ./manifests/sec04/0406-deploy-max-surge.yaml
+# rolling update strategy - maxunavailable
+ 2188  kubectl apply -f ./manifests/sec04/0407-deploy-max-unavailable.yaml # v1 maxunavailable 1
+ 2189  kubectl apply -f ./manifests/sec04/0407-deploy-max-unavailable.yaml # v2 maxunavailable 1
+ 2190  kubectl delete -f ./manifests/sec04/0407-deploy-max-unavailable.yaml
+```
+
+### ASSIGNMENT for Deployment
+
+
 
 ## That's all
 
