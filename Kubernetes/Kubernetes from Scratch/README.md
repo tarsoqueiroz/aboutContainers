@@ -1240,10 +1240,66 @@ spec:
 ### Service lab
 
 ```sh
+# demo
+kubectl apply -f ./manifests/sec05/0501-simple-deploy.yaml  # replicas 3 
+kubectl apply -f ./manifests/sec05/0502-simple-service.yaml 
+kubectl describe service nginx 
+kubectl get pod -o wide
+watch -t -n 1 -x kubectl describe service nginx # second term
+kubectl delete pod my-deploy-687d598649-hd7mg 
+kubectl apply -f ./manifests/sec05/0501-simple-deploy.yaml # replicas 5
+kubectl apply -f ./manifests/sec05/0501-simple-deploy.yaml # replicas 1
+kubectl get deployments.apps 
+kubectl delete deployments.apps my-deploy 
+kubectl apply -f ./manifests/sec05/0501-simple-deploy.yaml # replicas 3
+kubectl delete -f ./manifests/sec05/0502-simple-service.yaml -f ./manifests/sec05/0501-simple-deploy.yaml
 
+# loadbalancing demo
+kubectl apply -f ./manifests/sec05/0503-svc-load-balancing.yaml 
+kubectl exec -it demo-pod -- bash
+################ inside pod
+root@demo-pod:/# curl my-app
+################
+kubectl delete -f ./manifests/sec05/0503-svc-load-balancing.yaml 
+
+# redis assignment with service
+kubectl apply -f ./manifests/sec05/0504-app-assignment.yaml 
+kubectl port-forward deployments/assignment 8080
+####### at browser: localhost:8080
+kubectl delete -f ./manifests/sec05/0504-app-assignment.yaml 
+
+# nodeport demo
+kubectl apply -f ./manifests/sec05/0505-nodeport-service.yaml 
+curl localhost:30001
+kubectl exec -it demo-pod -- bash
+################ inside pod
+root@demo-pod:/# curl my-app:80
+root@demo-pod:/# curl my-app:80
+root@demo-pod:/# curl my-app:80
+root@demo-pod:/# curl my-app:80
+exit
+################
+kubectl apply -f ./manifests/sec05/0505-nodeport-service.yaml 
+
+# rolling update with service
+kubectl apply -f ./manifests/sec05/0506-rolling-update-demo.yaml # v1
+####### on another term
+kubectl exec -it demo-pod -- bash
+################ inside pod
+curl my-app
+for i in {1..5000}; do curl -s http://my-app | grep -o "<title>[^<]*" | tail -c+8; done
+exit
+################
+####### on main term
+kubectl apply -f ./manifests/sec05/0506-rolling-update-demo.yaml # v2
+kubectl apply -f ./manifests/sec05/0506-rolling-update-demo.yaml # v3
+kubectl rollout undo deployment order-service-deploy 
+kubectl delete -f ./manifests/sec05/0506-rolling-update-demo.yaml
 ```
 
 ## Namespace
+
+- [Kubernetes doc: Namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)
 
 ## Probes
 
