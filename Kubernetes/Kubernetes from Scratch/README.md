@@ -347,7 +347,7 @@ status:
   startTime: null
 ```
 
-### Minimalist Pod template
+#### Minimalist Pod template
 
 ```yaml
 apiVersion: v1
@@ -582,6 +582,8 @@ kubectl delete -f ./manifests/sec02/0213-pod-assignment-solution.yaml
 
 - [Kubernetes doc: ReplicaSet](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
 
+### ReplicaSet lab
+
 ```sh
 # creating replicaset
 kubectl get pods
@@ -631,7 +633,318 @@ kubectl describe rs/my-rs-1
 
 ### Deployment template
 
-### Minimalist Deployment template
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meu-deployment-exemplo
+  namespace: default
+  labels:
+    app: minha-aplicacao
+    version: "1.0.0"
+    environment: production
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "Deployment de exemplo com principais elementos"
+    maintainer: "devops-team@company.com"
+spec:
+  # Réplicas e estratégia de implantação
+  replicas: 3
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
+  
+  # Seletor para identificar os Pods gerenciados
+  selector:
+    matchLabels:
+      app: minha-aplicacao
+      tier: backend
+  
+  # Estratégia de atualização
+  strategy:
+    type: RollingUpdate  # Alternativas: Recreate
+    rollingUpdate:
+      maxSurge: 1        # Máximo de pods acima do desejado durante atualização
+      maxUnavailable: 0  # Máximo de pods indisponíveis durante atualização
+  
+  # Template do Pod
+  template:
+    metadata:
+      labels:
+        app: minha-aplicacao
+        tier: backend
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    
+    spec:
+      # Contêineres principais
+      containers:
+      - name: aplicacao
+        image: minha-aplicacao:1.0.0
+        imagePullPolicy: IfNotPresent
+        
+        # Portas
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        
+        # Variáveis de ambiente
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: connection-string
+        - name: CONFIG_MAP_VALUE
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: api-endpoint
+        
+        # Recursos
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        # Probes de saúde
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 1
+        
+        startupProbe:
+          httpGet:
+            path: /startup
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 30
+        
+        # Segurança
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        
+        # Montagem de volumes
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+          readOnly: true
+        - name: temporary-storage
+          mountPath: /tmp
+        
+        # Lifecycle hooks
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "echo 'Container started' > /tmp/startup.log"]
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10; echo 'Graceful shutdown'"]
+      
+      # Contêineres sidecar (opcional)
+      - name: sidecar-logger
+        image: busybox:1.35
+        command: ['sh', '-c', 'tail -f /var/log/app.log']
+        volumeMounts:
+        - name: log-volume
+          mountPath: /var/log
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      
+      # Contêineres de inicialização
+      initContainers:
+      - name: init-migrations
+        image: minha-aplicacao:1.0.0
+        command: ['sh', '-c', 'npm run db:migrate']
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: connection-string
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+          readOnly: true
+      
+      # Volumes
+      volumes:
+      - name: config-volume
+        configMap:
+          name: app-config
+          items:
+          - key: application.properties
+            path: application.properties
+      
+      - name: log-volume
+        emptyDir: {}
+      
+      - name: temporary-storage
+        emptyDir:
+          medium: Memory
+          sizeLimit: "1Gi"
+      
+      # Configurações de segurança do Pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Afinidade e agendamento
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: disktype
+                operator: In
+                values:
+                - ssd
+        
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - minha-aplicacao
+              topologyKey: kubernetes.io/hostname
+      
+      # Tolerations
+      tolerations:
+      - key: "node-type"
+        operator: "Equal"
+        value: "gpu"
+        effect: "NoSchedule"
+      - key: "spot-instance"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 3600
+      
+      # Service Account
+      serviceAccountName: minha-service-account
+      
+      # Prioridade
+      priorityClassName: high-priority
+      
+      # Tempo para término gracioso
+      terminationGracePeriodSeconds: 60
+      
+      # DNS configurações
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+
+# Status (gerado automaticamente pelo Kubernetes)
+status:
+  observedGeneration: 1
+  replicas: 3
+  updatedReplicas: 3
+  readyReplicas: 3
+  availableReplicas: 3
+  conditions:
+  - type: Available
+    status: "True"
+    lastUpdateTime: "2023-10-01T10:00:00Z"
+    lastTransitionTime: "2023-10-01T10:00:00Z"
+    reason: MinimumReplicasAvailable
+    message: Deployment has minimum availability.
+  - type: Progressing
+    status: "True"
+    lastUpdateTime: "2023-10-01T10:00:00Z"
+    lastTransitionTime: "2023-10-01T10:00:00Z"
+    reason: NewReplicaSetAvailable
+    message: ReplicaSet "meu-deployment-exemplo-12345" has successfully progressed.
+```
+
+#### Minimalist Deployment template
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-minimo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: minha-app
+  template:
+    metadata:
+      labels:
+        app: minha-app
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+```
 
 ### Deployment lab
 
@@ -750,7 +1063,199 @@ kubectl delete -f ./manifests/sec04/0406-deploy-max-surge.yaml
 
 ### ASSIGNMENT for Deployment
 
+```sh
+kubectl apply -f ./manifests/sec04/0408-redis-deployment.yaml 
+kubectl get pod -o wide
+kubectl apply -f ./manifests/sec04/0409-app-assignment.yaml 
+```
 
+## Service
+
+- [Kubernetes doc: Service](https://kubernetes.io/docs/concepts/services-networking/service/)
+
+### Service template
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: meu-service-exemplo
+  namespace: default
+  labels:
+    app: minha-aplicacao
+    tier: backend
+    version: "1.0"
+  annotations:
+    description: "Service de exemplo com principais elementos"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  # Tipo do Service (ClusterIP, NodePort, LoadBalancer, ExternalName)
+  type: ClusterIP
+  
+  # Seletor para encontrar os Pods (opcional para Services do tipo ExternalName)
+  selector:
+    app: minha-aplicacao
+    tier: backend
+  
+  # Portas do Service
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80              # Porta do Service
+    targetPort: 8080      # Porta do Pod
+    nodePort: 30080       # Usado apenas para NodePort (30000-32767)
+  
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: 8443
+  
+  - name: metrics
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+  
+  # Configurações específicas por cloud provider
+  externalTrafficPolicy: Cluster  # ou Local
+  internalTrafficPolicy: Cluster  # ou Local
+  
+  # IP do Service (se necessário fixar)
+  clusterIP: 10.0.0.100  # Opcional - normalmente atribuído automaticamente
+  
+  # IPs externos (para acesso direto)
+  externalIPs:
+  - 203.0.113.100
+  - 203.0.113.101
+  
+  # Para Services do tipo LoadBalancer
+  loadBalancerIP: 203.0.113.200  # IP específico do Load Balancer
+  loadBalancerSourceRanges:
+  - 130.211.0.0/22
+  - 35.191.0.0/16
+  
+  # Configuração de session affinity
+  sessionAffinity: ClientIP  # ou None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 horas
+  
+  # Health check (para alguns providers)
+  healthCheckNodePort: 32123  # Para type: LoadBalancer com externalTrafficPolicy: Local
+  
+  # Para Services do tipo ExternalName
+  # externalName: meu.database.example.com
+
+# Status (gerado automaticamente pelo Kubernetes)
+status:
+  loadBalancer:
+    ingress:
+    - ip: 203.0.113.200
+    - hostname: lb-example.us-east-1.elb.amazonaws.com
+```
+
+#### Examples Service template
+
+- Service ClusterIP (Default - Internal Access)
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-clusterip
+spec:
+  type: ClusterIP
+  selector:
+    app: minha-app
+  ports:
+  - port: 80
+    targetPort: 8080
+```
+
+- Service NodePort (Externa Access by NodePort)
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: minha-app
+  ports:
+  - port: 80
+    targetPort: 8080
+    nodePort: 30080
+```
+
+- Service LoadBalancer (Cloud Provider)
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-loadbalancer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  selector:
+    app: minha-app
+  ports:
+  - port: 80
+    targetPort: 8080
+  loadBalancerIP: 203.0.113.100
+  externalTrafficPolicy: Local
+```
+
+- Service ExternalName (Proxy for External Service)
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-external
+spec:
+  type: ExternalName
+  externalName: api.externo.com
+```
+
+- Service Headless (Without ClusterIP)
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-headless
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: stateful-app
+  ports:
+  - port: 80
+    targetPort: 8080
+```
+
+### Service lab
+
+```sh
+
+```
+
+## Namespace
+
+## Probes
+
+## ConfigMap & Secret
+
+## Persistent Volume & StatefulSet
+
+## Horizontal Pod Autoscaler (HPA)
+
+## Ingress
+
+## Role Play
 
 ## That's all
 

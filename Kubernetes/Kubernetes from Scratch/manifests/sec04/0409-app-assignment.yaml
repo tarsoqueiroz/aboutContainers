@@ -22,14 +22,14 @@ spec:
           name: "app-port"
         env:
         - name: "spring.redis.host"
-          value: "10.244.2.64" 
+          value: "10.244.1.65" 
           # Not the best solution. Just temporary
         - name: "spring.redis.port"
           value: "6379"
         resources:
           limits:
-            memory: "128Mi"
-            cpu: "500m"
+            memory: "1024Mi"
+            cpu: "1000m"
           requests:
             memory: "64Mi"
             cpu: "250m"
