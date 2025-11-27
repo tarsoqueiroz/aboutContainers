@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: mongo
+    image: mongo
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+    startupProbe:
+      tcpSocket:
+        # port: 27018
+        port: 27017
+      periodSeconds: 1
+      failureThreshold: 5

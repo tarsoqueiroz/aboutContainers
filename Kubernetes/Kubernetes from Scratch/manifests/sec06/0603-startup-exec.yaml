@@ -1,0 +1,31 @@
+# prefer httpGet / tcpSocket
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+    startupProbe:
+      exec:
+        command:
+        - "cat"
+        # - "dummy.txt"
+        - "/usr/share/nginx/html/index.html"
+      periodSeconds: 1
+      failureThreshold: 3
+
+# create a separate healthcheck
+# /bin/healthcheck
+
+      # exec:
+      #   command:
+      #   - "/bin/healthcheck"

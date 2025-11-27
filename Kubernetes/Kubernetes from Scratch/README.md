@@ -1354,6 +1354,101 @@ metadata:
 
 ## Probes
 
+- [Kubernetes doc: Liveness, Readiness, and Startup Probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
+
+### Probes lab
+
+```sh
+# probe httpget
+kubectl apply -f ./manifests/sec06/0601-startup-httpget.yaml # path: /dummy 
+kubectl describe pods my-pod
+kubectl delete -f ./manifests/sec06/0601-startup-httpget.yaml 
+kubectl apply -f ./manifests/sec06/0601-startup-httpget.yaml # path: /
+kubectl describe pods my-pod
+kubectl delete -f ./manifests/sec06/0601-startup-httpget.yaml
+
+# probe tcpsocket
+kubectl apply -f ./manifests/sec06/0602-startup-tcpsocket.yaml # port: 27018
+kubectl describe pod my-pod 
+kubectl delete -f ./manifests/sec06/0602-startup-tcpsocket.yaml
+kubectl apply -f ./manifests/sec06/0602-startup-tcpsocket.yaml # port: 27017
+kubectl describe pod my-pod 
+kubectl delete -f ./manifests/sec06/0602-startup-tcpsocket.yaml
+
+# probe exec
+kubectl apply -f ./manifests/sec06/0603-startup-exec.yaml # cat dummy.txt
+kubectl describe pod my-pod 
+kubectl delete -f ./manifests/sec06/0603-startup-exec.yaml
+kubectl apply -f ./manifests/sec06/0603-startup-exec.yaml # cat index.html
+kubectl describe pod my-pod 
+kubectl delete -f ./manifests/sec06/0603-startup-exec.yaml
+
+# liveness probe
+kubectl apply -f ./manifests/sec06/0604-liveness-probe.yaml # failurethreshold 3 without livenessprobe
+kubectl describe pod my-pod 
+kubectl delete -f ./manifests/sec06/0604-liveness-probe.yaml
+kubectl apply -f ./manifests/sec06/0604-liveness-probe.yaml # failurethreshold 30 with livenessprobe
+kubectl describe pod my-pod 
+kubectl exec -it my-pod -- bash
+####### inside container
+root@my-pod:/# cd /usr/share/nginx/html/
+root@my-pod:/usr/share/nginx/html# ls -alhF
+total 24K
+drwxr-xr-x 1 root root 4.0K Nov 26  2022 ./
+drwxr-xr-x 1 root root 4.0K Nov 15  2022 ../
+-rw-r--r-- 1 root root  497 Oct 19  2022 50x.html
+-rw-r--r-- 1 root root   14 Nov 26  2022 index.html
+-rw-r--r-- 1 root root   13 Nov 26  2022 live.html
+-rw-r--r-- 1 root root   14 Nov 26  2022 ready.html
+root@my-pod:/usr/share/nginx/html# rm live.html 
+root@my-pod:/usr/share/nginx/html# command terminated with exit code 137
+#######
+kubectl delete -f ./manifests/sec06/0604-liveness-probe.yaml
+
+# readiness probe
+kubectl apply -f ./manifests/sec06/0605-readiness-probe.yaml 
+kubectl describe pod my-pod 
+kubectl exec -it my-pod -- bash
+####### inside container
+root@my-pod:/# cd /usr/share/nginx/html/
+root@my-pod:/usr/share/nginx/html# ls -alhF
+total 24K
+drwxr-xr-x 1 root root 4.0K Nov 26  2022 ./
+drwxr-xr-x 1 root root 4.0K Nov 15  2022 ../
+-rw-r--r-- 1 root root  497 Oct 19  2022 50x.html
+-rw-r--r-- 1 root root   14 Nov 26  2022 index.html
+-rw-r--r-- 1 root root   13 Nov 26  2022 live.html
+-rw-r--r-- 1 root root   14 Nov 26  2022 ready.html
+root@my-pod:/usr/share/nginx/html# mv ready.html unready.html
+root@my-pod:/usr/share/nginx/html# mv unready.html ready.html
+root@my-pod:/usr/share/nginx/html# exit
+#######
+kubectl delete -f ./manifests/sec06/0605-readiness-probe.yaml 
+
+# readiness probe with service
+##### run at 2o term
+watch -t -n 1 -x kubectl describe svc my-app
+#####
+kubectl apply -f ./manifests/sec06/0606-readiness-probe-with-svc.yaml 
+kubectl get pod -o wide
+kubectl exec -it my-pod -- bash
+####### inside container
+root@my-pod:/# cd /usr/share/nginx/html/
+root@my-pod:/usr/share/nginx/html# ls -alhF
+total 24K
+drwxr-xr-x 1 root root 4.0K Nov 26  2022 ./
+drwxr-xr-x 1 root root 4.0K Nov 15  2022 ../
+-rw-r--r-- 1 root root  497 Oct 19  2022 50x.html
+-rw-r--r-- 1 root root   14 Nov 26  2022 index.html
+-rw-r--r-- 1 root root   13 Nov 26  2022 live.html
+-rw-r--r-- 1 root root   14 Nov 26  2022 ready.html
+root@my-pod:/usr/share/nginx/html# mv ready.html unready.html
+root@my-pod:/usr/share/nginx/html# mv unready.html ready.html
+root@my-pod:/usr/share/nginx/html# exit
+#######
+kubectl delete -f ./manifests/sec06/0606-readiness-probe-with-svc.yaml 
+```
+
 ## ConfigMap & Secret
 
 ## Persistent Volume & StatefulSet

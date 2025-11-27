@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+    startupProbe:
+      httpGet:
+        # path: /dummy
+        path: /
+        port: 80
+      periodSeconds: 1
+      failureThreshold: 3
