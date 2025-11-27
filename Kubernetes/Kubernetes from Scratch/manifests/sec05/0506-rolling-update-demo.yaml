@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: order-service
-        image: vinsdocker/k8s-app:v3
+        image: vinsdocker/k8s-app:v2
         ports:
         - name: "app-port"
           containerPort: 80

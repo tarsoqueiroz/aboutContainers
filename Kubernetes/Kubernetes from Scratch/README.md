@@ -1301,6 +1301,57 @@ kubectl delete -f ./manifests/sec05/0506-rolling-update-demo.yaml
 
 - [Kubernetes doc: Namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)
 
+### Namespace lab
+
+```sh
+# basic
+kubectl get namespaces 
+kubectl get ns
+kubectl get pod
+kubectl create ns dev
+kubectl create namespace qa
+kubectl get ns
+kubectl get pod -n dev
+kubectl get pod -n qa
+kubectl create -f ./manifests/sec02/0201-simple-pod.yaml -n dev
+kubectl get pod
+kubectl get pod -n dev
+kubectl delete -f ./manifests/sec02/0201-simple-pod.yaml
+kubectl delete -f ./manifests/sec02/0201-simple-pod.yaml -n dev
+kubectl delete ns qa
+kubectl get ns
+
+# kube-system ns
+kubectl get pod
+kubectl get pod -n kube-system
+kubectl get pod -n kube-system -o wide
+
+# ns deploy demo
+kubectl get ns
+kubectl create ns dev
+kubectl apply -f ./manifests/sec05/0506-rolling-update-demo.yaml -n qa
+kubectl create ns qa
+kubectl apply -f ./manifests/sec05/0506-rolling-update-demo.yaml -n qa # v3
+kubectl apply -f ./manifests/sec05/0506-rolling-update-demo.yaml -n dev # v2
+kubectl get all -n qa
+kubectl get all -n dev
+kubectl port-forward -n qa services/my-app 8080:80
+kubectl port-forward svc/my-app 8080:80 -n qa     # browser: localhost:8080
+kubectl port-forward svc/my-app 8080:80 -n dev    # browser: localhost:8080
+kubectl get all -A -o wide
+kubectl delete ns dev
+kubectl delete ns qa
+kubectl get all -A -o wide
+```
+
+### Namespace via Metadata
+
+```yaml
+metadata:
+  name: <resource_name>
+  namespace: <namespace_name>
+```
+
 ## Probes
 
 ## ConfigMap & Secret
