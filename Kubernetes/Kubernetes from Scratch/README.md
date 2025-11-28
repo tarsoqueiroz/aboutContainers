@@ -1451,11 +1451,126 @@ kubectl delete -f ./manifests/sec06/0606-readiness-probe-with-svc.yaml
 
 ## ConfigMap & Secret
 
+- [Kubernetes doc: ConfigMaps](https://kubernetes.io/docs/concepts/configuration/configmap/)
+- [Kubernetes doc: Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)
+
+### ConfigMap lab
+
+```sh
+# demo
+kubectl apply -f ./manifests/sec07/0701-simple-configmap.yaml # without kind pod
+kubectl get all -o wid
+kubectl get configmaps 
+kubectl get configmap
+kubectl get cm
+kubectl describe configmaps app-properties 
+
+# inject env variables
+kubectl apply -f ./manifests/sec07/0701-simple-configmap.yaml
+kubectl get pod -o wide
+kubectl logs my-pod 
+kubectl delete -f ./manifests/sec07/0701-simple-configmap.yaml
+
+# inject env variables by configmapref
+kubectl apply -f ./manifests/sec07/0702-inject-cm-as-env.yaml 
+kubectl logs my-pod 
+kubectl delete -f ./manifests/sec07/0702-inject-cm-as-env.yaml
+
+# inject file
+kubectl get cm
+kubectl get cm kube-root-ca.crt 
+kubectl get cm kube-root-ca.crt -o yaml
+kubectl apply -f ./manifests/sec07/0703-inject-cm-as-file.yaml 
+kubectl get cm
+kubectl get cm app-properties -o yaml
+kubectl get pod -o wide
+kubectl exec -it my-pod -- bash
+####### inside container
+root@my-pod:/usr/share/props# ls -alhF
+root@my-pod:/usr/share/props# cd /usr/share/
+root@my-pod:/usr/share/props# ls -alhF
+root@my-pod:/usr/share/props# cd props/
+root@my-pod:/usr/share/props# ls -alhF
+root@my-pod:/usr/share/props# cat ./application.properties 
+root@my-pod:/usr/share/props# exit
+#######
+kubectl delete -f ./manifests/sec07/0703-inject-cm-as-file.yaml
+```
+
+### Secret lab
+
+```sh
+# inject env variables
+kubectl get secret
+kubectl create secret generic my-secret --from-literal=username=tarso --from-literal=password=changeit123
+kubectl get secret -o yaml
+echo Y2hhbmdlaXQxMjM= | base64 -d
+echo dGFyc28= | base64 -d
+echo -n tarso | base64
+echo -n changeIt123 | base64
+kubectl apply -f ./manifests/sec07/0704-simple-secret.yaml 
+kubectl get secrets -o yaml
+kubectl logs my-pod 
+echo Y2hhbmdlaXQxMjM= | base64 -d
+echo dGFyc28= | base64 -d
+
+# inject env variables by secretref
+kubectl apply -f ./manifests/sec07/0705-inject-secret-as-env.yaml 
+kubectl get secrets 
+kubectl logs my-pod 
+
+# inject file
+docker run -it -v "/PATH/TO/MANIFESTS/":/ws ubuntu
+####### inside container
+root@0cd88a291c24:/ws/manifests/sec07# cd /ws
+root@0cd88a291c24:/ws/manifests/sec07# ls -alhF
+root@0cd88a291c24:/ws/manifests/sec07# cd manifests/
+root@0cd88a291c24:/ws/manifests/sec07# cd sec07/
+root@0cd88a291c24:/ws/manifests/sec07# ls -alhF
+root@0cd88a291c24:/ws/manifests/sec07# cat 0701-simple-configmap.yaml 
+root@0cd88a291c24:/ws/manifests/sec07# cat 0701-simple-configmap.yaml | base64 ## put on manifest
+root@0cd88a291c24:/ws/manifests/sec07# exit
+#######
+kubectl apply -f ./manifests/sec07/0706-inject-secret-as-file.yaml 
+kubectl exec -it my-pod -- bash
+####### inside container
+root@my-pod:/usr/share/props#  cd /usr/share/props/
+root@my-pod:/usr/share/props#  ls -alhF
+root@my-pod:/usr/share/props#  cat app.key 
+root@my-pod:/usr/share/props#  exit
+#######
+kubectl delete -f ./manifests/sec07/0706-inject-secret-as-file.yaml 
+```
+
+### Assignment
+
+Please download [Assignment Resource: sec09-cm-12-assignment.zip](./resources/sec09-cm-12-assignment.zip) and unzip. We would be using this in the following lecture.
+
+- [Assignment Resource](./resources/sec09-cm-12-assignment/)
+
+```sh
+# start up services
+kubectl apply -f ./manifests/sec07/assignment/07a01-secrets.yaml 
+kubectl apply -f ./manifests/sec07/assignment/07a02-mongo-data.yaml 
+kubectl apply -f ./manifests/sec07/assignment/07a03-mongo-db.yaml 
+kubectl apply -f ./manifests/sec07/assignment/07a04-mongo-express.yaml 
+# share mongo express interface
+kubectl port-forward svc/mongo-express 8081:8081
+# clear all
+kubectl delete -f ./manifests/sec07/assignment/.
+```
+
 ## Persistent Volume & StatefulSet
+
+- [Kubernetes doc: ]()
 
 ## Horizontal Pod Autoscaler (HPA)
 
+- [Kubernetes doc: ]()
+
 ## Ingress
+
+- [Kubernetes doc: ]()
 
 ## Role Play
 
