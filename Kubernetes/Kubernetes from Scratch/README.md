@@ -1562,14 +1562,121 @@ kubectl delete -f ./manifests/sec07/assignment/.
 
 ## Persistent Volume & StatefulSet
 
-- [Kubernetes doc: ]()
+- [Kubernetes doc: Storage Classes](https://kubernetes.io/docs/concepts/storage/storage-classes/)
+
+```sh
+# storage class
+kubectl get sc
+kubectl get storageclasses
+kubectl get storageclasses.storage.k8s.io 
+kubectl describe storageclasses.storage.k8s.io standard 
+
+# 
+kubectl get pod
+kubectl get sc
+kubectl get pv
+kubectl apply -f ./manifests/sec08/0801-simple-pvc.yaml 
+kubectl get all
+kubectl get pvc
+kubectl describe pvc my-pvc 
+kubectl get pvc
+kubectl apply -f ./manifests/sec08/0802-pod-with-pvc.yaml 
+kubectl get pod
+kubectl get pvc
+kubectl describe pvc my-pvc 
+kubectl get pvc
+kubectl get pv
+kubectl describe pv pvc-ab2dac84-7fcc-473f-89f7-3b2baea3f620 
+kubectl get pod -o wide
+docker ps
+docker exec -it k8sfromscratch-worker2 bash
+####### inside kind node container
+root@k8sfromscratch-worker2: cd /var/local-path-provisioner/
+root@k8sfromscratch-worker2: ls -alhF
+root@k8sfromscratch-worker2: cd pvc-ab2dac84-7fcc-473f-89f7-3b2baea3f620_default_my-pvc/
+root@k8sfromscratch-worker2: ls -alhF
+root@k8sfromscratch-worker2: echo "Hello PVC" > index.html
+root@k8sfromscratch-worker2: ls -alhF
+root@k8sfromscratch-worker2: exit
+#######
+kubectl port-forward my-pod 8080:80
+kubectl delete -f ./manifests/sec08/0802-pod-with-pvc.yaml 
+kubectl get pod
+kubectl get pvc
+kubectl get pv
+kubectl apply -f ./manifests/sec08/0802-pod-with-pvc.yaml 
+kubectl get pod
+kubectl port-forward my-pod 8080:80
+
+# pv delete
+kubectl delete -f ./manifests/sec08/0802-pod-with-pvc.yaml 
+kubectl get pvc
+kubectl get pv
+kubectl delete -f ./manifests/sec08/0801-simple-pvc.yaml 
+kubectl get pv
+
+# deploy with pvc
+kubectl get pvc 
+kubectl delete pvc --all
+kubectl apply -f ./manifests/sec08/0803-deployment-with-pvc.yaml 
+kubectl get all
+kubectl get pvc
+kubectl get pv
+kubectl get pod -o wide
+kubectl port-forward deployments/my-deploy 8080:80
+kubectl delete -f ./manifests/sec08/0803-deployment-with-pvc.yaml 
+kubectl apply -f ./manifests/sec08/0803-deployment-with-pvc.yaml 
+kubectl get pod -o wide
+kubectl port-forward deployments/my-deploy 8080:80
+
+# stateful demo
+kubectl apply -f ./manifests/sec08/0804-simple-statefulset.yaml # version 1.14 replicas 3 
+kubectl delete pod/my-ss-1 
+kubectl apply -f ./manifests/sec08/0804-simple-statefulset.yaml # version 1.14 replicas 5
+kubectl apply -f ./manifests/sec08/0804-simple-statefulset.yaml # version 1.14 replicas 2
+kubectl apply -f ./manifests/sec08/0804-simple-statefulset.yaml # version 1.14 replicas 3
+kubectl apply -f ./manifests/sec08/0804-simple-statefulset.yaml # version 1.15 replicas 3
+kubectl delete -f ./manifests/sec08/0804-simple-statefulset.yaml
+
+# stateful with svc
+kubectl apply -f ./manifests/sec08/0805-statefulset-svc.yaml 
+kubectl exec -it demo-pod -- bash
+####### inside pod demo-pod
+root@demo-pod:/# curl nginx 
+root@demo-pod:/# curl nginx 
+root@demo-pod:/# curl nginx 
+root@demo-pod:/# curl nginx 
+root@demo-pod:/# curl nginx 
+root@demo-pod:/# curl nginx 
+root@demo-pod:/# exit
+#######
+
+```
 
 ## Horizontal Pod Autoscaler (HPA)
 
 - [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
 
 ## Ingress
 
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
 - [Kubernetes doc: ]()
 
 ## Role Play
