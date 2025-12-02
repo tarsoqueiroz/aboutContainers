@@ -1705,22 +1705,33 @@ kubectl delete pvc --all
 
 ## Horizontal Pod Autoscaler (HPA)
 
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
+- [Kubernetes doc: Horizontal Pod Autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+- [Kubernetes doc: Metrics Server](https://github.com/kubernetes-sigs/metrics-server)
+- [Kubernetes doc: Metrics Server Releases](https://github.com/kubernetes-sigs/metrics-server/releases)
+
+```sh
+# basic commands
+kubectl top
+kubectl top pod
+kubectl top node
+
+# install metrics server
+
+
+```
 
 ## Ingress
 
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
 - [Kubernetes doc: ]()
 - [Kubernetes doc: ]()
 - [Kubernetes doc: ]()
