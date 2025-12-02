@@ -1571,7 +1571,7 @@ kubectl get storageclasses
 kubectl get storageclasses.storage.k8s.io 
 kubectl describe storageclasses.storage.k8s.io standard 
 
-# 
+# persistent volume claim
 kubectl get pod
 kubectl get sc
 kubectl get pv
@@ -1650,7 +1650,57 @@ root@demo-pod:/# curl nginx
 root@demo-pod:/# curl nginx 
 root@demo-pod:/# exit
 #######
+kubectl delete -f ./manifests/sec08/0805-statefulset-svc.yaml
 
+# headless service
+kubectl apply -f ./manifests/sec08/0806-statefulset-headless-svc.yaml 
+kubectl exec -it demo-pod -- bash
+####### inside pod demo-pod
+root@demo-pod:/# nslookup nginx
+root@demo-pod:/# nslookup my-ss-0.nginx.default.svc.cluster.local
+root@demo-pod:/# nslookup my-ss-0.nginx
+root@demo-pod:/# curl nginx
+root@demo-pod:/# curl my-ss-0.nginx
+root@demo-pod:/# curl my-ss-1.nginx
+root@demo-pod:/# curl my-ss-2.nginx
+root@demo-pod:/# history 
+#######
+kubectl delete -f ./manifests/sec08/0806-statefulset-headless-svc.yaml
+
+# dynamic persistent volume claim
+kubectl apply -f ./manifests/sec08/0807-statefulset-pvc.yaml 
+kubectl get pv
+kubectl get pvc
+kubectl port-forward pod/my-ss-0 8080:80 # browser: localhost:8080
+kubectl port-forward pod/my-ss-1 8080:80 # browser: localhost:8080
+kubectl port-forward pod/my-ss-2 8080:80 # browser: localhost:8080
+kubectl delete -f ./manifests/sec08/0807-statefulset-pvc.yaml 
+kubectl get pv
+kubectl get pvc
+kubectl apply -f ./manifests/sec08/0807-statefulset-pvc.yaml 
+kubectl port-forward pod/my-ss-0 8080:80 # browser: localhost:8080
+kubectl port-forward pod/my-ss-1 8080:80 # browser: localhost:8080
+kubectl port-forward pod/my-ss-2 8080:80 # browser: localhost:8080
+kubectl delete -f ./manifests/sec08/0807-statefulset-pvc.yaml 
+kubectl get pvc
+kubectl get pv
+kubectl delete pvc --all
+
+# mongo as statefulset
+kubectl apply -f ./manifests/sec08/mongo/
+kubectl get pvc
+kubectl get pv
+kubectl port-forward svc/mongo-express 8081:8081 # view and crud products
+kubectl delete -f ./manifests/sec08/mongo/
+kubectl get pvc
+kubectl get pv
+kubectl apply -f ./manifests/sec08/mongo/
+kubectl port-forward svc/mongo-express 8081:8081 # view and crud products
+kubectl delete -f ./manifests/sec08/mongo/
+kubectl apply -f ./manifests/sec08/mongo/
+kubectl port-forward svc/mongo-express 8081:8081 # view products
+kubectl delete -f ./manifests/sec08/mongo/
+kubectl delete pvc --all
 ```
 
 ## Horizontal Pod Autoscaler (HPA)
