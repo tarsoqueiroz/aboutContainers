@@ -134,9 +134,11 @@ spec:
       containers:
       - args:
         - --cert-dir=/tmp
-        - --secure-port=10250
+        # - --secure-port=10250
         - --secure-port=4443
+        # inserted
         - --kubelet-insecure-tls
+        # - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
         - --kubelet-preferred-address-types=InternalIP
         - --kubelet-use-node-status-port
         - --metric-resolution=15s
@@ -151,7 +153,8 @@ spec:
           periodSeconds: 10
         name: metrics-server
         ports:
-        - containerPort: 10250
+        # - containerPort: 10250
+        - containerPort: 4443
           name: https
           protocol: TCP
         readinessProbe:
@@ -166,6 +169,9 @@ spec:
           requests:
             cpu: 100m
             memory: 200Mi
+          limits:
+            cpu: 200m
+            memory: 500Mi
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -179,6 +185,8 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-dir
+      # inserted
+      hostNetwork: true
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-cluster-critical

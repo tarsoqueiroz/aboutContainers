@@ -1709,6 +1709,8 @@ kubectl delete pvc --all
 - [Kubernetes doc: Metrics Server](https://github.com/kubernetes-sigs/metrics-server)
 - [Kubernetes doc: Metrics Server Releases](https://github.com/kubernetes-sigs/metrics-server/releases)
 
+### HPA lab
+
 ```sh
 # basic commands
 kubectl top
@@ -1716,9 +1718,75 @@ kubectl top pod
 kubectl top node
 
 # install metrics server
+kubectl apply -f ./manifests/sec09/resources/metrics-server-components-v0.8.0.yaml
+kubectl top node
+kubectl top pod
+kubectl top pod -A
 
+# pod pending
+kubectl apply -f ./manifests/sec09/0901-deploy-cpu-memory-usage.yaml # 3 replicas
+kubectl top pods
+kubectl apply -f ./manifests/sec09/0901-deploy-cpu-memory-usage.yaml # 5 replicas
+kubectl apply -f ./manifests/sec09/0901-deploy-cpu-memory-usage.yaml # 7 replicas
+kubectl describe pod/my-deploy-b6f76c645-vnbpr
+kubectl delete pod my-deploy-b6f76c645-4xd6n
+kubectl delete -f ./manifests/sec09/0901-deploy-cpu-memory-usage.yaml
 
+# hpa demo
+kubectl apply -f ./manifests/sec09/0902-deploy-for-hpa.yaml 
+kubectl apply -f ./manifests/sec09/0903-hpa.yaml 
+kubectl exec -it demo-pod -- bash
+####### inside demo-pod
+root@demo-pod:/# history 
+root@demo-pod:/# curl nginx
+root@demo-pod:/# ab
+root@demo-pod:/# ab -n 20000 -c 5 http://nginx/
+root@demo-pod:/# exit 
+#######
+kubectl delete -f ./manifests/sec09/0902-deploy-for-hpa.yaml 
+kubectl delete -f ./manifests/sec09/0903-hpa.yaml 
+
+# hpa without probe
+kubectl apply -f ./manifests/sec09/0905-hpa-whitout-probe.yaml 
+kubectl apply -f ./manifests/sec09/0904-deploy-for-hpa-whitout-probe.yaml 
+kubectl exec -it demo-pod -- bash
+####### inside demo-pod
+root@demo-pod:/# curl nginx
+root@demo-pod:/# ab -n 20000 -c 5 http://nginx/
+root@demo-pod:/# exit
+#######
+kubectl delete -f ./manifests/sec09/0904-deploy-for-hpa-whitout-probe.yaml 
+kubectl delete -f ./manifests/sec09/0905-hpa-whitout-probe.yaml 
 ```
+
+### HPA summary
+
+**Resource Management**:
+
+- Resources
+  - CPU
+  - Memory
+- Range
+  - min ---> request
+  - max ---> limit
+
+**Resource Units**:
+
+| Resource   | Units 1        | 
+| :--------- | :------------- |
+| Memory (*) | 1M, 50M, 1G    |
+|            | 1Mi, 50Mi, 1Gi |
+| CPU        | 1, 100m, 500m  |
+
+(*): 1MB = 1000kb or 1024kb and 1MiB = 1024kb
+
+**Consequences of exceeding limit**:
+
+| Resource | Action                                      | 
+| :------- | :------------------------------------------ |
+| Memory   | Kubelet will kill the container and restart |
+| CPU      | Container will NOT be killed. Throttled     |
+
 
 ## Ingress
 
