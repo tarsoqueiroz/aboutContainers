@@ -1,0 +1,57 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: foo-app
+  labels:
+    app: http-echo
+spec:
+  containers:
+  - command:
+    - /agnhost
+    - serve-hostname
+    - --http=true
+    - --port=8080
+    image: registry.k8s.io/e2e-test-images/agnhost:2.39
+    name: foo-app
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: bar-app
+  labels:
+    app: http-echo
+spec:
+  containers:
+  - command:
+    - /agnhost
+    - serve-hostname
+    - --http=true
+    - --port=8080
+    image: registry.k8s.io/e2e-test-images/agnhost:2.39
+    name: bar-app
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: foo-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: http-echo
+  ports:
+  - port: 5678
+    targetPort: 8080

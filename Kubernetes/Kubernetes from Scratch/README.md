@@ -1790,25 +1790,77 @@ kubectl delete -f ./manifests/sec09/0905-hpa-whitout-probe.yaml
 
 ## Ingress
 
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
-- [Kubernetes doc: ]()
+- [Kubernetes doc: Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+- [Kubernetes doc: Ingress Controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/)
+- [Kubernetes Kind: Ingress](https://kind.sigs.k8s.io/docs/user/ingress/)
 
-## Role Play
+**Service**:
+
+- CluterIP
+- NodePort (30000-32767)
+- LoadBalancer (AWS / GCP / ...etc)
+
+### Ingress lab
+
+```sh
+# create cluster, config ingress controller and install metrics server
+docker ps -as
+kind delete cluster --name k8sfromscratch
+kind create cluster --config ./manifests/sec10/1001-cluster/1002-cluster.yaml 
+docker ps -as
+kubectl get nodes -o wide
+kubectl get pod
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+kubectl get ns
+kubectl get all -n ingress-nginx 
+kubectl get all -A
+kubectl apply -f ./manifests/sec10/1001-cluster/metrics-server-components-v0.8.0.yaml 
+kubectl get -n kube-system pod
+kubectl top nodes
+kubectl top pods -A
+
+# ingress demo
+
+```
+
+### Cloud Provider Kind
+
+```sh
+# cluster kind creation
+kind create cluster --config ./manifests/sec01/0101-cluster.yaml 
+# install metrics server
+kubectl apply -f ./manifests/sec10/1001-cluster/metrics-server-components-v0.8.0.yaml 
+kubectl get -n kube-system pod
+kubectl top nodes
+kubectl get all -A
+# 
+kubectl apply -f ./manifests/sec10/loadBalancer/10lb02-svc-foo-bar.yaml 
+ip -br -c a
+kubectl get svc/foo-service -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'
+curl 172.18.0.6:5678
+kubectl apply -f ./manifests/sec10/loadBalancer/10lb03-ing-foo-bar.yaml 
+kubectl get ingress example-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+curl 172.18.0.6/foo
+curl 172.18.0.6/bar
+```
+
+## ASSIGNMENT
+
+
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
+- [Kubernetes doc: ]()
 
 ## That's all
 
