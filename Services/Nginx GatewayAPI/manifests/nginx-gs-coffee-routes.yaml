@@ -16,7 +16,7 @@ spec:
         value: /coffee
     backendRefs:
     - name: coffee
-      port: 80
+      port: 8080
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -35,4 +35,4 @@ spec:
         value: /tea
     backendRefs:
     - name: tea
-      port: 80
+      port: 8080

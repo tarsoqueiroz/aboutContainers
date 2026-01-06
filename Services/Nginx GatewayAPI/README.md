@@ -50,6 +50,8 @@ kind create cluster --config ./manifests/kind-nginx-gs.yaml
 Add Gateway API resources:
 
 ```bash
+kubectl kustomize "https://github.com/nginx/nginx-gateway-fabric/config/crd/gateway-api/standard?ref=v2.3.0" | kubectl apply -f -
+
 kubectl kustomize "https://github.com/nginx/nginx-gateway-fabric/config/crd/gateway-api/standard?ref=v1.6.1" | kubectl apply -f -
 ```
 
