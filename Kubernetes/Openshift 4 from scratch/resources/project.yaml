@@ -1,0 +1,24 @@
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  annotations:
+    openshift.io/description: 'Projeto exemplo e simples para teste'
+    openshift.io/display-name: 'Tarso Projeto Exemplo'
+    openshift.io/requester: tarso
+    documentation: 'Exemplo de criacao de um Projeto Openshift'
+    openshift.io/node-selector: env=hml
+    # openshift.io/sa.scc.mcs: s0:c44,c39
+    # openshift.io/sa.scc.supplemental-groups: 1001970000/10000
+    # openshift.io/sa.scc.uid-range: 1001970000/10000
+  name: tarsoproject-hml
+  labels:
+    type: sample
+    # env: hml
+    # kubernetes.io/metadata.name: abastece-pr-hml
+    # pod-security.kubernetes.io/audit: baseline
+    # pod-security.kubernetes.io/audit-version: latest
+    # pod-security.kubernetes.io/warn: baseline
+    # pod-security.kubernetes.io/warn-version: latest
+spec:
+  finalizers:
+  - kubernetes

@@ -1,0 +1,17 @@
+
+# Created by WEB Console
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-svc
+  namespace: tarsodemo
+spec:
+  selector:
+    app: nginx-dep
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 31800
+  type: NodePort
