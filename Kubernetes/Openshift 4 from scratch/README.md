@@ -230,3 +230,47 @@ oc get pods -o wide
 ```
 
 ## Routes
+
+- [Routes](./resources/10-routes.pdf)
+
+```sh
+oc get svc
+oc expose svc nginx-svc 
+oc get route
+```
+
+## DeploymentConfig
+
+> **NOTE:** ***Deprecated from version 4.14***
+
+- [DeploymentConfigs](./resources/01-DeploymentConfigs.pdf)
+
+Openshift has declared the DeploymentConfig obsolete (Deprecated) since version 4.14.
+
+Therefore, it is recommended to use Deployment instead.
+
+Since they are still supported and may affect older installations or environments, I have decided to leave this object in progress for now.
+
+But really, unless you have an older version at work, you should skip this section.
+
+Any of the exercises or examples in the course where DeploymentConfig is used can be replaced by the Deployment, with hardly any changes.
+
+## Application Deployment
+
+- [Application Deployment](./resources/10-Application+deployments.pdf)
+
+Since Openshift version 4.5 (which corresponds to CRC 1.13 or higher), the "new-app" command generates a Deployment instead of a DeploymentConfig.
+
+If at any time you want to create a Deploymentconfig, it is necessary to indicate the following option when executing the command.
+
+```sh
+--as-deployment-config=true # with 2 dashes ahead
+```
+
+In any case, we will do an example throughout the course, although remember that Openshift recommends using Deployments, because Deploymentconfig are deprecated.
+
+```sh
+oc new-app apasoft/blog
+
+oc new-app --name=nginx10 --as-deployment-config=true --image=nginx
+```
