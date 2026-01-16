@@ -274,3 +274,79 @@ oc new-app apasoft/blog
 
 oc new-app --name=nginx10 --as-deployment-config=true --image=nginx
 ```
+
+> **Note:** ***chapters 74 to 87 need to be done!!!***
+
+## Variables, ConfigMaps and Secrets
+
+- [`dc_variables.yaml`](./resources/dc_variables.yaml)
+- [`deployment_variables.yml`](./resources/deployment_variables.yml)
+
+```sh
+# create deploy
+oc apply -f ./resources/deployment_variables.yml 
+# verify creation
+oc get pod
+# check on each container the env's
+oc rsh example-variables-66d68d4bc6-g6hs5 
+oc rsh example-variables-66d68d4bc6-plm79 
+
+# get deployments
+oc get deploy
+# edit deployment to insert env "VERSION"
+oc edit deploy example-variables 
+# verify recreation
+oc get pod
+# check on each container the env's
+oc rsh example-variables-7df467f4f4-7sr2c 
+oc rsh example-variables-7df467f4f4-zngt5 
+
+# insert var on WEB Console
+oc get deploy
+# check on each container the env's
+oc exec -it example-variables-549694dc68-6gz8h -- env
+oc exec -it example-variables-549694dc68-fxz74 -- env
+
+# create configmap
+oc create configmap cf1 --from-literal=user=usu1 --from-literal=password=secret
+# verify cm
+oc get cm
+oc get configmap
+# describe cm
+oc describe cm cf1
+oc get configmap cf1 -o yaml
+# deployment using configmap
+oc apply -f ./resources/deployment_configmap.yml 
+oc get deployment
+oc get pod
+# check on each container the env's
+oc exec -it example-configmaps-79675c78d9-jvzgr -- env
+oc exec -it example-configmaps-79675c78d9-qz7kz -- env
+
+# create secret
+oc create secret generic secret-cm --from-literal=user=user1 --from-literal=password=changeit
+# verify
+oc get secret
+oc describe secret secret-cm 
+# deployment using secret
+oc apply -f ./resources/deployment_secret.yaml 
+oc get deploy
+oc get pod
+# check on each container the env's
+oc exec -it example-secrets-74d88bcfb8-mrm5l -- env
+oc exec -it example-secrets-74d88bcfb8-qg5qk -- env
+
+# base64
+echo secret | base64
+# create YAML
+# apply YAML
+oc apply -f ./resources/secret.yaml 
+# verify secret
+oc get secret
+oc describe secret secret1
+oc get secret secret1 -o yaml
+# restore secret
+echo c2VjcmV0Cg== | base64 -d
+```
+
+## ImageStream

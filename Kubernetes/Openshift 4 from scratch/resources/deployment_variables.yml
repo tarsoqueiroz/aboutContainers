@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 'example-variables'
+spec:
+  selector:
+    matchLabels:
+      app: variables
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: variables
+    spec:
+      containers:
+        - name: variables
+          # image: gcr.io/google-samples/node-hello:1.0
+          image: ppc64le/busybox:stable-musl
+          command: ["sleep", "3600"]
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "125m"
+            limits:
+              memory: "64Mi"
+              cpu: "250m"
+          env:
+          - name: NAME
+            value: "OPENSHIFT COURSE"
+          - name: OWNER
+            value: "Apasoft Training"
