@@ -1,0 +1,10 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: httpd-24-base
+spec:
+  tags:
+  - name: "10.1a"
+    from:
+      kind: DockerImage
+      name: registry.redhat.io/rhel10/httpd-24:10.1

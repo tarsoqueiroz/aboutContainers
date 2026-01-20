@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: my-image
+spec:
+  tags:
+  - name: "v1"
+    from:
+      kind: DockerImage
+      name:  quay.io/centos/python-33-centos7

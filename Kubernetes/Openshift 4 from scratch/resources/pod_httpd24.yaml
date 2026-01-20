@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: httpd24
+  labels:
+    zone: test
+    version: v1
+  annotations:
+    description: Apache HTTP Server 2.4
+spec:
+  containers:
+   - name: httpd-24-test  
+    #  image: image-registry.openshift-image-registry.svc:5000/tarsodemo/httpd-24:10.0
+     image: image-registry.openshift-image-registry.svc:5000/tarsodemo/httpd-24-secure:10.0
+    #  image: image-registry.openshift-image-registry.svc:5000/tarsodemo/httpd-24:10.1
+     resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"

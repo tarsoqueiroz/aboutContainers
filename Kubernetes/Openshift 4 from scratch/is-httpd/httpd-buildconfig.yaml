@@ -1,0 +1,25 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: httpd-security-binary
+  namespace: tarsodemo
+spec:
+  strategy:
+    type: Docker
+    dockerStrategy:
+      buildArgs:
+        - name: "IMAGE_VERSION"
+          value: "10.0"
+      # Referência à imagem base no registro interno
+      from:
+        kind: ImageStreamTag
+        name: "httpd-24:latest"
+        namespace: tarsodemo
+  source:
+    type: Binary
+    # Opcional: define o nome do arquivo esperado se for um único arquivo
+    # mas para múltiplos arquivos (Dockerfile + conf), enviamos o diretório.
+  output:
+    to:
+      kind: ImageStreamTag
+      name: "httpd-24-secure:10.0"

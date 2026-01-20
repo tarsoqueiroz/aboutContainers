@@ -350,3 +350,79 @@ echo c2VjcmV0Cg== | base64 -d
 ```
 
 ## ImageStream
+
+- [ImageStreams](./resources/Introduccion+ImageStreams.pdf)
+
+```sh
+# importing image
+oc import-image ppc64le/alpine:3.23
+oc import-image ppc64le/alpine:3.23 --confirm
+
+# check image
+oc get is
+oc get images | grep -ie alpine
+
+# describe image
+oc describe images sha256:84645e17ee133cc348d121df37d92b34a908f094cced364e5bd08e41be64e67f
+oc describe images sha256:a78fa7e4e73252c55e6ebd28dfb1e78d82a0f70d392e2cddcc7f545bf7d7ec16
+
+# create from YAML
+oc get is
+oc apply -f ./resources/is_busybox.yaml 
+oc get is
+oc describe is busybox
+
+# additional methods
+oc import-image registry.redhat.io/rhel10/httpd-24 --confirm
+oc get is
+oc describe is httpd-24
+
+oc import-image rhel10/httpd-24:10.1 --from=registry.redhat.io/rhel10/httpd-24:10.1
+oc get is
+oc describe is httpd-24
+
+oc import-image rhel10/httpd-24:10.0 --from=registry.redhat.io/rhel10/httpd-24:10.0
+oc get is
+oc describe is httpd-24
+```
+
+**Montando uma imagem através de `BuildConfig`**:
+
+```sh
+oc apply -f ./httpd-buildconfig.yaml 
+oc get bc
+
+oc tag httpd-24:10.0 httpd-24-secure:9.9
+oc start-build httpd-security-binary --from-dir=. --follow
+oc get is
+
+oc tag httpd-24-secure:10.0 httpd-24-secure:latest
+
+oc describe is httpd-24-secure 
+
+oc apply -f ../resources/pod_httpd24.yaml 
+oc get pods
+oc describe pod httpd24 
+oc rsh httpd24 
+
+oc exec pod/httpd24 -- ls -l /etc/httpd/conf.d/security.conf
+oc exec pod/httpd24 -- cat /etc/httpd/conf.d/security.conf
+oc exec pod/httpd24 -- httpd -S
+oc exec pod/httpd24 -- curl -I localhost:8080
+
+oc get pod
+oc describe pod httpd24 
+oc exec pod/httpd24 -- curl -I localhost:8080
+oc exec pod/httpd24 -- httpd -S
+oc exec pod/httpd24 -- cat /etc/httpd/conf.d/security.conf
+```
+
+## Builds
+
+- [Build review](./resources/Builds+review.pdf)
+- [Types of Triggers in Builds](./resources/Tipos+de+Triggers.pdf)
+- [Webhooks](./resources/Webhooks.pdf)
+
+```sh
+
+```
