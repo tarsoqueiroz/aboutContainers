@@ -1,0 +1,25 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: isbusybox-template
+  annotations:
+    description: "Get busybox image"
+    iconClass: "icon-busybox"
+    tags: "is,imagestream,os,tool"
+objects:
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    name: busybox-v${VERSION}
+  spec:
+    tags:
+    - name: ${VERSION}
+      from:
+        kind: DockerImage
+        name: ppc64le/busybox:${VERSION}
+parameters:
+- name: VERSION
+  description: Version of busybox to import
+  value: "1.37.0-glibc"
+labels:
+  isname: busybox

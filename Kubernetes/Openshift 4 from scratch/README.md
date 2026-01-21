@@ -386,6 +386,12 @@ oc get is
 oc describe is httpd-24
 ```
 
+## Builds
+
+- [Build review](./resources/Builds+review.pdf)
+- [Types of Triggers in Builds](./resources/Tipos+de+Triggers.pdf)
+- [Webhooks](./resources/Webhooks.pdf)
+
 **Montando uma imagem através de `BuildConfig`**:
 
 ```sh
@@ -417,12 +423,47 @@ oc exec pod/httpd24 -- httpd -S
 oc exec pod/httpd24 -- cat /etc/httpd/conf.d/security.conf
 ```
 
-## Builds
+## Templates
 
-- [Build review](./resources/Builds+review.pdf)
-- [Types of Triggers in Builds](./resources/Tipos+de+Triggers.pdf)
-- [Webhooks](./resources/Webhooks.pdf)
+As of 4.14 the Openshift apiVersion has changed to the following
+
+- template.openshift.io/v1
+
+Therefore, if at the time of launching the corresponding YAML it generates an error on that line, you only have to change that information.
+
+For now I leave the files as they are because there are many people working with previous versions.
+
+- []https://rawgit.com/openshift/openshift-logos-icon/master/demo.html
 
 ```sh
+cat isbusybox-template.yaml 
 
+oc apply -f isbusybox-template.yaml 
+
+oc get template
+
+oc process isbusybox-template --parameters
+
+oc process isbusybox-template -p VERSION=1.36.1-glibc
+oc process isbusybox-template -p VERSION=1.36.1-glibc | oc apply -f -
+
+oc get is
+
+oc project vue-exemplo-hml 
+oc process -n tarsodemo isbusybox-template -p VERSION=1.36.1-glibc
+oc process -n tarsodemo isbusybox-template -p VERSION=1.36.1-glibc | oc apply -f -
+
+oc project tarsodemo
+
+oc process isbusybox-template -p VERSION=1.37.0-musl
+oc process isbusybox-template -p VERSION=1.37.0-musl | oc apply -f -
+
+oc get template -n openshift
+oc get template -n openshift | grep -ie celepar
+oc get template -n openshift celepar-vue
+oc get template -n openshift celepar-vue -o yaml
 ```
+
+## That's all
+
+...folks!!!

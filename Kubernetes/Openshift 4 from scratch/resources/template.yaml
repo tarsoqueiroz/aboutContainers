@@ -1,0 +1,50 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: template-build
+  annotations:
+        description: template with BuildConfig for a PHP application
+objects:
+  - kind: BuildConfig
+    apiVersion: v1
+    metadata:
+      name: "${APPLICATION}"
+      annotations:
+        description: Example of template with Buildconfig and Imagestream
+    spec:
+      output:
+        to:
+          kind: ImageStreamTag
+          name: '${APPLICATION}:latest'
+      source:
+        type: Git
+        git:
+          uri: "${SOURCE_REPOSITORY_URL}" 
+      strategy:
+         sourceStrategy:
+          from:
+             kind: ImageStreamTag
+             name: php:8.0-ubi8
+             namespace: openshift
+         type: Source
+      triggers:
+        - imageChange: {}
+          type: ImageChange
+  - kind: ImageStream
+    apiVersion: v1
+    metadata:
+      name: '${APPLICATION}'
+    spec:
+      dockerImageRepository: ''
+      tags:
+        - name: latest
+parameters:
+  - name: SOURCE_REPOSITORY_URL 
+    displayName: GIT repository of the application
+    description: Where the application is located 
+    value: https://github.com/sclorg/cakephp-ex 
+    required: true 
+  - description: Appliction name.
+    name: APPLICATION
+    value: app-php
+message: "... Application ${APPLICATION} built from a template."

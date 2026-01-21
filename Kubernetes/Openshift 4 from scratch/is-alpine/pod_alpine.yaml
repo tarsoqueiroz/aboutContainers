@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+  labels:
+    owner: tarso
+    objective: test
+  annotations:
+    description: Openshift Course
+spec:
+  containers:
+  - name: busybox
+    # image: image-registry.openshift-image-registry.svc:5000/tarsodemo/httpd-24-secure:10.0
+    # image: ppc64le/busybox:stable-musl
+    # image: image-registry.openshift-image-registry.svc:5000/tarsodemo/httpd-24-secure:10.0
+    command: ["sleep", "3600"]
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "125m"
+      limits:
+        memory: "64Mi"
+        cpu: "250m"
+    env:
+    - name: POD_OWNER
+      value: "Tarso Queiroz"
+    - name: POD_DESCRIPTION
+      value: "Openshift Course"

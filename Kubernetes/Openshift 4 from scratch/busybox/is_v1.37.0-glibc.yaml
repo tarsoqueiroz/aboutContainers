@@ -1,0 +1,10 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: busybox-v1.37.0-glibc
+spec:
+  tags:
+  - name: "1.37.0-glibc"
+    from:
+      kind: DockerImage
+      name: ppc64le/busybox:1.37.0-glibc
