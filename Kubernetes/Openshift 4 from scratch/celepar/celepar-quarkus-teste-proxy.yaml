@@ -1,0 +1,188 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  app: ${APP_NAME}
+  template: celepar-quarkus
+metadata:
+  annotations:
+    description: Este template foi criado para aplicações Quarkus. Seu conjunto de
+      objetos é definido por 1 DeploymentConfig, 1 Service e 1 Route. Uma vez que
+      este template foi executado de acordo com a parametrização solicitada a aplicação
+      está pronta para ser acessada externamente e com health checks configurados.
+    openshift.io/display-name: Template para aplicações Java Quarkus Native
+    tags: java,quarkus,microprofile
+  creationTimestamp: "2024-05-02T13:43:12Z"
+  name: celepar-quarkus-teste-proxy
+  namespace: openshift
+  resourceVersion: "422229255"
+  uid: d18b3795-228e-4eff-9935-9dbf257ab5eb
+objects:
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: ${APP_NAME}
+    name: ${APP_NAME}
+    namespace: ${PROJECT_NAME}
+  spec:
+    replicas: ${{REPLICAS_QTD}}
+    selector:
+      app: ${APP_NAME}
+      deploymentconfig: ${APP_NAME}
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: ${APP_NAME}
+          deploymentconfig: ${APP_NAME}
+      spec:
+        containers:
+        - env:
+          - name: HTTP_PROXY
+            value: http://proxy-02.pr.gov.br:8000
+          - name: HTTPS_PROXY
+            value: http://proxy-02.pr.gov.br:8000
+          - name: NO_PROXY
+            value: .cluster.local,.parana,.pr.gov.br,.svc,10.0.0.0/8,10.15.72.0/24,127.0.0.1,172.30.0.0/16,172.20.0.0/14,localhost,10.15.80.0/24
+          image: image-registry.openshift-image-registry.svc:5000/${PROJECT_NAME}/${APP_NAME}:${IMAGE_TAG}
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: ${LIVENESS_URL}
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 2
+          name: ${APP_NAME}
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8443
+            protocol: TCP
+          - containerPort: 8778
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: ${READINESS_URL}
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 2
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        terminationGracePeriodSeconds: 30
+    test: false
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: ${APP_NAME}
+    name: ${APP_NAME}
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 8443-tcp
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+    - name: 8778-tcp
+      port: 8778
+      protocol: TCP
+      targetPort: 8778
+    selector:
+      app: ${APP_NAME}
+      deploymentconfig: ${APP_NAME}
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    annotations:
+      haproxy.router.openshift.io/hsts_header: max-age=31536000;
+    labels:
+      app: ${APP_NAME}
+    name: ${APP_NAME}
+  spec:
+    host: ${APP_NAME}-${PROJECT_NAME}.paas.celepar.parana
+    port:
+      targetPort: 8080-tcp
+    tls:
+      termination: edge
+    to:
+      kind: Service
+      name: ${APP_NAME}
+      weight: 100
+    wildcardPolicy: None
+  status:
+    ingress: null
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    annotations:
+      haproxy.router.openshift.io/hsts_header: max-age=31536000;
+    labels:
+      app: ${APP_NAME}-apps
+      status: toBeDeleted
+    name: ${APP_NAME}-apps
+  spec:
+    host: ${APP_NAME}-${PROJECT_NAME}.apps.ocp4.celepar.parana
+    port:
+      targetPort: 8080-tcp
+    tls:
+      termination: edge
+    to:
+      kind: Service
+      name: ${APP_NAME}
+      weight: 100
+    wildcardPolicy: None
+  status:
+    ingress: null
+parameters:
+- displayName: Nome da aplicação
+  name: APP_NAME
+  required: true
+- displayName: Nome do projeto
+  name: PROJECT_NAME
+  required: true
+- displayName: Tag da imagem
+  name: IMAGE_TAG
+  required: true
+- displayName: Quantidade de réplicas
+  name: REPLICAS_QTD
+  required: true
+  value: "1"
+- displayName: Url para liveness probe
+  name: LIVENESS_URL
+  required: true
+  value: /
+- displayName: Url para readiness probe
+  name: READINESS_URL
+  required: true
+  value: /
+- displayName: Hostname utilizado na rota da aplicação.
+  name: HOSTNAME
+  required: true
