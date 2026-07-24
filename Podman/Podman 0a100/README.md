@@ -541,91 +541,593 @@ Comandos Principais do Podman Machine:
 
 Diferente do Docker (que concentra a maioria das configurações em um único arquivo /etc/docker/daemon.json), o Podman possui uma arquitetura de configuração flexível e multinível baseada na arquitetura Linux Drop-in Directories.
 
-txt
+```txt
 [Prioridade Alçada - Mais Alta]
- 1. Variáveis de Ambiente (ex: CONTAINERS_CONF) e Módulos CLI (--config)
- 2. Configurações de Usuário Rootless (~/.config/containers/)
- 3. Drop-in do Sistema (/etc/containers/containers.conf.d/*.conf)
- 4. Arquivo Global do Sistema (/etc/containers/containers.conf)
- 5. Drop-in dos Pacotes (/usr/share/containers/containers.conf.d/*.conf)
- 6. Arquivo Padrão de Fábrica (/usr/share/containers/containers.conf)
+
+  1. Variáveis de Ambiente (ex: CONTAINERS_CONF) e Módulos CLI (--config)
+  2. Configurações de Usuário Rootless (~/.config/containers/)
+  3. Drop-in do Sistema (/etc/containers/containers.conf.d/*.conf)
+  4. Arquivo Global do Sistema (/etc/containers/containers.conf)
+  5. Drop-in dos Pacotes (/usr/share/containers/containers.conf.d/*.conf)
+  6. Arquivo Padrão de Fábrica (/usr/share/containers/containers.conf)
+
 [Prioridade Alçada - Mais Baixa]
-2.1 Regra 1: Prioridade de Leitura de Arquivos Únicos (First Found Wins)
+```
+
+#### Regra 1: Prioridade de Leitura de Arquivos Únicos (First Found Wins)
+
 Para arquivos de configuração principais (containers.conf, storage.conf), o Podman busca o arquivo na árvore de diretórios e aplica a regra do primeiro que encontrar, vence:
 
-Escopo do Usuário (Rootless): ~/.config/containers/<arquivo>.conf (sobrescreve tudo para o usuário).
+- **Escopo do Usuário (Rootless)**: `~/.config/containers/<arquivo>.conf` (sobrescreve tudo para o usuário).
+- **Escopo do Sistema (Administrador)**: `/etc/containers/<arquivo>.conf` (configuração global do servidor).
+- **Escopo de Distribuição/Pacote**: `/usr/share/containers/<arquivo>.conf` (padrão de fábrica do sistema operacional).
 
-Escopo do Sistema (Administrador): /etc/containers/<arquivo>.conf (configuração global do servidor).
+#### Regra 2: Fusão de Diretórios Drop-in
 
-Escopo de Distribuição/Pacote: /usr/share/containers/<arquivo>.conf (padrão de fábrica do sistema operacional).
+Para permitir que automações (Ansible, Puppet) ou pacotes adicionem configurações sem alterar o arquivo principal, o Podman suporta diretórios **drop-in** (`.conf.d`):
 
-2.2 Regra 2: Fusão de Diretórios Drop-in
-Para permitir que automações (Ansible, Puppet) ou pacotes adicionem configurações sem alterar o arquivo principal, o Podman suporta diretórios drop-in (.conf.d):
+- **Diretórios Suportados**:
+  - `/usr/share/containers/<arquivo>.conf.d/`
+  - `/etc/containers/<arquivo>.conf.d/`
+  - `~/.config/containers/<arquivo>.conf.d/`
+- **Regra de Ordenação Alfabética**: Arquivos dentro desses diretórios são lidos e mesclados em ordem alfabética estrita (ex: `00-base.conf`, `10-custom.conf`, `99-override.conf`). Arquivos com números maiores sobrescrevem definições anteriores.
 
-Diretórios Suportados:
+#### Uso de Variáveis de Ambiente e Módulos
 
-/usr/share/containers/<arquivo>.conf.d/
-
-/etc/containers/<arquivo>.conf.d/
-
-~/.config/containers/<arquivo>.conf.d/
-
-Regra de Ordenação Alfabética: Arquivos dentro desses diretórios são lidos e mesclados em ordem alfabética estrita (ex: 00-base.conf, 10-custom.conf, 99-override.conf). Arquivos com números maiores sobrescrevem definições anteriores.
-
-2.3 Uso de Variáveis de Ambiente e Módulos
 As configurações podem ser alteradas em tempo de execução sem editar arquivos em disco:
 
-Variáveis de Ambiente Globais:
-
-CONTAINERS_CONF: Aponta para um arquivo containers.conf customizado.
-
-CONTAINERS_STORAGE_CONF: Sobrescreve o caminho do storage.conf.
-
-CONTAINERS_REGISTRIES_CONF: Sobrescreve a localização do registries.conf.
-
-Módulos (containers.conf modules): O Podman permite carregar blocos de configuração sob demanda via CLI usando a flag --module (ex: podman --module /caminho/modulo.conf run ...).
+- **Variáveis de Ambiente Globais**:
+  - `CONTAINERS_CONF`: Aponta para um arquivo `containers.conf` customizado.
+  - `CONTAINERS_STORAGE_CONF`: Sobrescreve o caminho do `storage.conf`.
+  - `CONTAINERS_REGISTRIES_CONF`: Sobrescreve a localização do `registries.conf`.
+- **Módulos (`containers.conf` modules)**: O Podman permite carregar blocos de configuração sob demanda via CLI usando a flag `--module` (ex: `podman --module /caminho/modulo.conf run ...`).
 
 ### ANATOMIA DOS 4 ARQUIVOS CRÍTICOS
 
+#### `containers.conf` (Comportamento do Runtime)
 
+Sua sintaxe é estruturada em **TOML**. Controla o comportamento do motor do Podman, escolha de runtimes de baixo nível, limites de processos e variáveis globais.
 
+- Seções Principais:
+- `[containers]`: Parâmetros padrão para execução de containers (ex: `apparmor_profile`, `seccomp_profile`, `dns_servers`, `env`).
+- `[engine]`: Parâmetros do motor do Podman (ex: `cgroup_manager = "systemd"`, `runtime = "crun"`, `events_logger = "journald"`).
+- `[network]`: Configurações de rede padrão (ex: `network_backend = "netavark"`).
 
+#### `storage.conf` (Drivers de Armazenamento e Caminhos)
 
+Gerenciado pela biblioteca containers/storage. Define como as camadas de imagem e contêineres são armazenadas no disco.
 
+- **Parâmetros Fundamentais**:
+  - `driver`: Define o driver de armazenamento. O padrão é `"overlay"`.
+  - `runroot`: Diretório temporário na memória RAM para estado de execução (ex: `/run/user/1000/containers` para rootless ou `/run/containers/storage` para rootful).
+  - `graphroot`: Diretório persistente onde as imagens e volumes são gravados no disco (ex: `~/.local/share/containers/storage` para rootless ou `/var/lib/containers/storage para rootful`).
 
+#### `registries.conf` (Busca, Espelhamento e Segurança)
 
+Define a de onde e como as imagens são baixadas, incluindo segurança para resolução de nomes curtos (*short-names*).
 
+- **Seções e Configurações Chave**:
+  - `unqualified-search-registries`: Lista de registros onde o Podman busca imagens quando o usuário não digita o FQDN completo (ex: [`"docker.io"`, `"quay.io"`]).
+  - `[[registry]]`: Bloco para configurar registros específicos, permitindo definir espelhos (*mirrors*), suporte a registros sem TLS/HTTP local (`insecure = true`) ou bloqueio de registros desconfiados (`blocked = true`).
+  - `short-name-mode`: Define como o Podman reage a nomes curtos (`"enforcing"`, `"permissive"`, ou `"disabled"`).
+
+#### `policy.json` (Políticas de Assinatura de Imagens)
+
+Um arquivo no formato **JSON** que implementa a segurança da cadeia de suprimentos (*supply chain*). Ele decide se uma imagem pode ser baixada baseando-se na verificação de assinaturas criptográficas.
+
+- **Estrutura de Decisão**:
+  - `default`: Política global aplicada a qualquer registro não especificado (geralmente configurada como `insecureAccept` em desenvolvimento ou `reject` em produção restrita).
+  - `transports`: Define regras baseadas no protocolo de transporte (`docker`, `dir`, `tarball`).
+
+### LAB 2: Reconfiguração de Armazenamento e Registros com Drop-In
+
+#### Objetivos
+
+- Criar e aplicar uma configuração drop-in para o `registries.conf` no escopo do usuário comum, liberando a busca automática de nomes curtos (*short-names*).
+- Alterar o local de armazenagem de dados persistentes via `storage.conf` para um diretório secundário customizado.
+- Validar todas as alterações utilizando o comando de diagnóstico `podman info`.
+
+#### Passo a Passo
+
+**Passo 1: Configurar busca de registros (Registries Drop-In)**
+
+Crie o diretório de configuração drop-in no escopo do seu usuário comum (sem `sudo`):
+
+```sh
+mkdir -p ~/.config/containers/registries.conf.d/
+```
+
+Crie um arquivo chamado `00-shortnames.conf` no diretório recém-criado:
+
+```sh
+nano ~/.config/containers/registries.conf.d/00-shortnames.conf
+```
+
+Adicione o seguinte conteúdo em sintaxe TOML:
+
+```ini
+unqualified-search-registries = ["docker.io", "quay.io"]
+```
+
+Salve e feche o arquivo. Teste a execução puxando uma imagem usando apenas o nome curto sem a necessidade do prefixo `docker.io/library/`:
+
+```sh
+podman pull alpine:latest
+```
+
+**Passo 2: Alterar o diretório de armazenamento (Storage Config)**
+
+Crie um diretório secundário no seu sistema de arquivos local para simular um disco secundário:
+
+```sh
+mkdir -p ~/meu_storage_podman
+```
+
+Crie o arquivo de configuração de armazenamento no escopo do usuário:
+
+```sh
+nano ~/.config/containers/storage.conf
+```
+
+Adicione o seguinte conteúdo TOML para redirecionar o graphroot:
+
+```ini
+[storage]
+driver = "overlay"
+graphroot = "/home/SEU_USUARIO/meu_storage_podman"
+# Substitua /home/SEU_USUARIO/ pelo caminho absoluto da sua home folder!
+```
+
+Valide a alteração executando o diagnóstico do Podman:
+
+```sh
+podman info | grep -E "graphRoot|graphDriverName"
+```
+
+#### Questões da Dinâmica - Lab 2
+
+- Ao executar o comando `podman pull alpine:latest` após criar o drop-in do `registries.conf`, qual foi o comportamento do Podman em relação à escolha do registro?
+- O que o resultado do comando `podman info` mostrou referente ao campo `graphRoot`? Ele passou a apontar para o novo diretório configurado?
+- Se criássemos um arquivo `/etc/containers/storage.conf` definindo o graphroot como `/var/lib/containers` e mantivéssemos o `~/.config/containers/storage.conf` apontando para `~/meu_storage_podman`, qual dos dois caminhos o Podman do seu usuário iria obedecer? Por quê?
+
+Gabarito & Orientação Pedagógica:
+
+- Resposta Esperada:
+
+  - O Podman resolveu com sucesso o nome curto `alpine:latest` buscando no primeiro registro configurado na lista (`docker.io/library/alpine:latest`), sem apresentar o erro de *short-name resolution*.
+  - O campo `graphRoot` no `podman info` passou a apontar para `/home/SEU_USUARIO/meu_storage_podman`.
+  - O Podman irá obedecer o caminho definido em `~/.config/containers/storage.conf` (`~/meu_storage_podman`).
+    - *Explicação*: A Regra 1 da cascata de configuração estabelece o princípio do *First Found Wins*. Como a configuração no escopo do usuário (`~/.config/containers/`) tem precedência sobre a do sistema (`/etc/containers/`), a regra individual do usuário sobrescreve a regra global.
+
+- Orientações Adicionais:
+
+  - Observe a importância de não alterar diretamente os arquivos padrão localizados em `/usr/share/containers/`.
+  - Destaque onde as atualizações do sistema operacional sobrescrevem arquivos em `/usr/share/`, razão pela qual boas práticas corporativas exigem o uso do `/etc/containers/` (para o sistema) ou `~/.config/containers/` (para o usuário) usando a estrutura `.conf.d/`.
+
+### ESTRUTURA DE DIRETÓRIOS E DIAGNÓSTICO AVANÇADO
+
+#### Estrutura Interna de Pastas no Disco
+
+Compreender o que é gravado em disco é fundamental para troubleshooting de armazenamento e manutenção de capacidade do host.
+
+```txt
+~/.local/share/containers/storage/ (ou /var/lib/containers/storage/)
+                                 ├─ overlay/            # Camadas do OverlayFS (imagens e containers)
+                                 ├─ overlay-containers/ # Metadados e pontos de montagem dos containers
+                                 ├─ overlay-images/     # Metadados, manifests e gráficos de camadas das imagens
+                                 ├─ storage.lock        # Arquivo de trava para controle de concorrência
+                                 └─ volumes/            # Volumes locais criados pelo Podman
+```
+
+- `/run/user/<UID>/containers` (ou `/run/containers`): Fica alocado em memória RAM volatile (tmpfs). Armazena o estado atual de execução, arquivos de PID (`pidfile`), sockets do `conmon` e os arquivos do OCI Spec (`config.json`).
+
+#### Diagnóstico Avançado com `podman info`
+
+O comando `podman info` é o principal ponto de entrada para diagnóstico e suporte de Nível 2/3 em ambientes com Podman.
+
+**Principais Seções do podman info para Troubleshooting**:
+
+- `host`: Exibe a versão do Kernel, arquitetura do processador, total de memória, status de Swap, gerenciador de Cgroups (`systemd` ou `cgroupfs`) e disponibilidade dos executáveis de rede (`netavark`/`pasta`).
+- `store`: Revela o driver de armazenamento ativo (`overlay`), o espaço ocupado, arquivos de configuração carregados e os caminhos reais de `graphRoot` e `runRoot`.
+- `registries`: Mostra os registros de busca configurados e o modo de resolução de nomes curtos ativo.
+- `plugins`: Lista os drivers de rede, de logs (`journald`, `k8s-file`) e de armazenamento de segredos disponíveis no ambiente.
+
+### LAB 3: Diagnóstico e Troubleshooting de Armazenamento com `podman info`
+
+#### Objetivos
+
+- Simular uma verificação de saúde e diagnóstico no ambiente do Podman.
+- Identificar onde estão localizados os arquivos de estado em tempo de execução e a versão do runtime OCI em uso.
+
+#### Passo a Passo
+
+Execute o comando podman info exportando o resultado filtrado para analisar as seções do host e de runtime:
+
+```sh
+podman info --format json | grep -E "ociRuntime|cgroupManager|networkBackend"
+```
+
+Inspecione o diretório temporário de execução (*runroot*) do seu usuário no sistema de arquivos temporário:
+
+```sh
+ls -la /run/user/$(id -u)/containers/overlay-containers/
+```
+
+#### Questões da Dinâmica - Lab 3
+
+- Qual é o **runtime OCI** padrão em uso no seu sistema operacional (ex: `crun` ou `runc`)?
+- Qual é o **backend de rede** reportado pelo diagnóstico (`netavark` ou `slirp4netns`/`pasta`)?
+- Por que os arquivos dentro de `/run/user/<UID>/containers/` somem quando a máquina é reiniciada, enquanto os arquivos em `~/.local/share/containers/storage/` persistem?
+
+Gabarito & Orientação Pedagógica:
+
+- Resposta Esperada:
+
+  - Geralmente `crun` (em distribuições modernas como Fedora, RHEL 9, Ubuntu 22.04+) ou `runc`.
+  - `netavark` (padrão em instalações modernas do Podman 4.0+).
+  - Porque o diretório `/run` é montado em memória RAM como um sistema de arquivos temporário (**tmpfs**), destinado a guardar apenas o estado instável de execução dos processos ativos (sockets, PIDs, specs temporários). O diretório `~/.local/share/` reside no disco rígido/SSD não volátil, onde os dados permanentes do `graphRoot` (camadas de imagens e volumes) são preservados.
+
+- Orientação Adicional:
+
+  - Observar a relevância do comando `podman info --format json`. O formato JSON permite integrar o diagnóstico do Podman com scripts de automação ou agentes de monitoramento (Prometheus, Zabbix) para verificar a saúde dos nós de produção.
 
 ## Sessão 3: O Motor Rootless (Containers sem Root)
 
-**Conteúdo Programático**:
+### A MECÂNICA DO ROOTLESS
 
-A Mecânica do Rootless:
+#### Como uma Sessão Rootless é Inicializada
 
-  - Como uma sessão rootless é inicializada.
-  - O papel do processo de pause (manutenção de namespaces).
+A execução de containers sem privilégios administrativos (*Rootless Mode*) é a funcionalidade central de segurança do Podman. Quando um usuário comum (não-root) digita `podman run`, o sistema dispara uma sequência de inicialização para simular um ambiente isolado sem violar a segurança do sistema operacional host.
 
-Mapeamento de IDs de Usuário:
+```txt
+[Sessão do Usuário (Host UID 1000)]
+       │
+       ▼ (Acessa /etc/subuid e /etc/subgid)
+ [User Namespace] ──► Mapeia UID 1000 (Host) ──► UID 0 (Container Root)
+       │          ──► Mapeia SubUIDs (100000-165535) ──► UIDs 1-65536
+       ▼
+ [Pause Process / conmon] ──► Mantém os Namespaces ativos
+       │
+       ▼
+ [Rootless Runtime] ──► Aplica Native OverlayFS & pasta/slirp4netns
+```
 
-  - Mapeamento subordinado: Compreendendo `/etc/subuid` e `/etc/subgid`.
-  - Mapeamento duplo em prática: As flags `--uidmap` e `--gidmap`.
-  - Modos de Namespace de Usuário (`--userns`).
+- **Leitura de Tabelas Subordinadas**: O Podman consulta `/etc/subuid` e `/etc/subgid` para verificar quais faixas de IDs de usuário/grupo foram concedidas ao usuário do host.
+- **Criação do User Namespace**: O Kernel cria um novo User Namespace isolado. O UID real do usuário no host (ex: `1000`) vira o UID `0` (`root`) dentro desse namespace específico.
+- **Inicialização do Rootless Storage**: O Podman monta o sistema de arquivos utilizando Native OverlayFS sem privilégios (ou *fuse-overlayfs* como fallback em kernels legados).
+- **Configuração da Rede Não-Privilegiada**: Como usuários não-root não podem criar interfaces bridge diretamente no host, o Podman utiliza utilitários em espaço de usuário (como `pasta` ou `slirp4netns`) para criar a pilha de rede dentro do namespace.
 
-Armazenamento e Permissões:
+#### O Papel do Processo de Pause (Manutenção de Namespaces)
 
-  - Permissões de volumes na prática (UID/GID do host vs. UID/GID do container).
-  - Armazenamento Rootless: Uso do Native OverlayFS sem root.
+Em cenários onde múltiplos containers precisam compartilhar o mesmo ambiente isolado (como dentro de um **Pod** do Podman ou durante operações de rede persistentes), o Kernel exige um processo "âncora".
 
-Restrições e Workarounds no Host:
+- **Manutenção da Vida do Namespace**: Se todos os processos dentro de um namespace terminarem, o Kernel do Linux destrói o namespace imediatamente.
+- **O Container `pause`**: É um container infraestrutural de tamanho mínimo (poucos kilobytes) que é executado primeiro. Ele entra em estado de repouso (*sleep*) perpétuo para segurar os namespaces abertos (Network, IPC, User, UTS).
+- **Compartilhamento de Recursos**: Todos os containers de uma mesma aplicação apontam para os namespaces mantidos pelo processo `pause`, garantindo que conexões de rede locais (`localhost`) e memórias compartilhadas persistam mesmo se a aplicação principal reiniciar.
 
-  - Delegação de Cgroup v2 para limites de recursos em modo rootless.
-  - O fallback silencioso para cgroupfs.
-  - Restrições de rede: Portas baixas (abaixo de 1024), ping e compartilhamento de privilégios.
-  - Limitações conhecidas: O que o modo Rootless ainda não consegue fazer.
+### MAPEAMENTO DE IDS DE USUÁRIO (UID/GID MAPPING)
+
+#### Mapeamento Subordinado: Compreendendo `/etc/subuid` e `/etc/subgid`
+
+O segredo do isolamento rootless reside em permitir que um usuário não-privilegiado no host gerencie múltiplos "usuários virtuais" dentro dos seus containers. O Linux faz isso reservando blocos de UIDs/GIDs secundários nos arquivos do sistema `/etc/subuid` e `/etc/subgid`.
+
+Sintaxe do arquivo `/etc/subuid`:
+
+```txt
+# USUARIO:PRIMEIRO_SUB_UID:QUANTIDADE
+tarso:100000:65536
+```
+
+- `tarso`: Nome do usuário real no host.
+- `100000`: O primeiro UID da faixa de reserva alocada exclusivamente para este usuário no Kernel.
+- `65536`: A quantidade total de UIDs alocados em sequência (de 100000 até 165535).
+
+**Como o Kernel traduz isso**?
+
+| Inside Container          | Host OS Real             |
+| :------------------------ | :----------------------- |
+| UID 0 (root do container) | UID 1000 (tarso no host) |
+| UID 1                     | UID 100000               |
+| UID 100                   | UID 100100               |
+| UID 65535                 | UID 165535               |
+
+#### Mapeamento Duplo na Prática: As Flags `--uidmap` e `--gidmap`
+
+Embora o mapeamento padrão funcione para a maioria dos casos, certas aplicações exigem que um UID específico do host seja mapeado para um UID específico no container. O Podman permite redefinir a tabela de tradução usando as flags `--uidmap` e `--gidmap`.
+
+Sintaxe do parâmetro:
+
+```sh
+--uidmap container_id:host_id:quantidade
+```
+
+Exemplo de Sobrescrita:
+
+```sh
+podman run -it --uidmap 0:1000:1 --uidmap 1:100000:65535 alpine sh
+```
+
+- `0:1000:1`: Mapeia exatamente 1 UID no container (o UID 0) para o UID 1000 do host.
+- `1:100000:65535`: Mapeia os próximos 65535 UIDs do container (UIDs 1 a 65535) para a faixa do host a partir do 100000.
+
+#### Modos de Namespace de Usuário (`--userns`)
+
+A flag `--userns` altera o comportamento de isolamento de usuários:
+
+- `--userns=host`: Desativa o User Namespace isolado. O container usa a tabela de UIDs nativa do host (Requer permissões elevadas se executado como rootful; em rootless, restringe o container ao próprio UID do usuário).
+- `--userns=keep-id`: Mapeia o UID real do usuário no host diretamente para o mesmo número de UID dentro do container. Se o seu usuário é UID `1000` no host, dentro do container você também será o UID `1000` (em vez de virar UID `0`). Essencial para lidar com volumes compartilhados sem alterar permissões!
+- `--userns=auto`: O Podman seleciona e aloca automaticamente um bloco exclusivo e único de sub-UIDs de `/etc/subuid` especificamente para aquele container, garantindo isolamento total inclusive entre containers do mesmo usuário.
+
+### LAB 4: Manipulação de User Namespaces e Mapeamento de UIDs
+
+#### Objetivos
+
+- Inspecionar os arquivos `/etc/subuid` e `/etc/subgid` do sistema.
+- Executar containers variando os parâmetros `--userns=keep-id` e `--uidmap`.
+- Validar a identidade dos UIDs internos e externos usando o comando `id` e a inspeção de processos no host.💻 
+
+#### Passo a Passo
+
+Inspecione a faixa de sub-UIDs alocada para o seu usuário no host:
+
+```sh
+grep $(whoami) /etc/subuid
+```
+
+Execute um container Alpine padrão e verifique quem você é dentro do container:
+
+```sh
+podman run --rm alpine id
+```
+
+Execute o mesmo container Alpine utilizando o modo `keep-id`:
+
+```sh
+podman run --rm --userns=keep-id alpine id
+```
+
+Execute um container com mapeamento customizado via --uidmap, atribuindo o UID 0 do container para o quinto ID relativo da sua faixa subordinada no host (evitando sobreposição nos intervalos)
+
+```sh
+podman run --rm --uidmap 0:5:1 --uidmap 1:1:65530 alpine id
+```
+
+#### Questões da Dinâmica - Lab 4
+
+- No **Passo 2** (execução padrão), qual foi o resultado do comando `id` dentro do container?
+- No **Passo 3** (`--userns=keep-id`), qual o UID e GID exibidos? Por que essa flag é útil ao trabalhar com diretórios do desenvolvedor?
+- No **Passo 4**, qual foi a estratégia de mapeamento adotada nas flags --uidmap e qual UID real no host o Kernel atribuiu ao processo do container?
+ 
+Gabarito & Orientação Pedagógica:
+
+- Resposta Esperada:
+
+  - `uid=0(root) gid=0(root) groups=0(root)`.
+  - Exibe `uid=1000(tarso) gid=1000(tarso)` (ou o UID real do usuário no host). É extremamente útil porque os arquivos criados ou modificados dentro do container gravam no disco diretamente com a propriedade do usuário do host, evitando problemas de permissão recusada (*Permission Denied*) em código-fonte ou volumes locais.
+  - Para evitar conflitos de sobreposição (*conflicts with other mappings*), dividimos o mapeamento em fatias: o UID `0` do container foi isolado no offset relativo `5`, enquanto as faixas adjacentes (`1:1:4` e `5:6:65530`) preencheram o restante do User Namespace.
+  - O Kernel do host atribuiu a esse processo o UID real 100005 (calculado como: primeiro SubUID do usuário (100000) + offset relativo (5)).
+
+- Orientações Adicionais:
+
+  - No Passo 2 o processo parece ser root dentro do container (`uid=0`), mas na verdade é apenas o usuário comum no host.
+  - No Passo 3, o processo é explicitamente o usuário `1000` dentro e fora.
+
+### ARMAZENAMENTO E PERMISSÕES
+
+#### Permissões de Volumes na Prática
+
+O principal desafio em ambientes rootless é a incompatibilidade entre o proprietário do arquivo no host e o proprietário esperado pela aplicação dentro do container.
+
+```txt
+[Host File System]                 [Container File System]
+/var/data (Dono: Host UID 1000) ──► Montado em /app/data (Espera: Internal UID 101/nginx)
+                                            │
+                                            ▼
+                              ❌ ERRO: Permission Denied!
+                                (Host UID 1000 não equivale ao Internal UID 101)
+```
+
+**Soluções Nativas do Podman**:
+
+- A Suffix Flag `:U` (Chown Dinâmico):
+
+  Ao montar um volume, adicionar o sufixo `:U` instrui o Podman a executar um `chown` recursivo no diretório montado, alterando as permissões no host para coincidir com o UID/GID que o container exige.
+
+```sh
+podman run -v ./meu_data:/var/www/html:Z,U nginx
+```
+
+- O Comando `podman unshare`:
+
+  Permite que um usuário comum abra uma sessão de terminal **dentro do User Namespace do seu próprio ambiente rootless**. Permite manipular permissões de arquivos usando comandos padrão (`chown`, `chmod`) enxergando os sub-UIDs reais:
+
+```sh
+# Altera a propriedade do arquivo no host para o UID 101 interno do container
+podman unshare chown -R 101:101 ./meu_data
+```
+
+#### Armazenamento Rootless: Native OverlayFS sem Root
+
+Historicamente, montar um sistema de arquivos OverlayFS exigia privilégios de `root`. O Podman utilizava uma ferramenta em espaço de usuário chamada `fuse-overlayfs` (mais lenta e com consumo de CPU elevado).
+
+- **Native OverlayFS em Modo Rootless (Kernel 5.11+)**:
+  
+  Atualmente, o Kernel Linux suporta a montagem nativa de OverlayFS por usuários não-privilegiados dentro de User Namespaces.
+  
+- **Vantagens**: Desempenho equivalente ao modo *rootful*, menor latência de E/S de disco e redução no consumo de memória RAM.
+
+### LAB 5: Gerenciamento de Volumes e Resolução de Permissões Rootless
+
+#### Objetivos
+
+- Criar um diretório no host com o usuário comum e tentar montá-lo em um container que roda sob um usuário não-root interno (ex: Nginx).
+- Experimentar o erro de permissão recusada e corrigi-lo utilizando o comando `podman unshare`.
+- Validar a correção utilizando a flag de montagem dinâmica `:U`.
+
+#### Passo a Passo
+
+Crie um diretório no host e um arquivo de teste dentro dele:
+
+```sh
+mkdir -p ~/dados_app
+echo "Hello Podman Storage" > ~/dados_app/index.html
+```
+
+Tente rodar um container Nginx montando esse diretório sem ajustes de permissão:
+
+```sh
+podman run --rm -v ~/dados_app:/usr/share/nginx/html:ro -p 8080:80 docker.io/library/nginx:alpine
+```
+
+> **NOTA**: Em um terminal secundário, tente acessar curl http://localhost:8080 e verifique se haverá erro 403 Forbidden nos logs por falha de leitura.
+
+Interrompa o container e corrija a propriedade dos arquivos para a faixa do Nginx (UID 101 dentro do container) usando `podman unshare`:
+
+``sh
+podman unshare chown -R 101:101 ~/dados_app
+``
+
+Verifique como as permissões do diretório ficaram visíveis para o host fora do `unshare`:
+
+```sh
+ls -ld ~/dados_app
+```
+
+#### Questões da Dinâmica - Lab 5
+
+- O que o comando `ls -ld ~/dados_app` revelou sobre o proprietário do diretório quando checado diretamente do host?
+- Se usássemos a flag `-v ~/dados_app:/usr/share/nginx/html:Z,U` no comando podman run, precisaríamos ter executado o podman unshare chown manualmente? Por quê?
+
+Gabarito & Orientação Pedagógica:
+
+- Resposta Esperada:
+
+  - Revelou que o proprietário no host mudou do usuário `tarso` (UID 1000) para o UID `100100` (resultado de: primeiro sub-UID 100000 + 100 da tabela interna).
+  - Não, não seria necessário. A flag `:U` indica ao Podman para calcular dinamicamente a tabela de UIDs exigida pelo container e aplicar a alteração de propriedade automaticamente antes de subir o processo.
+
+- Orientação Adicional:
+  
+  - Observar o impacto da flag `:U` em diretórios gigantescos no host (ex: terabytes de dados). Como o `:U` faz um `chown` recursivo na inicialização, em volumes muito grandes isso pode causar delay ao subir o container. Nesses casos, prefira ajustar a propriedade uma única vez via `podman unshare` ou utilizar `--userns=keep-id`.
+
+### RESTRIÇÕES E WORKAROUNDS NO HOST
+
+#### Delegação de Cgroup v2 para Limites de Recursos
+
+Para que um usuário comum possa limitar CPU e Memória de seus containers (`podman run --memory 512m`), o sistema host deve ter a **delegação de Cgroups v2 ativa**.
+
+- **O Papel do systemd**:
+  
+  O Podman se comunica com a sessão do usuário do systemd (`systemd --user`).
+
+- **Como ativar a delegação no Host (Root Admin)**:
+  
+  No servidor, o administrador deve garantir que o arquivo `/etc/systemd/system/user@.service.d/delegate.conf` contenha:
+
+```ini
+[Service]
+Delegate=cpu cpuacct io memory pids
+```
+
+- **Fallback Silencioso (`cgroupfs`)**:
+  
+  Se a delegação não estiver ativa ou o sistema rodar Cgroups v1, o Podman exibe um aviso e faz um fallback para o driver `cgroupfs`. Nesse cenário, **os limites de recursos definidos pelo usuário não serão aplicados rigorosamente**, e o container poderá consumir mais recursos do que o permitido.
+
+#### Restrições de Rede Rootless
+
+Como o usuário não-root não possui a capability `CAP_NET_BIND_SERVICE` no host:
+
+- **Portas Privilegiadas (Abaixo de 1024)**:
+  
+  Por padrão, um usuário rootless não pode publicar portas abaixo de 1024 no host (ex: `-p 80:80` falhará com *Permission Denied*).
+  
+  - **Workaround no Host (Sysctl)**: O administrador pode liberar portas mais baixas alterando a variável do Kernel:
+
+```sh
+sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80
+```
+
+- **Comando Ping (Pacotes ICMP RAW)**:
+  
+  Containers rootless não conseguem emitir pacotes ICMP raw por padrão.
+  
+  - Workaround no Host:
+
+```sh
+sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
+```
+
+#### Limitações Conhecidas do Modo Rootless
+
+Embora extremamente poderoso, o modo Rootless possui restrições arquiteturais que devem ser consideradas no desenho da infraestrutura:
+
+- **Incapaz de criar interfaces Bridge reais no Host**: Toda a comunicação de rede passa por tradução de pacotes em espaço de usuário (via utilitários `pasta` ou `slirp4netns`), o que gera um leve overhead de throughput de rede se comparado ao modo *rootful*.
+- **Impossibilidade de realizar montagens do tipo `NFS` diretamente dentro do container**: Montagens de rede complexas devem ser feitas no host e repassadas via *bind mount*.
+- **Perda do IP de Origem do Cliente (Source IP Preservation)**: Ao utilizar os drivers de rede rootless padrão, os pacotes que chegam à aplicação parecem vir da interface de loopback (`127.0.0.1` ou IP da ponte interna), mascarando o IP real do cliente (a menos que se utilize o modo avançado com `pasta` ou `rootlessport`).
+
+### LAB 6: Diagnóstico de Limitações Rootless e Ajuste de Sysctl
+
+#### Objetivos
+
+- Simular a falha de bind em porta privilegiada (porta 80) em ambiente rootless.
+- Aplicar a liberação via `sysctl` e validar a publicação bem-sucedida da porta.
+
+#### Passo a Passo
+
+Tente executar um container vinculando diretamente à porta 80 do host (porta privilegiada) com seu usuário comum:
+
+```sh
+podman run --rm -p 80:80 docker.io/library/nginx:alpine
+```
+
+> **NOTA**: Observe a mensagem de erro de permissão recusada ao tentar fazer o bind do socket.
+
+Aplique temporariamente o workaround via sysctl (requer sudo no host para alterar o parâmetro do Kernel):
+
+```sh
+sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80
+```
+
+Re-execute o comando do Passo 1:
+
+```sh
+podman run -d --rm --name web-porta80 -p 80:80 docker.io/library/nginx:alpine
+```
+
+Valide a resposta do serviço na porta 80 nativa do host:
+
+```sh
+curl http://localhost
+```
+
+Limpe o container de teste:
+
+```sh
+podman stop web-porta80
+```
+
+#### Questões da Dinâmica - Lab 6
+
+- Qual foi a mensagem exata fornecida pelo Podman ao tentar publicar a porta 80 antes da alteração do `sysctl`?
+- O parâmetro `net.ipv4.ip_unprivileged_port_start=80` concede privilégios de `root` ao usuário que disparou o container?
+
+**Gabarito & Orientação Pedagógica**:
+
+- Resposta Esperada:
+  
+  - `Error: rootlessport listen tcp 0.0.0.0:80: bind: permission denied` (ou mensagem similar indicando incapacidade de escutar em portas privilegiadas em modo não-root).
+  - Não! Ele apenas altera a regra do Kernel do Linux, rebaixando a fronteira de portas consideradas "privilegiadas" de 1024 para 80. O usuário e o container continuam rodando de forma 100% não-privilegiada, protegendo o sistema contra qualquer tipo de ataque de escalada de privilégios (*privilege escalation*).
+  
+- Orientação Adicional:
+
+  - Observar que o ajuste do `net.ipv4.ip_unprivileged_port_start` em `/etc/sysctl.d/` é uma prática padrão e recomendada na preparação de servidores Linux corporativos para subir aplicações web (nas portas 80/443) via Podman Rootless de forma segura.
 
 ## Sessão 4: Engenharia de Imagens com Podman e Buildah
 
-**Conteúdo Programático**:
+
+<<<ESTAMOS AQUI>>>
+
+
+Seguindo para a Sessão 4 na mesma estrutura com o Conteúdo Programático que segue:
 
 Builds Modernos com Podman:
 
@@ -649,7 +1151,7 @@ Criação de Imagens Avançada com Buildah:
 
 ## Sessão 5: Distribuição com Skopeo e Ciclo de Vida do Container
 
-**Conteúdo Programático**:
+Seguindo para a Sessão 5 na mesma estrutura com o Conteúdo Programático que segue:
 
 Distribuição de Imagens com Skopeo:
 
@@ -669,7 +1171,7 @@ Execução de Containers e Armazenamento (Runtime):
 
 ## Sessão 6: Redes Avançadas: Netavark e pasta
 
-**Conteúdo Programático**:
+Seguindo para a Sessão 6 na mesma estrutura com o Conteúdo Programático que segue:
 
 Rede Rootful (Netavark):
 
@@ -690,7 +1192,7 @@ Rede Rootless de Alta Performance (pasta):
 
 ## Sessão 7: Segurança Avançada e Cadeia de Suprimentos
 
-**Conteúdo Programático**:
+Seguindo para a Sessão 7 na mesma estrutura com o Conteúdo Programático que segue:
 
 Hardening do Container Runtime:
 
@@ -712,7 +1214,7 @@ Segurança da Cadeia de Suprimentos (Supply Chain):
 
 ## Sessão 8: Orquestração Local com Systemd, Quadlet, Compose e Kubernetes
 
-**Conteúdo Programático**:
+Seguindo para a Sessão 8 na mesma estrutura com o Conteúdo Programático que segue:
 
 A Revolução do Quadlet (systemd-native):
 
