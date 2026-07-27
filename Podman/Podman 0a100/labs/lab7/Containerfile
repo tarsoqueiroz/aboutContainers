@@ -1,0 +1,5 @@
+FROM docker.io/library/alpine:latest
+RUN --mount=type=secret,id=token_api \
+    cat /run/secrets/token_api > /tmp/valida.txt && \
+    echo "Segredo lido com sucesso durante o build!" && \
+    rm -f /tmp/valida.txt

@@ -344,7 +344,7 @@ Gabarito & Orientação Pedagógica:
                    └─────────────────────────────────────────┘
                                        │
             ┌──────────────────────────┴──────────────────────────┐
-            ▼                          │                           ▼
+            ▼                          │                          ▼
 ┌─────────────────────────┐            │                 ┌─────────────────┐
 │       NAMESPACES        │            │                 │   CGROUPS V2    │
 │  Isolamento de Visão    │            │                 │ Limite Recursos │
@@ -441,8 +441,9 @@ ls -l /proc/<PID_NGINX_MASTER>/ns
 
 Inspecionar o mapeamento de User Namespace (subuid):
 
-sh
+```sh
 cat /proc/<PID_NGINX_MASTER>/uid_map
+```
 
 #### Questões da Dinâmica - Lab 1
 
@@ -998,15 +999,13 @@ ls -ld ~/dados_app
 - O que o comando `ls -ld ~/dados_app` revelou sobre o proprietário do diretório quando checado diretamente do host?
 - Se usássemos a flag `-v ~/dados_app:/usr/share/nginx/html:Z,U` no comando podman run, precisaríamos ter executado o podman unshare chown manualmente? Por quê?
 
-Gabarito & Orientação Pedagógica:
+**Gabarito & Orientação Pedagógica**:
 
 - Resposta Esperada:
-
   - Revelou que o proprietário no host mudou do usuário `tarso` (UID 1000) para o UID `100100` (resultado de: primeiro sub-UID 100000 + 100 da tabela interna).
   - Não, não seria necessário. A flag `:U` indica ao Podman para calcular dinamicamente a tabela de UIDs exigida pelo container e aplicar a alteração de propriedade automaticamente antes de subir o processo.
 
 - Orientação Adicional:
-  
   - Observar o impacto da flag `:U` em diretórios gigantescos no host (ex: terabytes de dados). Como o `:U` faz um `chown` recursivo na inicialização, em volumes muito grandes isso pode causar delay ao subir o container. Nesses casos, prefira ajustar a propriedade uma única vez via `podman unshare` ou utilizar `--userns=keep-id`.
 
 ### RESTRIÇÕES E WORKAROUNDS NO HOST
@@ -1123,33 +1122,355 @@ podman stop web-porta80
 
 ## Sessão 4: Engenharia de Imagens com Podman e Buildah
 
+### BUILDS MODERNOS COM PODMAN
+
+#### O Motor por trás do `podman build`
+
+Quando você executa o comando `podman build`, o Podman não utiliza um daemon externo (como o BuildKit do Docker). Ele utiliza internamente as bibliotecas e o mecanismo do **Buildah** como seu motor de construção nativo.
+
+- **Arquitetura Daemonless em Builds**: A compilação ocorre como um processo direto no host ou no User Namespace do usuário (*rootless*).
+- **Vantagens de Segurança**: Não há necessidade de expor sockets com privilégios de `root` para compilar imagens.
+- **Compatibilidade de Sintaxe**: Suporta nativamente arquivos chamados tanto `Containerfile` quanto `Dockerfile`.
+
+#### Funcionalidades Modernas do Containerfile
+
+- **Heredocs (Sintaxe Inline em Múltiplas Linhas)**
+
+Evita o encadeamento excessivo de comandos com `&&` e barras invertidas `\`. Permite criar scripts internos ou arquivos de configuração diretamente no arquivo de build.
+
+```Dockerfile
+# Syntax = docker/dockerfile:1.4
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+
+# Execução de script multilinha limpo
+RUN <<EOF
+microdnf update -y
+microdnf install -y python3 tar
+microdnf clean all
+EOF
+
+# Criação de arquivo diretamente no container
+RUN <<EOF /etc/app.conf
+[global]
+env = production
+debug = false
+EOF
+```
+
+- **Imagens Multi-Stage Estruturadas**
+
+O padrão *Multi-stage Build* separa o ambiente de **compilação** (que contém compiladores, SDKs e ferramentas pesadas) do ambiente de **execução final** (contendo apenas o binário estático e dependências mínimas).
+
+```Dockerfile
+# Estágio 1: Build (Compilação)
+FROM docker.io/library/golang:1.22-alpine AS builder
+WORKDIR /src
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server .
+
+# Estágio 2: Imagem Final Leve
+FROM registry.access.redhat.com/ubi9/ubi-micro:latest
+WORKDIR /app
+COPY --from=builder /app/server /app/server
+USER 1001
+CMD ["/app/server"]
+```
+
+#### Gerenciamento de Contexto de Build Nomeado (*Named Build Contexts*)
+
+A instrução `--build-context` permite injetar fontes de dados dinâmicas ou imagens alternativas no momento do build sem alterar o `Containerfile`:
+
+- **Substituição de Imagens Base em CI/CD**:
+
+```sh
+podman build --build-context alpine=docker.io/library/alpine:3.19 -t minha-app .
+```
+
+- Uso de Múltiplos Diretórios Locais: Permite mapear um segundo diretório do host para dentro do contexto de build e consumi-lo via `COPY --from=contexto_nomeado`.
+
+#### Injeção Segura de Segredos
+
+O compartilhamento incorreto de credenciais durante a compilação é um dos maiores riscos de segurança em containers.
+
+```txt
+❌ ARG / ENV ──────────► Gravado nas camadas da imagem! (Visível via podman history)
+✅ --secret ───────────► Montado temporariamente em RAM (tmpfs) durante o RUN! Não deixa rastros.
+✅ --ssh ──────────────► Repassa o agente SSH do host via socket temporário!
+```
+
+1. `ARG` **(Variáveis de Build)**: NÃO use para segredos! O valor passa para os metadados da imagem e pode ser extraído facilmente com `podman history` ou `podman inspect`.
+2. `--secret` **(Montagem Temporária em Memória)**: Monta o segredo a partir de um arquivo do host em um ponto de montagem temporário em RAM durante a execução de um comando `RUN`.
+  - No Containerfile: `RUN --mount=type=secret,id=meu_token cat /run/secrets/meu_token ...`
+  - Na CLI: `podman build --secret id=meu_token,src=./token.txt -t minha-app .`
+3. `--ssh` **(Repasse de Agente SSH)**: Permite clonar repositórios privados via SSH dentro do build sem copiar chaves privadas para a imagem.
+  - No Containerfile: `RUN --mount=type=ssh git clone git@github.com:empresa/repo-privado.git`
+  - Na CLI: `podman build --ssh default -t minha-app .`
+
+### ESTRATÉGIAS DE CACHE E MULTI-ARQUITETURA
+
+#### Os 3 Tipos de Cache de Build
+
+1. **Layer Cache Tradicional**: O Podman reutiliza camadas existentes localmente se o comando no `Containerfile` e o hash do contexto de arquivos não mudarem.
+2. **Cache Mounts (`--mount=type=cache`)**: Mantém diretórios de cache de gerenciadores de pacotes (`pip, npm, dnf, go build`) persistentes entre builds, evitando baixar dependências repetidas sem inchar a imagem final.
+
+```Dockerfile
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    go build -o /app/server .
+```
+
+3. **Cache Remoto Baseado em Registro (`--cache-from` / `--cache-to`)**: Exporta o estado do cache para um registro OCI remoto. Permite que pipelines de CI/CD em máquinas virtuais efêmeras reaproveitem o cache gerado por builds anteriores.
+
+```sh
+podman build \
+  --cache-to=quay.io/empresa/app:cache \
+  --cache-from=quay.io/empresa/app:cache \
+  -t quay.io/empresa/app:v1 .
+```
+
+#### Construção Multi-Arquitetura (Manifest Lists e Farm Builds)
+
+Uma Manifest List (ou imagem multi-arquitetura) é um ponteiro único no registro que aponta para diferentes imagens compiladas para arquiteturas distintas (ex: amd64 para servidores x86 e arm64 para Apple Silicon ou servidores AWS Graviton).
+
+```txt
+                               ┌──► Imagem Linux/amd64 (x86_64)
+                               │
+[quay.io/empresa/app:v1] ──────┼──► Imagem Linux/arm64 (aarch64)
+    (Manifest List)            │
+                               └──► Imagem Linux/s390x (Mainframe)
+```
+
+Criação de Manifest List no Podman:
+
+```sh
+# 1. Cria a lista de manifesto vazia
+podman manifest create minha-app:v1
+
+# 2. Compila e adiciona a imagem para x86_64
+podman build --platform linux/amd64 --manifest minha-app:v1 .
+
+# 3. Compila e adiciona a imagem para ARM64 (utilizando emulação QEMU se no host x86)
+podman build --platform linux/arm64 --manifest minha-app:v1 .
+
+# 4. Envia a lista completa e as imagens vinculadas para o registro
+podman manifest push minha-app:v1 docker://quay.io/empresa/minha-app:v1
+```
+
+#### Resolução de Nomes Curtos e Busca Qualificada
+
+Conforme vimos na Sessão 2, o Podman bloqueia ambiguidades de imagens para prevenir ataques de *Supply Chain*. Ao escrever um `Containerfile`, **sempre utilize FQDN**:
+
+- **<< (NÃO) >>** `FROM alpine:latest` (Ambiguação sujeita a falha de resolução em produção)
+- **<< (SIM) >>** `FROM docker.io/library/alpine:latest` (Nome qualificado seguro)
+
+### CRIAÇÃO DE IMAGENS AVANÇADA COM BUILDAH
+
+#### A Filosofia do Buildah
+
+Enquanto o Podman é a ferramenta para rodar e orquestrar containers, o Buildah é a ferramenta especializada em construir imagens.
+
+- Dois Front-Ends:
+
+  1. **CLI declarativa baseada em arquivo**: `buildah bud` (equivalente ao `podman build`).
+  1. **CLI imperativa para scripts Shell**: Comandos granulares (`buildah from`, `buildah run`, `buildah copy`) que eliminam a necessidade de escrever um `Containerfile`.
+
+#### O Fluxo de Build Scriptado (sem Containerfile)
+
+Com o Buildah, você pode construir imagens inteiras executando comandos em um script Bash comum. Isso permite integrar variáveis do SO, condicionais if/else complexas e ferramentas do host.
+
+```sh
+#!/usr/bin/env bash
+set -e
+
+# 1. Inicia o container de trabalho a partir de uma imagem base ou do zero (scratch)
+container=$(buildah from docker.io/library/alpine:latest)
+
+# 2. Executa comandos dentro do container em construção
+buildah run $container -- apk update
+buildah run $container -- apk add --no-cache curl
+
+# 3. Copia arquivos do host para dentro do container
+buildah copy $container ./app.sh /usr/local/bin/app.sh
+
+# 4. Configura metadados da imagem
+buildah config --env APP_ENV=production $container
+buildah config --entrypoint '["/usr/local/bin/app.sh"]' $container
+buildah config --author "DevOps Team" $container
+
+# 5. Salva as alterações gerando uma imagem OCI final
+buildah commit $container minha-imagem-scriptada:v1
+
+# 6. Limpa o container de trabalho temporário
+buildah rm $container
+```
+
+#### Acesso Direto ao Rootfs com `buildah mount`
+
+Uma das funcionalidades mais revolucionárias do Buildah é a capacidade de **montar o sistema de arquivos (rootfs) do container em construção em uma pasta do host**.
+
+```sh
+container=$(buildah from scratch)
+mountpoint=$(buildah mount $container)
+
+# Agora você pode usar ferramentas nativas do HOST para instalar coisas direto na pasta montada!
+# Exemplo: Usar o 'dnf' do host para popular um container minimalista limpo
+sudo dnf install --installroot $mountpoint --releasever 9 --nodocs -y bash coreutils
+
+buildah unmount $container
+buildah commit $container minha-imagem-minimalista
+```
+
+#### Buildah em Pipelines de CI/CD (Podman-in-Podman / Docker-in-Docker)
+
+Em sistemas de CI/CD (GitHub Actions, GitLab CI, Tekton), compilar imagens dentro de um container executor exigia montar o socket do Docker (`docker.sock`), o que quebrava o isolamento de segurança.
+
+- **Buildah em Containers sem Privilégios**: Como o Buildah roda nativamente de forma daemonless e rootless, ele pode ser executado dentro de uma pipeline de CI que roda dentro de um container Podman ou Kubernetes de forma **100% isolada e segura**, sem precisar de `sudo` ou privilégios de `root` no nó worker do cluster!
+
+### LAB 7: Engenharia de Imagens com Buildah Scriptado e Segredos
+
+#### Objetivos
+
+- Criar uma imagem OCI utilizando um **script Bash com Buildah** sem usar arquivo `Containerfile`.
+- Utilizar o comando `buildah unshare` e `buildah mount` para inspecionar e manipular o rootfs do container diretamente pelo host.
+- Testar a injeção segura de segredos em tempo de compilação via `podman build --secret`.
+
+#### Passo a Passo
+
+**Etapa A: Build Scriptado com Buildah**
+
+Crie um script de build em Bash no seu diretório de trabalho:
+
+```sh
+nano build_com_buildah.sh
+```
+
+Adicione o seguinte conteúdo ao arquivo:
+
+```sh
+#!/usr/bin/env bash
+set -eo pipefail
+
+echo "🚀 Iniciando build com Buildah..."
+
+# Cria container temporário a partir de Alpine
+ctr=$(buildah from docker.io/library/alpine:latest)
+
+# Instala o pacote jq dentro do container
+buildah run $ctr -- apk add --no-cache jq
+
+# Configura variável de ambiente e comando padrão
+buildah config --env FERRAMENTA=jq $ctr
+buildah config --cmd '["jq", "--version"]' $ctr
+
+# Gera a imagem OCI final
+buildah commit $ctr imagem-buildah:v1
+
+# Remove o container temporário
+buildah rm $ctr
+
+echo "✅ Imagem imagem-buildah:v1 criada com sucesso!"
+```
+
+Dê permissão de execução e execute o script (como seu usuário comum, sem `sudo`):
+
+```sh
+chmod +x build_com_buildah.sh
+./build_com_buildah.sh
+```
+
+Teste a execução da imagem criada pelo Buildah:
+
+```sh
+podman run --rm imagem-buildah:v1
+```
+
+**Etapa B: Acesso ao Rootfs via `buildah mount`**
+
+Crie um novo container de trabalho a partir da imagem `scratch` (imagem vazia):
+
+```sh
+ctr_vazio=$(buildah from scratch)
+```
+
+Execute o ambiente isolado `buildah unshare` para montar e inspecionar a pasta do container no host:
+
+```sh
+buildah unshare bash -c '
+  ponto_montagem=$(buildah mount '$ctr_vazio')
+  echo "📁 Ponto de montagem no host: $ponto_montagem"
+  echo "Servidor de Produção" > "$ponto_montagem/mensagem.txt"
+  ls -la "$ponto_montagem"
+  buildah unmount '$ctr_vazio'
+'
+```
+
+Configure a imagem vazia e comite o resultado:
+
+```sh
+buildah config --cmd '["cat", "/mensagem.txt"]' $ctr_vazio
+buildah commit $ctr_vazio imagem-scratch-mensagem:v1
+buildah rm $ctr_vazio
+```
+
+Teste a execução da imagem criada a partir do `scratch`:
+
+```sh
+podman run --rm imagem-scratch-mensagem:v1
+```
+
+**Etapa C: Injeção Segura de Segredos com `--secret`**
+
+Crie um arquivo contendo um segredo fictício no host:
+
+```sh
+echo "CHAVE_SECRET_API_PROD_12345" > token_api.txt
+```
+
+Crie um `Containerfile` que consome o segredo durante o build sem salvá-lo no resultado final:
+
+```Dockerfile
+FROM docker.io/library/alpine:latest
+RUN --mount=type=secret,id=token_api \
+    cat /run/secrets/token_api > /tmp/valida.txt && \
+    echo "Segredo lido com sucesso durante o build!" && \
+    rm -f /tmp/valida.txt
+```
+
+Execute a compilação passando o segredo via CLI:
+
+```sh
+podman build --secret id=token_api,src=token_api.txt -t app-segura:v1 .
+```
+
+Verifique com `podman history` que o segredo não foi gravado nas camadas da imagem:
+
+```sh
+podman history app-segura:v1
+```
+
+#### Questões da Dinâmica - Lab 7
+
+- Na **Etapa A**, qual a grande vantagem prática de utilizar um script Bash com `buildah` para criar imagens em comparação com a escrita de um `Containerfile` tradicional em pipelines complexas?
+- Na **Etapa B**, o container criado com `buildah from scratch` possuía algum sistema operacional ou executáveis (como `sh` ou `ls`) antes de escrevermos o arquivo `mensagem.txt` no ponto de montagem?
+- Na **Etapa C**, se inspecionássemos a imagem compilada (`app-segura:v1`) após a conclusão do build, o arquivo `/run/secrets/token_api` ainda estaria presente no sistema de arquivos do container?
+
+**Gabarito & Orientação Pedagógica**:
+
+- Resposta Esperada:
+  - A principal vantagem é o controle dinâmico e a flexibilidade. Scripts com Buildah permitem utilizar toda a sintaxe da linguagem Shell (loops `for`, condicionais `if/else`, manipulação de strings, leitura de variáveis de ambiente do host) e reaproveitar ferramentas instaladas no servidor de build, sem a rigidez da sintaxe limitada do `Containerfile`.
+  - Não! A imagem `scratch` é totalmente vazia (0 bytes). Ela não possui Kernel, diretórios de sistema, nem binários. Ao usar `buildah mount`, escrevemos o arquivo `mensagem.txt` diretamente na raiz bruta do sistema de arquivos alocado pelo storage.
+  - Não. O arquivo montado em `/run/secrets/` existe exclusivamente na memória RAM temporária enquanto o comando `RUN` correspondente está sendo executado. Assim que a instrução termina, o ponto de montagem do segredo é desmontado e nenhum rastro do arquivo fica registrado nas camadas salvas no disco.
+
+- Orientações Adicionais:
+  - Enfatizar que a técnica de `buildah from scratch` combinada com `buildah mount` é a base para a criação de imagens ultrafinas (*distroless*). Imagens construídas dessa forma possuem superfície de ataque praticamente zero, pois não contêm shells (como `/bin/sh` ou `/bin/bash`) que invasores pudessem explorar em caso de vulnerabilidade na aplicação.
+  - Etapa A: Build scriptado com Buildah e instalação do jq em imagem leve.
+  - Etapa B: Demonstração da imagem a partir do scratch — ressaltando aos alunos que o erro executable file not found in $PATH ao tentar rodar um cat é a prova de que a imagem scratch é totalmente limpa (sendo destinada apenas para binários estáticos sem dependências dinâmicas, como Go/Rust).
+  - Etapa C: Injeção segura de segredos via --secret, sem persistência de credenciais no podman history.
+
+## Sessão 5: Distribuição com Skopeo e Ciclo de Vida do Container
+
 
 <<<ESTAMOS AQUI>>>
 
-
-Seguindo para a Sessão 4 na mesma estrutura com o Conteúdo Programático que segue:
-
-Builds Modernos com Podman:
-
-  - O motor por trás do `podman build` (BuildKit/buildah).
-  - Funcionalidades modernas do Containerfile: Heredocs e imagens multi-stage estruturadas.
-  - Gerenciamento de contexto de build nomeados (Named Build Contexts).
-  - Injeção segura de segredos: Argumentos de build (`ARG`), segredos em tempo de build (`--secret`) e repasse de agente SSH (`--ssh`).
-
-Estratégias de Cache e Multi-Arquitetura:
-
-  - Os 3 tipos de cache: Layer Cache tradicional, Cache Mounts (otimização de gerenciadores de pacotes) e cache remoto baseado em registro.
-  - Construção de imagens multi-arquitetura: Manifests Lists e Farm Builds (compilação distribuída).
-  - Resolução de nomes curtos e busca qualificada de imagens.
-
-Criação de Imagens Avançada com Buildah:
-
-  - Filosofia: Um motor de build (Buildah) com dois front-ends (CLI e scripts).
-  - O fluxo de build scriptado (sem Containerfile): `from`, `run`, `copy`, `config` e `commit`.
-  - Acesso direto ao rootfs usando `buildah unshare` e `buildah mount`.
-  - Utilização do Buildah em pipelines de Integração Contínua (CI) rodando dentro de containers (Docker-in-Docker/Podman-in-Podman).
-
-## Sessão 5: Distribuição com Skopeo e Ciclo de Vida do Container
 
 Seguindo para a Sessão 5 na mesma estrutura com o Conteúdo Programático que segue:
 
