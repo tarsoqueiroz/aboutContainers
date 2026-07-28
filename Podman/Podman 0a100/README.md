@@ -1468,29 +1468,228 @@ podman history app-segura:v1
 
 ## Sessão 5: Distribuição com Skopeo e Ciclo de Vida do Container
 
+### DISTRIBUIÇÃO DE IMAGENS COM SKOPEO
 
-<<<ESTAMOS AQUI>>>
+#### A Versatilidade do Skopeo e Transports
 
+O **Skopeo** é a ferramenta do ecossistema `containers/` focada na movimentação e inspeção de imagens sem a necessidade de um daemon de container ou de baixar (*pull*) a imagem inteira para o storage local.
 
-Seguindo para a Sessão 5 na mesma estrutura com o Conteúdo Programático que segue:
+Ele utiliza o conceito de **Transports** (esquemas de nomeação) para definir a origem e o destino da imagem:
 
-Distribuição de Imagens com Skopeo:
+- `docker://`: Registro OCI/Docker remoto (ex: `docker://quay.io/empresa/app:v1`).
+- `containers-storage:`: O storage local do Podman no host (ex: `containers-storage:localhost/minha-app:v1`).
+- `dir:`: Um diretório local contendo a imagem descompactada em arquivos no formato OCI.
+- `docker-archive:`: Um arquivo tarball no formato legado do Docker (`docker save/load`).
+- `oci-archive:`: Um arquivo tarball no formato padronizado OCI.
 
-  - A versatilidade do Skopeo e o conceito de transports (naming schemes).
-  - Inspeção remota de imagens e listagem de tags sem realizar o download (pull).
-  - Cópia eficiente entre registros (autenticação, tratamento de TLS e preservação de multi-arquitetura).
-  - Distribuição em ambientes isolados (Air-Gapped): Exportação de imagens únicas e sincronização em lote com `skopeo sync`.
-  - Manutenção de registros: Espelhamentos declarativos, automação via systemd e deleção de tags remotas.
+```text
+                                  ┌──► docker://quay.io/repo/app
+                                  │
+[Skopeo] ───(Transport Choice)────┼──► containers-storage:local-app
+                                  │
+                                  └──► oci-archive:/tmp/app.tar
+```
 
-Execução de Containers e Armazenamento (Runtime):
+#### Inspeção Remota e Listagem de Tags
 
-- Consequências de execução daemonless (quem monitora o container se o Podman sair?).
-- Ciclo de vida completo do container: Códigos de saída (exit codes), logs de execução e entrada secundária via `podman exec`.
-- Estratégias de volumes e mounts (`--mount` matrix).
-- Ajuste fino de permissões de volumes: Relabeling SELinux (`:z` e `:Z`), chowning dinâmico (`:U`) e idmapped mounts.
-- Criação de volumes como unidades do systemd.
+Uma das maiores vantagens do Skopeo é inspecionar metadados de imagens diretamente em registros remotos **sem realizar o download do arquivo de imagem (sem gastar banda ou espaço em disco)**:
+
+```sh
+# Inspeciona os metadados (variáveis de ambiente, portas, labels, arquiteturas)
+skopeo inspect docker://docker.io/library/nginx:alpine
+
+# Lista todas as tags disponíveis de um repositório remoto
+skopeo list-tags docker://docker.io/library/nginx
+```
+
+#### Cópia Eficiente Entre Registros
+
+O comando `skopeo copy` transfere imagens diretamente entre dois registros ou entre o storage local e um registro remoto.
+
+- **Preservação de Multi-Arquitetura**: Consegue copiar Manifest Lists inteiras preservando os hashes e todas as arquiteturas suportadas (`amd64`, `arm64`, etc.).
+- **Tratamento de TLS e Credenciais**: Permite autenticação independente para a origem e o destino, além de suporte a registros sem TLS (`--src-tls-verify=false` ou `--dest-tls-verify=false`).
+
+```sh
+# Copia uma imagem diretamente de um registro para outro sem passar pelo armazenamento do Podman
+skopeo copy \
+  --src-creds usuario_origem:senha \
+  --dest-creds usuario_destino:senha \
+  docker://docker.io/library/alpine:latest \
+  docker://quay.io/meu_usuario/alpine:latest
+```
+
+#### Distribuição em Ambientes Isolados (Air-Gapped)
+
+Em infraestruturas corporativas críticas (bancos, órgãos governamentais), os servidores de produção não possuem acesso à internet (*Air-Gapped*).
+
+- **Exportação Única**: Exportar imagens para arquivos compactados (oci-archive) para transporte via mídia física ou bastion host:
+
+```sh
+skopeo copy docker://docker.io/library/nginx:alpine oci-archive:nginx_alpine.tar
+```
+
+- **Sincronização em Lote (`skopeo sync`)**: Permite espelhar repositórios ou listas de imagens inteiras de uma só vez para um diretório offline ou para um registro privado interno:
+
+```sh
+# Sincroniza todas as imagens listadas em um arquivo YAML para uma pasta local
+skopeo sync --src docker --dest dir quay.io/empresa/projeto /var/offline_images/
+```
+
+#### Espelhamento e Deleção Remota
+
+- **Espelhamentos Declarativos**: Configuração via `registries.conf` (conforme visto na Sessão 2) para redirecionar requisições transparentemente para espelhos locais.
+- **Deleção Remota de Tags**: Se a API do registro permitir, o Skopeo permite remover tags obsoletas no servidor remoto:
+
+```sh
+skopeo delete docker://quay.io/empresa/app:v1-old
+```
+
+### EXECUÇÃO DE CONTAINERS E ARMAZENAMENTO (RUNTIME)
+
+#### Consequências da Execução Daemonless
+
+No modelo sem daemon, surge a pergunta clássica: "*Se a CLI do Podman finaliza logo após executar o container, quem monitora e mantém o container rodando?*"
+
+- **O Monitor `conmon`**: Como vimos na Sessão 1, o `conmon` é o processo pai ultraleve que fica ativo gerenciando os logs e o código de saída (exit code).
+- **Supervisão do Sistema Operacional**: Para garantir que um container reinicie em caso de falha do nó ou do processo, o Podman delega a supervisão ao próprio **systemd** do Linux (que será aprofundado na Sessão 8 com o Quadlet).
+
+#### Ciclo de Vida do Container e Entrada Secundária
+
+- **Códigos de Saída (Exit Codes)**:
+  - `0`: Execução finalizada com sucesso.
+  - `137`: Processo finalizado por sinal SIGKILL (geralmente disparado pelo OOM Killer do Linux por excesso de consumo de memória RAM além do limite do Cgroup).
+  - `139`: Falha de segmentação (Segmentation Fault).
+- **Entrada Secundária (`podman exec`)**: Injeta um novo processo dentro dos Namespaces de um container já em execução (ex: podman exec -it meu-web sh).
+
+#### Estratégias de Volumes e Mounts (`--mount` matrix)
+
+O Podman suporta duas sintaxes para anexar armazenamentos: a sintaxe legada `-v` (`--volume`) e a sintaxe explícita `--mount`.
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ ESTRATÉGIAS DE MONTAGEM NO PODMAN                           │
+│                                                             │
+│ 1. Volume Nomeado (--mount type=volume)                     │
+│    Gerenciado totalmente pelo Podman em graphRoot           │
+│                                                             │
+│ 2. Bind Mount (--mount type=bind)                           │
+│    Mapeia uma pasta arbitrária do Host para o Container     │
+│                                                             │
+│ 3. Tmpfs (--mount type=tmpfs)                               │
+│    Armazenamento volátil gravado diretamente na RAM         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Ajuste Fino de Permissões de Volumes (SELinux, Chown e ID-Mapped)
+
+Quando trabalhamos com volumes montados do host (*bind mounts*), três técnicas resolvem problemas de permissão e segurança:
+
+- **Relabeling SELinux (`:z` e `:Z`)**:
+  - `:z` **(Compartilhado)**: Altera o rótulo SELinux do diretório no host para indicar que ele pode ser compartilhado por **múltiplos containers simultaneamente** (`container_file_t`).
+  - `:Z` **(Privado/Exclusivo)**: Altera o rótulo SELinux atribuindo uma categoria MCS única (ex: `s0:c10,c20`), garantindo que **apenas este container específico** consiga acessar a pasta no disco.
+- **Chowning Dinâmico (`:U`)**: Conforme validado na Sessão 3, aplica um `chown` recursivo automático na pasta do host para ajustá-la ao UID/GID que o container exige.
+- **Idmapped Mounts (`idmap`)**: Recurso moderno do Kernel Linux (5.12+) que realiza a tradução de UIDs/GIDs no próprio ponto de montagem do sistema de arquivos **sem alterar os metadados nem os arquivos reais gravados no disco**.
+
+#### Criação de Volumes como Unidades do Systemd
+
+O Podman permite definir e gerenciar volumes como serviços nativos do sistema operacional, garantindo que o volume seja montado, verificado e disponibilizado antes que o container dependente seja iniciado pelo systemd.
+
+### LAB 8: Transferência Air-Gapped com Skopeo e Permissões SELinux em Volumes
+
+#### Objetivos
+
+- Utilizar o **Skopeo** para inspecionar e transferir uma imagem entre o registro remoto e um arquivo `oci-archive` (simulando ambiente Air-Gapped).
+- Carregar a imagem a partir do arquivo para o storage local do Podman.
+- Testar os sufixos de montagem SELinux (`:z` e `:Z`) e observar o rótulo de contexto gerado pelo sistema no host.
+
+#### Passo a Passo
+
+**Etapa A: Inspeção e Exportação Offline com Skopeo**
+
+Inspecione remotamente a imagem do Nginx no registro `quay.io` sem fazer o download:
+
+```sh
+skopeo inspect docker://quay.io/quay/busybox
+```
+
+Exporte a imagem diretamente do registro remoto para um arquivo tarball no formato OCI (*Air-Gapped Export*):
+
+```sh
+skopeo copy docker://quay.io/quay/busybox oci-archive:busybox_offline.tar
+```
+
+Verifique o arquivo gerado no disco e sua estrutura:
+
+```sh
+ls -lh busybox_offline.tar
+```
+
+Importe a imagem do arquivo oci-archive para o armazenamento local do Podman utilizando o podman unshare para garantir o escopo correto do User Namespace:
+
+```sh
+podman unshare skopeo copy oci-archive:busybox_offline.tar containers-storage:localhost/busybox:offline
+```
+
+Alternativamente, é possível carregar o arquivo usando `podman load -i busybox_offline.tar`.
+
+> **NOTA**: Se tentar rodar o `skopeo copy` diretamente para `containers-storage:` sem o `podman unshare` em modo *rootless* retornará erro de permissão no unshare, pois o processo do Skopeo fora do namespace não tem acesso direto à pasta do usuário.
+
+Valide que a imagem está disponível no Podman local:
+
+```sh
+podman image ls | grep busybox
+```
+
+**Etapa B: Montagem de Volume com Relabeling SELinux (`:z` vs `:Z`)**
+
+Crie duas pastas no host para testar os contextos do SELinux:
+
+```sh
+cd labs/lab8
+mkdir -p ~/vol_compartilhado ~/vol_exclusivo
+```
+
+Execute um container montando a primeira pasta com a flag de compartilhamento :z:
+
+```sh
+podman run --rm -v ~/vol_compartilhado:/data1:z localhost/busybox:offline touch /data1/teste_comp.txt
+```
+
+Execute um container montando a segunda pasta com a flag de exclusividade :Z:
+
+```sh
+podman run --rm -v ~/vol_exclusivo:/data2:Z localhost/busybox:offline touch /data2/teste_excl.txt
+```
+
+Inspecione o contexto de segurança SELinux aplicado aos diretórios no host:
+
+```sh
+ls -Zd ~/vol_compartilhado ~/vol_exclusivo
+```
+
+#### Questões da Dinâmica - Lab 8
+
+- Na **Etapa A**, ao utilizar o `skopeo inspect`, precisávamos ter o pacote do Podman instalado ou executando na máquina para ler os metadados remotos?
+- Na **Etapa B**, qual a diferença observada no rótulo de segurança SELinux (coluna exibida pelo `ls -Zd`) entre a pasta montada com `:z` e a pasta montada com `:Z`?
+- Se você tentar montar a pasta `~/vol_exclusivo` (configurada com `:Z`) simultaneamente em dois containers ativos e independentes em um sistema com SELinux em modo *Enforcing*, o que acontecerá com o segundo container ao tentar acessar os arquivos?
+
+**Gabarito & Orientação Pedagógica**:
+
+- Resposta Esperada:
+  - Não. O Skopeo é um binário totalmente independente que conversa diretamente com a API HTTP de registros OCI e manipula arquivos de imagem sem depender de nenhum motor de container (como Podman ou Docker).
+  - A pasta montada com `:z` exibe o contexto genérico de container compartilhado (ex: `unconfined_u:object_r:container_file_t:s0`). A pasta montada com `:Z` exibe uma categoria MCS única e privada atribuída àquela execução (ex: `unconfined_u:object_r:container_file_t:s0:c102,c305`).
+  - O segundo container terá o acesso bloqueado pelo Kernel com o erro `Permission Denied` (ou erro de E/S), pois o rótulo MCS exclusivo criado pelo `:Z` restringe os arquivos apenas ao primeiro container para o qual a pasta foi rotulada.
+
+**Orientações Adicionais**:
+
+- O uso do Skopeo é o padrão da indústria para automação de CI/CD e gerenciamento de imagens em ambientes restritos (Zero Trust).
+- Destaque para a flag `:Z` que é um recurso crítico de segurança em servidores multi-tenant para impedir que containers vazem dados entre si em montagens de volumes.
+- Ao executar o comando `ls -Zd` se o ambiente for baseado em RHEL/Fedora, o console exibirá os contextos de segurança alterados do SELinux (ex: container_file_t). Caso o ambiente seja Ubuntu ou Debian (que não usam SELinux por padrão), o comando ls -Z retornará um ponto de interrogação (?).
+- As flags :z e :Z são transparentes e seguras: em sistemas com SELinux elas aplicam a proteção de rotulagem MCS automaticamente, enquanto em sistemas sem SELinux elas são ignoradas sem interromper o container.
 
 ## Sessão 6: Redes Avançadas: Netavark e pasta
+
+<<<ESTAMOS AQUI>>>
 
 Seguindo para a Sessão 6 na mesma estrutura com o Conteúdo Programático que segue:
 
