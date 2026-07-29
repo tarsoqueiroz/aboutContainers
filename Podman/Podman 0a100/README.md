@@ -1689,28 +1689,224 @@ ls -Zd ~/vol_compartilhado ~/vol_exclusivo
 
 ## Sessão 6: Redes Avançadas: Netavark e pasta
 
-<<<ESTAMOS AQUI>>>
+### REDE ROOTFUL (NETAVARK)
 
-Seguindo para a Sessão 6 na mesma estrutura com o Conteúdo Programático que segue:
+#### A Arquitetura da Stack Netavark
 
-Rede Rootful (Netavark):
+A partir da versão 4.0 do Podman, a antiga stack de rede baseada em plugins CNI (Container Network Interface) foi descontinuada e substituída por uma arquitetura nativa, moderna e extremamente performática escrita em Rust: o **Netavark**.
 
-  - A arquitetura da stack Netavark (configurações baseadas em arquivos).
-  - Criação de redes personalizadas vs. a rede padrão do sistema.
-  - Drivers de rede: `bridge`, `macvlan` e `ipvlan`.
-  - A camada de firewall: Integração com o `firewalld` e sobrevivência a reloads de regras do host.
-  - Isolamento estrito entre redes internas e resolução de nomes nativa com `aardvark-dns`.
-  - Configuração avançada: Dual Stack (IPv6), múltiplas redes anexadas e rotas estáticas.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ PODMAN ENGINE                                               │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ (Chamada JSON estandardizada)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ NETAVARK (Stack de Rede em Rust)                            │
+│                                                             │
+│  ├─ Configura Interfaces veth e Tabelas de Roteamento       │
+│  ├─ Gerencia Regras de Firewall (nftables / iptables)       │
+│  └─ Gera Configurações para o Aardvark-DNS                  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ AARDVARK-DNS (Servidor DNS em Rust)                         │
+│  └─ Resolução de Nomes por Nome de Container na mesma Rede  │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Rede Rootless de Alta Performance (pasta):
+- **Vantagens da Stack Netavark + Aardvark-DNS**:
+  - **Configuração Declarativa em Disco**: As redes são armazenadas em arquivos JSON legíveis no host (em `/etc/containers/networks/` para rootful e `~/.local/share/containers/storage/networks/` para rootless).
+  - **Menor Latência e Consumo de RAM**: Desenvolvido do zero em Rust, eliminando o overhead de interpretadores ou plugins legados em Go.
+  - **Gerenciamento Integrado de DNS**: O Aardvark-DNS escuta na interface da ponte de rede e fornece resolução DNS automática entre containers da mesma rede sem necessidade de arquivos `/etc/hosts` estáticos.
 
-  - Por que a ferramenta `pasta` substituiu o antigo `slirp4netns`.
-  - Mapeamento de pacotes e endereçamento IP: Como o container enxerga o endereço IP do host.
-  - Isolamento de containers sob `pasta` e acesso seguro ao host via `host.containers.internal`.
-  - Publicação de portas: Portas privilegiadas (abaixo de 1024), protocolos suportados (TCP, UDP, ICMP) e IP de bind padrão.
-  - Redes bridge rootless: O modelo padrão `rootlessport` vs. o experimental `pesto` (preservação do IP de origem).
+#### Criação de Redes Personalizadas vs. Rede Padrão
+
+O Podman vem com uma rede padrão chamada `podman` (ou `default`). No entanto, em ambientes corporativos de produção, utilizar redes personalizadas separadas é uma boa prática fundamental de segurança:
+
+- **Rede Padrão (`podman`)**: Funciona como uma rede catch-all. Containers anexados a ela não possuem resolução de nomes DNS automatizada por razões de segurança e isolamento histórico.
+- **Redes Personalizadas (`podman network create`)**: Ativam automaticamente o Aardvark-DNS, permitindo que containers se comuniquem utilizando seus próprios nomes (ex: `http://servico-db:5432`).
+
+#### Drivers de Rede: `bridge`, `macvlan` e `ipvlan`
+
+```text
+1. BRIDGE (Padrão)
+[Host] ──(Ponte Virtual podman0) ────────┬──► [Container A (10.88.0.2)]
+                                         └──► [Container B (10.88.0.3)]
+
+2. MACVLAN (IP do Roteador Físico)
+[Roteador/Switch Físico (192.168.1.1)] ──┬──► [Host (192.168.1.50)]
+                                         └──► [Container A (192.168.1.101) - MAC Próprio]
+
+3. IPVLAN (Mesmo MAC do Host)
+[Roteador/Switch Físico (192.168.1.1)] ──┬──► [Host (192.168.1.50) - MAC A]
+                                         └──► [Container A (192.168.1.102) - MAC A]
+```
+
+- `bridge` **(Padrão)**: Cria uma ponte virtual de software no host. Os containers recebem IPs de uma sub-rede interna privada e realizam NAT (Network Address Translation) para acessar a rede externa.
+- `macvlan`: Atribui um endereço MAC exclusivo e um IP diretamente da rede física do host ao container. O container se comporta como se estivesse fisicamente plugado no switch da rede corporativa.
+  - *Ressalva*: Por padrão no Linux, o Kernel impede que o host e o container sob `macvlan` se comuniquem diretamente entre si através da mesma interface física.
+- `ipvlan`: Similar ao macvlan, mas todos os containers compartilham o **mesmo endereço MAC** da interface física do host, variando apenas o endereço IP. Ideal para ambientes onde switches de rede corporativos bloqueiam portas com múltiplos MACs (*Port Security*).
+
+#### A Camada de Firewall (`firewalld` e `nftables`)
+
+O Netavark abstrai e gerencia nativamente as regras de firewall do host através de `nftables` ou `iptables`.
+
+- **Sobrevivência a Reloads do Host**: Em versões antigas (CNI), se o administrador rodasse `firewall-cmd --reload` ou reiniciasse o `firewalld`, todas as regras de encaminhamento e publicação de portas dos containers em execução eram apagadas do Kernel.
+- **Mecanismo de Auto-Healing do Netavark**: O Netavark escuta eventos do sistema ou restabelece automaticamente suas cadeias de tabelas (`netavark-forward`) quando detecta um reaquecimento das regras de firewall do host, garantindo alta disponibilidade.
+
+#### Isolamento Estrito e Resolução DNS Nativa (Aardvark-DNS)
+
+- **Isolamento entre Redes**: Por padrão, containers em redes personalizadas distintas (ex: `rede-frontend` e `rede-financeiro`) são totalmente isolados e não conseguem trocar pacotes entre si, mesmo estando no mesmo host físico.
+- **Resolução de Nomes Integrada**: O Aardvark-DNS atribui um servidor DNS interno na ponte de cada rede. Quando um container faz uma requisição para outro nome de container na mesma rede, o Aardvark-DNS responde instantaneamente com o IP interno atualizado.
+
+#### Configuração Avançada: Dual Stack (IPv6), Múltiplas Redes e Rotas Estáticas
+
+- **Dual Stack (IPv4/IPv6)**: O Netavark permite alocar sub-redes IPv6 nativas no momento da criação da rede:
+
+```sh
+podman network create --ipv6 --subnet 10.89.0.0/24 --subnet fd00:1234:5678:9abc::/64 rede-dual
+```
+
+- **Múltiplas Redes Anexadas**: Um único container pode ser conectado a múltiplas redes independentes (ex: atuar como uma proxy entre a rede pública e a rede interna de banco de dados) usando a flag `--network`:
+
+```sh
+podman run -d --network rede-front --network rede-back nginx
+```
+
+- **Rotas Estáticas**: É possível injetar rotas de rede estáticas diretamente dentro da tabela de roteamento dos containers via parâmetro `--route` na criação da rede.
+
+### REDE ROOTLESS DE ALTA PERFORMANCE (PASTA)
+
+#### Por que a ferramenta `pasta` substituiu o `slirp4netns`?
+
+Em ambientes Rootless, usuários comuns não podem criar interfaces de rede virtuais (`veth`) no Kernel do host sem autorização de `root`.
+
+- **O Passado (`slirp4netns`)**: Era o utilitário padrão para simular uma pilha de rede em espaço de usuário (user-space network stack). Funcionava adaptando todos os pacotes em sockets TCP/UDP locais, mas sofria com alto consumo de CPU e limitação de throughput (largura de banda reduzida).
+- **O Presente (`pasta` - parte do projeto passt)**: O `pasta` (Packets Adapter for Service Translation and Addressing) foi adotado como novo padrão no Podman.
+  - **Desempenho Muito Maior**: Reduz em até 80% o overhead de cópia de memória em RAM ao traduzir pacotes do namespace do usuário para o host.
+  - **Cópia Zero de Memória (*Zero-copy*)**: Mapeia os descritores de arquivo de sockets do namespace diretamente para o host.
+
+```text
+[Container Namespace (Rootless)]
+         │
+         ▼ (TAP device em User-Space)
+      [pasta]  ──► Copia direta de Sockets / Zero-copy
+         │
+         ▼
+[Host Network Namespace / Physical Interface]
+```
+
+#### Mapeamento de Pacotes e Endereçamento IP
+
+Uma das inovações do `pasta` é a forma como ele lida com a atribuição do endereço IP dentro do container rootless:
+
+- **Visibilidade do IP do Host**: Por padrão, o `pasta` copia e atribui o **mesmo endereço IP da interface ativa do host** (ou o endereço IP da interface de loopback) para dentro da interface do container.
+- **Sem Necessidade de Servidor DHCP**: O container não precisa rodar um cliente DHCP interno; a pilha `pasta` configura a interface `eth0` do container para refletir a topologia da máquina host.
+
+#### Accesso Seguro ao Host via `host.containers.internal`
+
+Quando uma aplicação rodando dentro de um container rootless precisa se comunicar com um serviço que está rodando diretamente no SO host (como um banco PostgreSQL escutando na máquina real):
+
+- O Podman adiciona automaticamente a entrada DNS `host.containers.internal` dentro do arquivo `/etc/hosts` do container.
+- Essa entrada resolve para o endereço de gateway da interface virtual do container (ou o IP da ponte do `pasta`), garantindo que a aplicação alcance o host de forma transparente e segura.
+
+#### Publicação de Portas e Suporte a Protocolos
+
+Quando publicamos uma porta em modo rootless (`podman run -p 8080:80`):
+
+- **Interceptação por `rootlessport` ou `pasta`**: Um processo daemon em espaço de usuário captura as conexões que chegam na porta `8080` do host e encaminha os dados diretamente para o socket do container.
+- **Protocolos Suportados**: Suporte completo a **TCP, UDP** e chamadas de eco **ICMP** (se liberado pelo `sysctl net.ipv4.ping_group_range`).
+- **IP de Bind Padrão**: Por padrão, a publicação escuta em todas as interfaces (0.0.0.0). Para restringir apenas ao tráfego local da máquina, especifique o IP explicitamente: `-p 127.0.0.1:8080:80`.
+
+#### Redes Bridge Rootless: `rootlessport` vs. `pesto`
+
+Por padrão, quando publicamos uma porta em modo rootless, a conexão passa pelo utilitário `rootlessport`.
+
+- **O Problema da Perda do IP de Origem**: Como o `rootlessport` intercepta o pacote no host e o retransmite em espaço de usuário para o container, o container enxerga todas as conexões como se estivessem vindo do IP do Gateway local (`127.0.0.1` ou `10.0.2.2`). As aplicações perdem a capacidade de ver o IP real do cliente externo.
+- **O Modelo `pesto` (Preservação de IP de Origem)**: Um backend experimental/moderno integrado ao Netavark que utiliza o recurso *socket-splicing* do Kernel Linux para repassar conexões preservando o IP de origem real do cliente (*Source IP*) mesmo dentro do ambiente rootless!
+
+### LAB 9: Redes Personalizadas Netavark e Comunicação via Aardvark-DNS
+
+#### Objetivos
+
+- Criar duas redes Netavark personalizadas e isoladas no Podman.
+- Demonstrar o isolamento estrito de tráfego entre containers de redes diferentes.
+- Testar a resolução de nomes nativa automatizada pelo **Aardvark-DNS** entre containers da mesma rede.
+
+#### Passo a Passo
+
+Crie duas redes virtuais independentes:
+
+```sh
+podman network create rede-frontend
+podman network create rede-backend
+```
+
+Valide as redes criadas e inspecione a estrutura dos arquivos gerados pelo Netavark:
+
+```sh
+podman network ls
+```
+
+Inicie um container web (Nginx) conectado exclusivamente à `rede-frontend`:
+
+```sh
+podman run -d --name web-app --network rede-frontend docker.io/library/nginx:alpine
+```
+
+Inicie um container cliente (Alpine) conectado à mesma `rede-frontend`:
+
+```sh
+podman run -d --name cliente-front --network rede-frontend docker.io/library/alpine:latest sleep 3600
+```
+
+Inicie outro container cliente (Alpine) conectado à `rede-backend` (isolada):
+
+```sh
+podman run -d --name cliente-back --network rede-backend docker.io/library/alpine:latest sleep 3600
+```
+
+**Teste de Sucesso DNS (Mesma Rede)**: Acesse o container `cliente-front` e faça um `ping` e requisição `curl` para o Nginx usando apenas o nome do container (`web-app`):
+
+```sh
+podman exec -it cliente-front ping -c 2 web-app
+```
+
+**Teste de Isolamento (Redes Distintas)**: Acesse o container cliente-back e tente comunicação com o web-app:
+
+```sh
+podman exec -it cliente-back ping -c 2 web-app
+```
+
+Limpeza dos containers e redes de teste:
+
+```sh
+podman rm -f web-app cliente-front cliente-back
+podman network rm rede-frontend rede-backend
+```
+
+#### Questões da Dinâmica - Lab 9
+
+- No **Passo 6**, qual foi o comportamento do comando `ping web-app` executado a partir do container `cliente-front`? Quem resolveu o nome `web-app` para o IP interno da rede?
+- No **Passo 7**, o que aconteceu quando o container `cliente-back` tentou alcançar o `web-app`? Por que isso ocorre?
+- Se um container precisar se comunicar com um serviço rodando na máquina host (fora de qualquer container), qual é o endereço DNS especial fornecido automaticamente pelo Podman que pode ser utilizado no código da aplicação?
+
+**Gabarito & Orientação Pedagógica**:
+
+- **Resposta Esperada**:
+  - O `ping` respondeu com sucesso apontando para o IP interno do container na sub-rede (ex: `10.89.1.2`). O responsável por resolver o nome do container para o endereço IP interno foi o serviço **Aardvark-DNS**, que escuta nativamente na interface de gateway da rede Netavark.
+  - O comando falhou com mensagem de erro de resolução de nome (`bad address 'web-app'`) ou tempo limite esgotado (*Timeout*). Isso ocorre porque as duas redes personalizadas são estritamente isoladas pelo Netavark/firewall e os registros do Aardvark-DNS de uma rede não vazam para a outra.
+  - O endereço DNS especial é `host.containers.internal`.
+
+**Orientação Adicional**:
+
+- A dupla Netavark + Aardvark-DNS resolve uma das maiores dores de cabeça do Docker legados (que exigia containers linkados ou plugins pesados). Este isolamento estrito por rede é a base para arquiteturas de segurança Zero Trust em microsserviços.
 
 ## Sessão 7: Segurança Avançada e Cadeia de Suprimentos
+
+<<<ESTAMOS AQUI>>>
 
 Seguindo para a Sessão 7 na mesma estrutura com o Conteúdo Programático que segue:
 
