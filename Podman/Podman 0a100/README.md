@@ -1848,6 +1848,9 @@ Valide as redes criadas e inspecione a estrutura dos arquivos gerados pelo Netav
 
 ```sh
 podman network ls
+
+podman inspect rede-backend
+podman inspect rede-frontend
 ```
 
 Inicie um container web (Nginx) conectado exclusivamente à `rede-frontend`:
@@ -1906,29 +1909,31 @@ podman network rm rede-frontend rede-backend
 
 ## Sessão 7: Segurança Avançada e Cadeia de Suprimentos
 
-<<<ESTAMOS AQUI>>>
 
-Seguindo para a Sessão 7 na mesma estrutura com o Conteúdo Programático que segue:
 
-Hardening do Container Runtime:
 
-  - O modelo de segurança baseado em camadas independentes.
-  - Remoção de privilégios desnecessários através de Capabilities.
-  - Restrição de chamadas de sistema (Seccomp) e separação de processos (SELinux).
-  - Sistemas de arquivos somente-leitura (`--read-only`) e proteção contra escalada de privilégios (`no-new-privileges`).
-  - Isolamento de dispositivos físicos e proteção de caminhos mascarados do sistema.
-  - O subsistema de segredos nativo do Podman.
-  - Hands-on: Construção de um checklist de hardening de containers do início ao fim.
 
-Segurança da Cadeia de Suprimentos (Supply Chain):
 
-  - Anatomia de uma política de confiança de imagem local (`policy.json`).
-  - Assinatura criptográfica com Sigstore (chaves estáticas, configuração em `registries.d`, assinatura no push e validação no pull).
-  - Esquema de assinatura legado baseado em GPG.
-  - Garantia de builds reprodutíveis e geração de SBOMs (Software Bill of Materials) em tempo de compilação.
-  - Gatilhos de varredura de vulnerabilidades (hooks) em pipelines de CI/CD.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Sessão 8: Orquestração Local com Systemd, Quadlet, Compose e Kubernetes
+
+<<<ESTAMOS AQUI>>>
 
 Seguindo para a Sessão 8 na mesma estrutura com o Conteúdo Programático que segue:
 
