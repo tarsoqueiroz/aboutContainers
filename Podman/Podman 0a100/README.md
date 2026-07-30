@@ -1909,27 +1909,313 @@ podman network rm rede-frontend rede-backend
 
 ## Sessão 7: Segurança Avançada e Cadeia de Suprimentos
 
+### HARDENING DO CONTAINER RUNTIME
 
+#### O Modelo de Segurança em Camadas Independentes (Defense-in-Depth)
 
+No Podman, a segurança não depende de um único mecanismo, mas de uma arquitetura de **Defesa em Profundidade (Defense-in-Depth)**. Se uma camada de segurança for violada por uma vulnerabilidade do tipo *Zero-Day*, as camadas subsequentes impedem a escalada de privilégios e o comprometimento do sistema operacional host.
 
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ 1. User Namespace (Mapeamento Rootless / UID Translation)   │
+├─────────────────────────────────────────────────────────────┤
+│ 2. Linux Capabilities (Dropping Perigosas: CAP_SYS_ADMIN)   │
+├─────────────────────────────────────────────────────────────┤
+│ 3. Seccomp Profile (Filtro de Syscalls no Kernel)           │
+├─────────────────────────────────────────────────────────────┤
+│ 4. SELinux / AppArmor (Controle de Acesso Mandatório - MCS) │
+├─────────────────────────────────────────────────────────────┤
+│ 5. Read-Only RootFS & No-New-Privileges (Bloqueio de SUID)  │
+└─────────────────────────────────────────────────────────────┘
+```
 
+#### Remoção de Privilégios via Capabilities
 
+Por padrão, o Kernel do Linux divide o poder absoluto do usuário `root` em 41 privilégios distintos chamados **Capabilities (`CAP_*`)**.
 
+- **Política Padrão do Podman**: O Podman revoga nativamente capacidades perigosas como `CAP_SYS_ADMIN` (montar sistemas de arquivos), `CAP_NET_ADMIN` (reconfigurar interfaces do host) e `CAP_SYS_RAWIO` (acesso direto à memória física).
+- **Princípio do Menor Privilégio (*Drop All*)**: Em ambientes corporativos de alto risco, a boa prática recomendada é revogar todas as capacidades e devolver apenas o estritamente necessário para a aplicação:
 
+```sh
+podman run --cap-drop=ALL --cap-add=NET_BIND_SERVICE ...
+```
 
+#### Seccomp e SELinux (Restrição de Syscalls e Processos)
 
+- **Seccomp (Secure Computing Mode)**: O Podman aplica um perfil JSON padrão que monitora e bloqueia mais de 40 chamadas de sistema (syscalls) consideradas perigosas para a estabilidade do Kernel (ex: `reboot`, `kexec_load`, `swapon`).
+- **SELinux (Multi-Category Security - MCS)**: Cada container ativado pelo Podman recebe uma categoria MCS dinâmica e exclusiva (ex: `c100`,`c200`). Mesmo que um processo consiga fugir das restrições de diretório, o SELinux no Kernel impede que ele leia ou escreva nos arquivos de outro container ou do sistema operacional do host.
 
+#### Sistemas de Arquivos Somente-Leitura e Proteção contra Escalada
 
+**RootFS Somente-Leitura (`--read-only`)**:
 
+Impede que invasores modifiquem executáveis, instalem malwares ou alterem arquivos de configuração dentro do container. O sistema de arquivos raiz vira *Read-Only*. Diretórios dinâmicos (como `/tmp` ou pastas de logs) devem ser montados temporariamente em memória RAM via `tmpfs`.
 
+```sh
+podman run -d \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  --tmpfs /var/run:rw,noexec,nosuid \
+  nginx:alpine
+```
 
+**Impede de Obter Novos Privilégios (`--security-opt no-new-privileges`)**:
 
+Bloqueia chamadas do tipo `execve` de elevarem privilégios via arquivos com bits SUID ou SGID ativos (como o comando `sudo` ou `passwd`). Garante que um processo nunca ganhe mais privilégios do que tinha na inicialização.
 
+#### Isolamento de Dispositivos e Caminhos Mascarados
 
+- **Caminhos Mascarados (Masked Paths)**: Por padrão, o Podman bloqueia o acesso e mascara pseudo-diretórios sensíveis do host dentro do container (como `/proc/kcore`, `/sys/firmware`, `/proc/sys`).
+- **Injeção Granular de Dispositivos (`--device`)**: Dispositivos físicos do host (como placas de vídeo GPU, leitores de cartão ou interfaces seriais) só ficam visíveis se passados explicitamente com permissões de E/S restritas:
 
+```sh
+podman run --device /dev/video0:/dev/video0:r ...
+```
 
+#### O Subsistema de Segredos Nativo do Podman (podman secret)
 
+Armazenar senhas, tokens ou chaves em variáveis de ambiente (`ENV`) é uma má prática, pois elas ficam visíveis no `podman inspect` e em logs de processos.
 
+O Podman possui um gerenciador de segredos encriptado e integrado ao motor:
+
+```sh
+# 1. Cria o segredo encriptado no armazenamento interno do Podman
+echo "SenhaSuperSegura123" | podman secret create db_password -
+
+# 2. Injeta o segredo montando em memória RAM (/run/secrets/) dentro do container
+podman run -d --secret db_password,type=mount,target=/run/secrets/db_pass postgres
+```
+
+### LAB 10: Construção de um Checklist de Hardening de Containers
+
+#### Objetivos
+
+- Criar e gerenciar um segredo corporativo seguro utilizando o `podman secret`.
+- Executar um container aplicando o checklist completo de hardening (`--read-only`, `--cap-drop=ALL`, `no-new-privileges`, `tmpfs`).
+- Validar a resistência do container contra tentativas de gravação de arquivos e elevação de privilégios.
+
+#### Passo a Passo
+
+Crie um segredo seguro no subsistema nativo do Podman:
+
+```sh
+echo "MinhaChaveDeAPIPrivate2026" | podman secret create api_key -
+```
+
+Valide a criação e inspecione os metadados do segredo (confirme que o conteúdo real **não vaza** na inspeção):
+
+```sh
+podman secret ls
+podman secret inspect api_key
+```
+
+Execute um container Nginx aplicando o Checklist de Hardening Completo:
+
+```sh
+podman run -d --name web-hardened \
+  --read-only \
+  --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
+  --cap-add=SETUID \
+  --cap-add=SETGID \
+  --cap-add=CHOWN \
+  --cap-add=DAC_OVERRIDE \
+  --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid \
+  --tmpfs /var/cache/nginx:rw,noexec,nosuid \
+  --tmpfs /var/run:rw,noexec,nosuid \
+  --secret api_key,type=mount,target=/tmp/api_key \
+  -p 8080:80 \
+  docker.io/library/nginx:alpine```
+```
+
+Teste de Resistência 1 (Injeção de Código/Gravação). Tente criar um arquivo na raiz do container endurecido:
+
+```sh
+podman exec -it web-hardened touch /malware.sh
+```
+
+> **Nota**: Aguarde o erro de Read-only file system.
+
+Teste de Leitura do Segredo Seguro: Inspecione o conteúdo do segredo injetado temporariamente em memória RAM dentro do container:
+
+```sh
+podman exec -it web-hardened cat /run/secrets/api_key
+```
+
+Limpeza do laboratório:
+
+```sh
+podman rm -f web-hardened
+podman secret rm api_key
+```
+
+#### Questões da Dinâmica - Lab 10
+
+- No **Passo 4**, qual foi a resposta do sistema ao tentar criar o arquivo `/malware.sh`? Qual parâmetro do comando `podman run` garantiu essa proteção?
+- Por que o container continuou funcionando normalmente na porta 8080 mesmo após removermos **todas** as capacidades do Kernel via `--cap-drop=ALL`?
+- Onde o arquivo contendo o segredo `api_key` fica fisicamente armazenado enquanto o container `web-hardened` está em execução?
+
+#### Gabarito & Orientação Pedagógica:
+
+- Resposta Esperada:
+  - O comando falhou com o erro `touch: /malware.sh: Read-only file system`. A proteção foi garantida pela flag `--read-only`.
+  - Porque devolvemos seletivamente a capacidade mínima necessária `--cap-add=NET_BIND_SERVICE`, que permite ao processo escutar em portas de rede sem precisar de qualquer outra permissão de administração no sistema.
+  - Ele fica armazenado em um sistema de arquivos do tipo **tmpfs** (memória RAM volátil) em `/run/secrets/api_key`. Ele nunca é gravado no disco não-volátil do container e desaparece assim que o processo encerra.
+
+### SEGURANÇA DA CADEIA DE SUPRIMENTOS (SUPPLY CHAIN)
+
+#### Política de Confiança de Imagem Local (`policy.json`)
+
+O arquivo `/etc/containers/policy.json` (ou `~/.config/containers/policy.json` no escopo do usuário) é o guardião final de segurança da infraestrutura. Ele define a **Política de Assinatura Criptográfica** para download e execução de imagens.
+
+```json
+{
+  "default": [
+    { "type": "insecureAcceptAlmostAnything" }
+  ],
+  "transports": {
+    "docker": {
+      "quay.io/empresa-critica": [
+        {
+          "type": "sigstoreSigned",
+          "keyPath": "/etc/pki/containers/empresa_pub.key"
+        }
+      ]
+    }
+  }
+}
+```
+
+Tipos de Decisão Suportados:
+
+- `insecureAcceptAlmostAnything`: Aceita qualquer imagem sem verificar assinatura (padrão em ambientes de desenvolvimento).
+- `reject`: Bloqueia categoricamente a execução de imagens de um registro especificado.
+- `sigstoreSigned`: Exige que a imagem possua uma assinatura válida gerada pelo padrão moderno **Sigstore / Cosign**.
+- `signedBy`: Exige validação via chave pública GPG legada.
+
+#### Assinatura Criptográfica com Sigstore e GPG
+
+A assinatura de imagens garante dois pilares de segurança:
+
+- **Autenticidade**: Prova quem construiu a imagem.
+- **Integridade**: Garante que a imagem não foi adulterada por terceiros no registro (Man-in-the-Middle).
+
+```text
+[Pipeline CI/CD] ──(Compila Imagem)──► [Chave Privada Sigstore/GPG] ──► Assina Manifesto
+                                                                                │
+                                                                                ▼
+[Podman no Host] ◄──(Lê policy.json)── [Valida com Chave Pública] ◄── [Registro OCI]
+```
+
+- **Assinatura no Push**: O Podman e o Skopeo conseguem assinar a imagem no exato momento do envio para o registro:
+
+```sh
+podman push --sign-by-sigstore-private-key ./minha_chave.key minha-app quay.io/empresa/app:v1
+```
+
+- **Configuração em `registries.d`**: Arquivos **YAML** dentro de `/etc/containers/registries.d/` definem onde os arquivos de assinatura estática ficam armazenados no servidor ou registro.
+
+#### Builds Reprodutíveis e SBOM (Software Bill of Materials)
+
+Em conformidade com normas modernas de segurança (como NIST e ISO 27001), as organizações devem saber exatamente cada biblioteca e pacote instalado dentro de uma imagem de produção.
+
+- **Builds Reprodutíveis**: Garantem que compilar o mesmo código-fonte em momentos diferentes gere exatamente o mesmo hash SHA256 de imagem.
+- **SBOM (Software Bill of Materials)**: É um inventário estruturado (formato CycloneDX ou SPDX) gerado durante o build que lista todas as dependências, licenças e versões de pacotes do software.
+- **Geração de SBOM com Syft e Podman**:
+
+```sh
+syft localhost/app-segura:v1 -o cyclonedx-json > sbom.json
+```
+
+#### Gatilhos de Varredura de Vulnerabilidades (Hooks em CI/CD)
+
+A segurança do Supply Chain exige a interrupção automática do pipeline se uma imagem contiver vulnerabilidades críticas (**CVEs** com pontuação CVSS elevada).
+
+- Integração de Scanners (Trivy / Clair / Grype):
+
+```sh
+# Varre a imagem local e falha o pipeline se encontrar vulnerabilidades CRITICAL
+trivy image --severity CRITICAL --exit-code 1 localhost/app-segura:v1
+```
+
+### LAB 11: Bloqueio de Imagens Não Assinadas via policy.json
+
+#### Objetivos
+
+- Configurar uma política rígida de segurança de imagens em `policy.json` no escopo do usuário.
+- Definir uma regra que bloqueia categoricamente o download/execução de qualquer imagem do registro `docker.io` que não esteja assinada.
+- Testar a reação do Podman ao tentar baixar uma imagem não assinada sob essa política.
+
+#### Passo a Passo
+
+Crie o diretório de configuração do usuário (se ainda não existir):
+
+```sh
+mkdir -p ~/.config/containers
+```
+
+Crie uma política de segurança restritiva em `~/.config/containers/policy.json`:
+
+```sh
+nano ~/.config/containers/policy.json
+```
+
+Cole o seguinte arquivo JSON de política (bloqueia o `docker.io` exigindo rejeição de não-assinados e aceita apenas locais):
+
+```json
+{
+  "default": [
+    {
+      "type": "insecureAcceptAnything"
+    }
+  ],
+  "transports": {
+    "docker": {
+      "docker.io": [
+        {
+          "type": "reject"
+        }
+      ]
+    }
+  }
+}
+```
+
+Tente baixar qualquer imagem vinda do `docker.io` para testar a aplicação da política:
+
+```sh
+podman pull docker.io/library/hello-world:latest
+```
+
+> **Nota**: Observe o bloqueio imediato executado pelo motor de segurança do Podman.
+
+Teste o pull de uma imagem local ou de outro transporte não bloqueado para confirmar a seletividade da política (ex: quay.io):
+
+```sh
+podman pull quay.io/podman/hello:latest
+```
+
+**Restauração da Política**: Remova a política de teste para restaurar o comportamento padrão ao final do exercício:
+
+```sh
+rm -f ~/.config/containers/policy.json
+```
+
+#### Questões da Dinâmica - Lab 11
+
+- No **Passo 4**, qual foi a mensagem exata de erro retornada pelo Podman ao tentar executar o `podman pull`?
+- Em um ambiente corporativo de produção do tipo *Zero Trust*, qual deve ser a regra configurada no bloco `"default"` do arquivo `policy.json` do servidor?
+
+**Gabarito & Orientação Pedagógica**:
+
+- **Resposta Esperada**:
+  - A execução falhou com a mensagem: `Error: Source image rejected: Source image "docker.io/library/hello-world:latest" is rejected by policy` (ou erro similar de rejeição por política).
+  - No ambiente corporativo Zero Trust, o bloco `"default"` deve ser configurado como `[{"type": "reject"}]`. Isso garante que nenhuma imagem de nenhum registro no mundo possa ser baixada ou executada no servidor, a menos que o registro e a sua chave pública de assinatura estejam explicitamente autorizados na seção `"transports"`.
+
+**Orientação Adicional**:
+
+- O `policy.json` é uma das ferramentas mais subestimadas do Podman. Ele previne que desenvolvedores ou automações baixem imagens maliciosas da internet diretamente em servidores de staging/produção sem passar pela aprovação do time de SecOps.
 
 ## Sessão 8: Orquestração Local com Systemd, Quadlet, Compose e Kubernetes
 

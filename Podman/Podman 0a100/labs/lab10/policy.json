@@ -1,0 +1,16 @@
+{
+  "default": [
+    {
+      "type": "insecureAcceptAnything"
+    }
+  ],
+  "transports": {
+    "docker": {
+      "docker.io": [
+        {
+          "type": "reject"
+        }
+      ]
+    }
+  }
+}
