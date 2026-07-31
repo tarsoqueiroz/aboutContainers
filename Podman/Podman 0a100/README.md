@@ -2219,29 +2219,528 @@ rm -f ~/.config/containers/policy.json
 
 ## Sessão 8: Orquestração Local com Systemd, Quadlet, Compose e Kubernetes
 
-<<<ESTAMOS AQUI>>>
+### A REVOLUÇÃO DO QUADLET (`systemd-native`)
 
-Seguindo para a Sessão 8 na mesma estrutura com o Conteúdo Programático que segue:
+#### Por que o systemd é o orquestrador ideal para Edge e Servidores Únicos?
 
-A Revolução do Quadlet (systemd-native):
+Em ambientes de **Edge Computing** (dispositivos IoT, filiais, gateways) ou servidores únicos, rodar orquestradores complexos como Kubernetes/K3s gera um consumo excessivo de CPU e memória RAM.
 
-  - Por que o systemd é o orquestrador ideal para infraestruturas de borda (edge) e servidores únicos.
-  - O funcionamento do gerador de arquivos Quadlet.
-  - Os tipos de arquivos suportados: `.container`, `.pod`, `.volume`, `.network`, `.image`, `.build`, `.artifact` e `.kube`.
-  - Depuração de geração de arquivos e uso de templates/instâncias do systemd.
-  - Atualizações automáticas integradas com reversão em caso de falha (Auto-update with rollback).
+O **systemd** já é o gerenciador de sistema nativo em quase todas as distribuições Linux. Usá-lo como orquestrador traz vantagens diretas:
 
-Pods, Compose e APIs de Compatibilidade:
+- **Custo Zero de CPU/RAM**: Sem daemons de orquestração adicionais consumindo recursos.
+- **Observabilidade Unificada**: Logs centralizados via `journalctl` (sistema + container no mesmo lugar).
+- **Gerenciamento de Ciclo de Vida**: Controle estrito de dependências (`Requires=, After=`), reinicialização automática e limites de recursos via cgroups.
 
-  - O modelo de Pods no Podman: O papel do container de infraestrutura (infra container), redes compartilhadas e recursos do pod.
-  - Ativação de sockets sob demanda via systemd para a API de compatibilidade do Docker.
-  - Compatibilidade com Docker Compose: Uso do utilitário `podman-compose` vs. Docker Compose nativo apontando para o socket do Podman.
+#### Como Funciona o Gerador de Arquivos Quadlet
 
-Integração e Portabilidade Kubernetes:
+O Quadlet não gera arquivos de serviço estáticos gravados em disco permanente. Ele atua como um **systemd generator**:
 
-  - Geração de manifests declarativos Kubernetes a partir de pods locais via `podman kube generate`.
-  - Execução de manifests do Kubernetes localmente sem cluster usando `podman kube play` (limitações de fidelidade de campos, mapeamento de volumes, ConfigMaps e Secrets).
-  - Uso de unidades `.kube` no Quadlet: Rodando arquivos YAML declarativos diretamente sob o controle do systemd.
+```text
+[ Arquivo Declarativo ]  --->  [ systemd-generator ]  --->  [ Unidade em RAM ]
+~/.config/containers/          (Executado no boot ou          /run/systemd/generator/
+ systemd/meu-app.container     daemon-reload)                 meu-app.service
+```
+
+Diretórios Padrão do Quadlet:
+
+- **System-wide (Root)**: `/etc/containers/systemd/` ou `/usr/share/containers/systemd/`
+- **Rootless (Por Usuário)**: `~/.config/containers/systemd/`
+
+#### Tipos de Arquivos Suportados pelo Quadlet
+
+O Quadlet lê arquivos com extensões específicas dentro do diretório do systemd:
+
+| Extensão | Função no Quadlet | Comando Podman Equivalente |
+| :------: | :---------------- | :------------------------- |
+| `.container` | Define e executa um container individual.             | `podman run`            |
+| `.pod`       | Grupo de containers compartilhando rede e namespaces. | `podman pod create`     |
+| `.volume`    | Criação e gerenciamento de volumes persistentes.      | `podman volume create`  |
+| `.network`   | Criação de redes customizadas CNI/Netavark.           | `podman network create` |
+| `.image`     | Garante o download/build de imagens de container.     | `podman pull`           |
+| `.build`     | Compilação de imagens via Containerfile.              | `podman build`          |
+| `.artifact`  | Gerenciamento de artefatos de OCI registry.           | `podman artifact`       |
+| `.kube`      | Execução direta de manifests YAML do Kubernetes.      | `podman kube play`      |
+
+#### Estrutura de um Arquivo `.container`
+
+A estrutura básica é composta por seções do systemd e uma seção dedicada do Quadlet (`[Container]`):
+
+```ini
+[Unit]
+Description=Servidor Web Nginx
+After=network-online.target
+
+[Container]
+Image=docker.io/library/nginx:alpine
+PublishPort=8080:80
+Exec=nginx -g "daemon off;"
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
+```
+
+#### Depuração de Geração de Arquivos e Templates
+
+**Como Depurar**:
+
+Para verificar como o Quadlet traduzirá seus arquivos para o formato nativo do systemd sem precisar rodar o serviço, utiliza-se a ferramenta interna do Quadlet:
+
+- **Modo Usuário (Rootless)**:
+
+```sh
+/usr/libexec/podman/quadlet -user -dryrun
+```
+
+- **Modo Root**:
+
+```sh
+/usr/libexec/podman/quadlet -dryrun
+```
+
+**Instâncias e Templates do systemd (`service@.service`)**:
+
+O Quadlet suporta parametrização usando templates do systemd. Por exemplo, ao criar um arquivo `app@.container`, é possível subir múltiplas instâncias dinâmicas (`app@1, app@2`) alterando variáveis com `%i`.
+
+#### Atualizações Automáticas e Rollback (`Auto-update with rollback`)
+
+O Podman possui integração nativa com atualizações de imagem via Quadlet usando a chave `AutoUpdate`:
+
+- `AutoUpdate=registry`: O Podman verifica no registro por novas tags/hashes de imagem.
+- `AutoUpdate=local`: Atualiza quando uma nova imagem local for compilada.
+
+**Como Funciona o Auto-Update via systemd**:
+
+- O timer do systemd `podman-auto-update.timer` executa periodicamente o serviço `podman-auto-update.service`.
+- Se houver uma nova versão da imagem, o Podman baixa a imagem e recria o container.
+- Se o container possuir um **Healthcheck** configurado e o novo container falhar na checagem de saúde, o Podman faz o **rollback automático** para a versão da imagem anterior!
+
+### LAB 12: Criando e Gerenciando Serviços via Quadlet
+
+**Vamos executar o passo a passo no seu ambiente rootless**.
+
+Preparar o Diretório do Quadlet:
+
+```sh
+mkdir -p ~/.config/containers/systemd/
+```
+
+Criar o Arquivo `.container`:
+
+Crie o arquivo ~/.config/containers/systemd/web-quadlet.container:
+
+```ini
+[Unit]
+Description=Servidor Nginx via Quadlet
+After=network-online.target
+
+[Container]
+Image=docker.io/library/nginx:alpine
+PublishPort=8085:80
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
+```
+
+Testar o Dry-Run do Quadlet:
+
+Execute o comando de depuração para ver a unidade do systemd compilada:
+
+```sh
+/usr/libexec/podman/quadlet -user -dryrun
+```
+
+Notificar o systemd e Iniciar o Serviço
+
+```sh
+systemctl --user daemon-reload
+systemctl --user start web-quadlet
+```
+
+Verifique o status do serviço:
+
+```sh
+systemctl --user status web-quadlet.service 
+podman container ls -a
+```
+
+Criar o arquivo declarativo `.volume`:
+
+Crie o arquivo `~/.config/containers/systemd/meu-dados.volume` com o seguinte conteúdo:
+
+```ini
+[Unit]
+Description=Volume Persistente para Dados do Servidor Web
+
+[Volume]
+VolumeName=meu-dados
+```
+
+Notificar o systemd sobre o novo arquivo:
+
+```sh
+systemctl --user daemon-reload
+```
+
+Iniciar a unidade gerada para o volume:
+
+```sh
+systemctl --user start meu-dados-volume
+```
+
+Verificar se o volume foi criado no Podman:
+
+```sh
+podman volume ls
+```
+
+**Conectando o Volume ao Container**.
+
+Edite o arquivo ~/.config/containers/systemd/web-quadlet.container e adicione a linha do volume dentro da seção [Container]:
+
+```ini
+[Unit]
+Description=Servidor Nginx via Quadlet
+After=network-online.target
+
+[Container]
+Image=docker.io/library/nginx:alpine
+PublishPort=8910:80
+Volume=meu-dados.volume:/usr/share/nginx/html:ro
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
+```
+
+Atualize o daemon do systemd e reinicie o serviço do container:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user restart web-quadlet
+```
+
+Qual comando do Podman você pode usar agora para inspecionar o container systemd-web-quadlet e confirmar que o volume meu-dados foi montado corretamente em /usr/share/nginx/html? 
+
+```sh
+podman container inspect systemd-web-quadlet
+```
+
+**Atualizações Automáticas com Auto-Update no Quadlet**.
+
+Verificar a flag no arquivo do container:
+
+Confirme que a diretiva `AutoUpdate=registry` está presente no seu arquivo `~/.config/containers/systemd/web-quadlet.container`.
+
+Executar a simulação de atualização:
+
+Para testar como o Podman se comporta ao procurar por atualizações sem aplicar alterações reais, executamos a checagem em modo --dry-run.
+
+```sh
+podman auto-update --dry-run
+```
+
+**Automação via Timer do systemd**.
+
+O Podman se integra ao systemd através de um Timer que executa essa checagem periodicamente. Para verificar se o timer de atualização automática está ativo no seu usuário, execute:
+
+```sh
+systemctl --user status podman-auto-update.timer
+```
+
+Habilitar e Iniciar o Timer do Usuário:
+
+Usaremos a flag --now para realizar duas ações de uma só vez: habilitar (garantindo que o timer inicie nos próximos boots/sessões) e iniciar a execução imediata.
+
+```sh
+systemctl --user enable --now podman-auto-update.timer
+```
+
+Confirmar o Status do Timer:
+
+Para validar que o timer está ativo e agendado, verifique o status novamente.
+
+```sh
+systemctl --user status podman-auto-update.timer
+```
+
+Qual comando do systemctl você pode usar para ver a lista de todos os timers ativos do seu usuário e conferir exatamente quando a próxima execução do podman-auto-update acontecerá?
+
+```sh
+systemctl --user list-timers
+```
+
+#### O Mecanismo de Rollback (Reversão Automática)
+
+Para fechar com chave de ouro, vale destacar como o Podman garante a alta disponibilidade:
+
+- **Healthcheck**: No arquivo `.container`, você pode definir um teste de saúde (ex: `HealthCmd=curl -f http://localhost:80/ || exit 1`).
+- **Atualização**: Quando o `podman-auto-update` baixa uma nova versão da imagem, ele tenta subir o novo container.
+- **Falha & Rollback**: Se o *healthcheck* falhar após o número de tentativas configuradas, o Podman **cancela a atualização e reverte automaticamente** para a imagem anterior que estava funcionando!
+
+#### Resumo do Módulo 1 Concluído
+
+- **Quadlet Generator**: Arquivos declarativos simples convertidos em unidades nativas do systemd em memória.
+- **Tipos de Arquivos**: `.container`, `.volume`, `.network`, `.pod`, `.kube`, etc.
+- **Depuração**: `/usr/libexec/podman/quadlet -user -dryrun` para auditar a conversão.
+- **Auto-update**: Integração nativa com `podman-auto-update.timer` e suporte a rollback.
+
+### PODS, COMPOSE E APIs DE COMPATIBILIDADE
+
+#### O Modelo de Pods no Podman
+
+Diferente do Docker tradicional, o Podman suporta o conceito de **Pod** nativamente (herdado da arquitetura do Kubernetes). Um Pod é um grupo de um ou mais containers que compartilham os mesmos recursos de sistema.
+
+```text
++-------------------------------------------------------------------+
+|                            POD                                    |
+|                                                                   |
+|  +-------------------+  +-----------------+  +-----------------+  |
+|  | Container Infra   |  | Container App 1 |  | Container App 2 |  |
+|  | (Pause Container) |  | (ex: Nginx)     |  | (ex: App Node)  |  |
+|  +-------------------+  +-----------------+  +-----------------+  |
+|            |                     |                    |           |
+|            +---------------------+--------------------+           |
+|                                  |                                |
+|             Compartilham: Redes (localhost), IPC,                 |
+|             Volumes e Limites de cgroups                          |
++-------------------------------------------------------------------+
+```
+
+- **Container de Infraestrutura (`infra container` / `pause`)**: É o primeiro container criado ao subir um Pod. Ele segura os namespaces do Linux (como o namespace de rede) e os limites de cgroups ativos. Se os containers de aplicação caírem ou forem reiniciados, o IP e as portas do Pod permanecem intactos por causa do infra container.
+- **Redes Compartilhadas**: Todos os containers dentro do mesmo Pod se comunicam via `localhost`. Se o `App 1` roda na porta `8080`, o `App 2` pode acessá-lo fazendo requisições diretas para `localhost:8080`.
+- **Recursos Unificados**: Limites de CPU e memória aplicados ao Pod são compartilhados entre todos os seus containers.
+
+#### Ativação de Sockets sob Demanda via systemd (Socket Activation)
+
+O Podman é daemonless (não possui um serviço rodando o tempo todo em segundo plano consumindo memória). No entanto, para oferecer compatibilidade com ferramentas que dependem da API do Docker (como ferramentas de CI/CD ou o próprio Docker Compose), o Podman utiliza a **ativação por socket do systemd**.
+
+- **Funcionamento**: O socket do systemd escuta as conexões (ex: `/run/user/1000/podman/podman.sock`). O processo do serviço do Podman só é iniciado na memória quando uma requisição chega a esse socket. Se ficar ocioso, ele desliga automaticamente.
+- **Ativação no usuário (Rootless)**:
+
+```sh
+systemctl --user enable --now podman.socket
+```
+
+#### Compatibilidade com Docker Compose
+
+Existem duas abordagens principais para rodar projetos baseados em arquivos docker-compose.yml no ambiente Podman:
+
+| Abordagem | Funcionamento | Vantagens |
+| :-------- | :------------ | :-------- |
+| `podman-compose`        |  Utilitário em Python que traduz o YAML diretamente em comandos `podman run` ou `podman pod create`. | Não precisa do socket ativo; roda 100% nativo sem daemons. |
+| `docker-compose` nativo | O binário oficial do Docker Compose redirecionado para o socket da API do Podman via variável `DOCKER_HOST`. | Alta fidelidade e compatibilidade completa com recursos avançados do Compose original. |
+
+### LAB 13: Criando Pods e Trabalhando com a API de Socket
+
+Vamos praticar esses conceitos no seu ambiente Rootless!
+
+**Criar um Pod com Port Forwarding**:
+
+Vamos criar um Pod chamado `meu-pod` mapeando a porta `8080` do host para a porta `80` do Pod:
+
+```sh
+podman pod create --name meu-pod -p 8080:80
+```
+
+**Adicionar um Container dentro do Pod**:
+
+Agora adicionamos um container Nginx apontando para dentro do `meu-pod`:
+
+```sh
+podman run -d --pod meu-pod --name web-app docker.io/library/nginx:alpine
+```
+
+**Ativar o Socket do Podman para Compatibilidade**:
+
+Para permitir que utilitários externos usem a API do Docker/Podman, ative o socket no nível do seu usuário:
+
+```sh
+systemctl --user enable --now podman.socket
+```
+
+**Testar a Comunicação via Socket**:
+
+Verifique se a variável `DOCKER_HOST` pode se comunicar com o socket do Podman:
+
+```sh
+export DOCKER_HOST="unix://$XDG_RUNTIME_DIR/podman/podman.sock"
+podman --remote info
+# ou
+curl --unix-socket $XDG_RUNTIME_DIR/podman/podman.sock http://d/v4.0.0/libpod/info | jq .
+```
+
+Execute o Passo 1 e o Passo 2 no seu terminal. Depois de rodar os comandos, qual é a saída exibida ao listar os pods com podman pod ls?
+
+```text
+CONTAINER ID  IMAGE                           COMMAND               CREATED        STATUS        PORTS                 NAMES
+88e4cb2c3c46  localhost/podman-pause:4.9.3-0                        5 minutes ago  Up 4 minutes  0.0.0.0:8910->80/tcp  0669f8ec023e-infra
+75102efab077  docker.io/library/nginx:alpine  nginx -g daemon o...  4 minutes ago  Up 4 minutes  0.0.0.0:8910->80/tcp  web-app
+```
+
+### LAB 14: Executando um Projeto Compose no Podman
+
+Vamos testar a execução de um stack simples (docker-compose.yml) utilizando a variável DOCKER_HOST.
+
+**Definir a variável de ambiente DOCKER_HOST**:
+
+Configure a variável para apontar diretamente para o socket do seu usuário:
+
+```sh
+export DOCKER_HOST="unix:///run/user/823/podman/podman.sock"
+```
+
+**Criar um arquivo docker-compose.yml de teste**:
+
+Crie um diretório de teste e um arquivo simples:
+
+```sh
+mkdir -p lab14 && cd lab14
+
+cat <<'EOF' > docker-compose.yml
+version: '3.8'
+services:
+  web:
+    image: docker.io/library/nginx:alpine
+    ports:
+      - "8765:80"
+EOF
+```
+
+**Subir a aplicação**:
+
+Se você tiver o docker-compose ou o plugin docker compose instalado, execute:
+
+```sh
+docker-compose up -d
+```
+
+> **NOTA**: Caso não tenha o docker-compose instalado, você pode usar podman-compose up -d sem a necessidade de exportar a variável.
+
+Qual utilitário do Compose (docker-compose ou podman-compose) você tem disponível no seu terminal para testar esse projeto? 
+
+```sh
+podman compose up -d
+podman container ls -a
+```
+
+### INTEGRAÇÃO E PORTABILIDADE KUBERNETES
+
+#### Exportando para Kubernetes (`podman kube generate`)
+
+O Podman permite extrair o estado atual de um Pod local e transformá-lo diretamente em um **manifesto YAML declarativo do Kubernetes**:
+
+- **Comando**: `podman kube generate <nome-do-pod-ou-container>`
+- **Resultado**: Gera um arquivo com especificação nativa `Kind: Pod` ou `Kind: Deployment` pronta para ser aplicada em qualquer cluster Kubernetes produtivo (`kubectl apply -f`).
+
+#### Executando YAMLs do Kubernetes Localmente (`podman kube play`)
+
+Você também pode fazer o caminho inverso: pegar um manifesto YAML do Kubernetes e rodá-lo localmente via Podman sem ter o Kubernetes instalado:
+
+- **Comando**: `podman kube play arquivo.yaml`
+- **Recursos Suportados**:
+  - **ConfigMaps**: Injeção de variáveis de ambiente e arquivos de configuração.
+  - **Secrets**: Manipulação segura de credenciais.
+  - **PersistentVolumeClaims (PVC)**: Mapeamento de volumes persistentes locais.
+- **Limitações de Fidelidade**: O Podman ignora campos específicos de controle de cluster do K8s (como `nodeSelector`, `tolerations`, `ingressController` ou políticas avançadas de RBAC).
+
+#### Unidades `.kube` no Quadlet
+
+O Quadlet possui suporte nativo a arquivos `.kube`. Isso permite colocar um arquivo YAML do Kubernetes dentro da pasta do Quadlet e deixar que o **systemd** gerencie a execução do YAML via `podman kube play` como um serviço do sistema!
+
+```ini
+[Unit]
+Description=Aplicação Kubernetes gerenciada pelo systemd
+
+[Kube]
+Yaml=meu-app-k8s.yaml
+
+[Install]
+WantedBy=default.target
+```
+
+### LAB 16: Exportando e Executando Manifestos Kubernetes
+
+Vamos testar esse fluxo completo no seu ambiente!
+
+**Exportar o meu-pod para um Manifesto Kubernetes**:
+
+No Módulo 2, criamos o pod meu-pod. Vamos exportar a definição dele para um arquivo YAML chamado pod-exportado.yaml:
+
+```sh
+podman kube generate meu-pod > pod-exportado.yaml
+```
+
+Execute esse comando no seu terminal e visualize o conteúdo gerado com cat pod-exportado.yaml. O que você observa na estrutura do arquivo gerado?
+
+- Por padrão, o comando podman kube generate traduz o Pod local do Podman diretamente para um manifesto Kubernetes com a propriedade kind: Pod.
+
+**Vamos testar a execução declarativa nativa do Kubernetes**?
+
+Agora faremos o processo inverso: usaremos o podman kube play para ler esse manifesto YAML e subir uma nova instância do Pod localmente, como se o Podman fosse um mini-cluster Kubernetes.
+
+Antes de rodar, vamos alterar o manifesto do Pod para um nome e porta disponível0 para evitar conflitos.
+
+Em seguida, execute o comando para rodar o manifesto:
+
+```sh
+podman kube play pod-exportado.yaml
+```
+
+Após executar esses dois comandos, qual é o retorno do podman kube play no seu terminal e o que aparece ao listar os pods com podman pod ls?
+
+### LAB 17: Automatizando YAMLs do Kubernetes com Quadlet (`.kube`)
+
+Mover/Copiar o arquivo YAML para o diretório do Quadlet
+
+O Quadlet precisa conseguir ler o arquivo YAML. Vamos colocá-lo no mesmo diretório do systemd do seu usuário:
+
+```sh
+cp pod-web-app.yaml ~/.config/containers/systemd/
+```
+
+Criar o arquivo .kube do Quadlet em `~/.config/containers/systemd/meu-app-k8s.kube`:
+
+```ini
+[Unit]
+Description=Serviço Kubernetes via Quadlet
+After=network-online.target
+
+[Kube]
+Yaml=pod-web-app.yaml
+
+[Install]
+WantedBy=default.target
+```
+
+Limpar o Pod antigo do teste anterior
+
+Para evitar conflito na porta 8998, destrua o Pod rodando via podman kube play:
+
+```sh
+podman kube down pod-web-app.yaml
+```
+
+Notificar o systemd e Iniciar o Serviço
+
+```sh
+systemctl --user daemon-reload
+systemctl --user start meu-app-k8s
+```
+
+Execute esses passos no seu terminal e verifique o status do serviço com systemctl --user status meu-app-k8s. Qual foi o resultado retornado pelo systemd? 
+
+### Continuar daqui...
 
 Comparativo de Arquiteturas:
 

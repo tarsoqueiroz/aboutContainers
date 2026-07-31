@@ -1,0 +1,9 @@
+[Unit]
+Description=Serviço Kubernetes via Quadlet
+After=network-online.target
+
+[Kube]
+Yaml=pod-web-app.yaml
+
+[Install]
+WantedBy=default.target
