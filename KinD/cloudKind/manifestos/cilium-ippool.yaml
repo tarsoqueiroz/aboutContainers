@@ -1,0 +1,9 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: control-plane-pool
+  namespace: kube-system
+spec:
+  blocks:
+    - start: "172.18.0.2"
+      stop: "172.18.0.2"

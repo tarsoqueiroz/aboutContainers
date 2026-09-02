@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubernetes-dashboard
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-user-token
+  namespace: kubernetes-dashboard
+  annotations:
+    kubernetes.io/service-account.name: admin-user
+type: kubernetes.io/service-account-token
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-dashboard-web
+  namespace: kubernetes-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes-dashboard-web
+  template:
+    metadata:
+      labels:
+        app: kubernetes-dashboard-web
+    spec:
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "app"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: kubernetes-dashboard-web
+        image: kubernetesui/dashboard-web:v3.0.0
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "125m"
+          limits:
+            memory: "64Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-dashboard-web
+  namespace: kubernetes-dashboard
+spec:
+  ports:
+  - port: 8000
+    targetPort: 8000
+  selector:
+    app: kubernetes-dashboard-web
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: kubernetes-dashboard-route
+  namespace: kubernetes-dashboard
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: kube-system
+  hostnames:
+    - "dashboard.0a0f122c.nip.io"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: kubernetes-dashboard-web
+          port: 8000

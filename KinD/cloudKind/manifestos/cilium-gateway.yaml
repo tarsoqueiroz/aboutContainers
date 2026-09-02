@@ -1,0 +1,48 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: kube-system
+  annotations:
+    io.cilium/lb-ipam-ips: "172.18.0.2"
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http-80
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-443
+      protocol: HTTPS
+      port: 443
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: gateway-tls-cert
+    - name: http-8080
+      protocol: HTTP
+      port: 8080
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-8443
+      protocol: HTTPS
+      port: 8443
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: gateway-tls-cert
+    - name: grpc-9090
+      protocol: HTTP
+      port: 9090
+      allowedRoutes:
+        namespaces:
+          from: All

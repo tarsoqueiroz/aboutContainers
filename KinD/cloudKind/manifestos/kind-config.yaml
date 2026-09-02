@@ -1,0 +1,60 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true          # Desativa o Kindnet para permitir a instalação do Cilium
+  kubeProxyMode: "none"             # Desativa o Kube-Proxy (Cilium usará eBPF nativo)
+nodes:
+  # --- CONTROL-PLANE (Gerenciamento + Ponto de Entrada / Gateway) ---
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+      - containerPort: 8080
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 8443
+        hostPort: 8443
+        protocol: TCP
+      - containerPort: 9090
+        hostPort: 9090
+        protocol: TCP
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            system-reserved: "cpu=1000m,memory=1024Mi"
+
+  # --- WORKER 1 ---
+  - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            register-with-taints: "workload=app:NoSchedule"
+            system-reserved: "cpu=2000m,memory=4096Mi"
+
+  # --- WORKER 2 ---
+  - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            register-with-taints: "workload=app:NoSchedule"
+            system-reserved: "cpu=2000m,memory=4096Mi"
+
+  # --- WORKER 3 ---
+  - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            register-with-taints: "workload=app:NoSchedule"
+            system-reserved: "cpu=2000m,memory=4096Mi"

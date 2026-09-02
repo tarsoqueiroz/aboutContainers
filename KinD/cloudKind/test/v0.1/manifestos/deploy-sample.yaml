@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-exemplo
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-exemplo
+  template:
+    metadata:
+      labels:
+        app: app-exemplo
+    spec:
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "app"
+        effect: "NoSchedule"
+      nodeSelector:
+        kubernetes.io/role: worker
+      containers:
+      - name: web
+        image: nginx
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "125m"
+          limits:
+            memory: "64Mi"
+            cpu: "250m"
