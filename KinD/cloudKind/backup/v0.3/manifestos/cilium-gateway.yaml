@@ -1,0 +1,35 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: kube-system
+spec:
+  gatewayClassName: cilium
+  # infrastructure:
+  #   annotations:
+  #     cilium.io/force-bind-host-port: "true"
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: http-8080
+      protocol: HTTP
+      port: 8080
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: http-8888
+      protocol: HTTP
+      port: 8888
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: grpc
+      protocol: HTTP
+      port: 9090
+      allowedRoutes:
+        namespaces:
+          from: All

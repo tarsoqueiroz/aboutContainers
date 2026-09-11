@@ -1,8 +1,12 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+
+name: lab-cluster
+
 networking:
   disableDefaultCNI: true          # Desativa o Kindnet para permitir a instalação do Cilium
-  kubeProxyMode: "none"             # Desativa o Kube-Proxy (Cilium usará eBPF nativo)
+  kubeProxyMode: "none"            # Desativa o Kube-Proxy (Cilium usará eBPF nativo)
+
 nodes:
   # --- CONTROL-PLANE (Gerenciamento + Ponto de Entrada / Gateway) ---
   - role: control-plane
@@ -18,6 +22,9 @@ nodes:
         protocol: TCP
       - containerPort: 8443
         hostPort: 8443
+        protocol: TCP
+      - containerPort: 8888
+        hostPort: 8888
         protocol: TCP
       - containerPort: 9090
         hostPort: 9090
