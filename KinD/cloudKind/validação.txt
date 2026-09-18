@@ -1,0 +1,1422 @@
+$ docker version --format '{{.Server.Version}}'
+kind version
+kubectl version --client
+helm version --short
+openssl version
+29.7.2
+kind v0.29.0 go1.24.2 linux/amd64
+Client Version: v1.34.1
+Kustomize Version: v5.7.1
+v4.0.4+g8650e1d
+OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024)
+
+
+$ cilium version --client
+cilium-cli: v0.20.0 compiled with go1.27.0 on linux/amd64
+cilium image (default): v1.20.1
+cilium image (stable): v1.20.2
+
+
+$ cat manifestos/kind-config.yaml 
+---
+kind: Cluster
+
+apiVersion: kind.x-k8s.io/v1alpha4
+
+name: kind-cilium
+
+networking:
+  disableDefaultCNI: true   # Cilium substitui o kindnet
+  kubeProxyMode: "none"     # Cilium substitui o kube-proxy (eBPF)
+
+nodes:
+  # Controle Plane
+  - role: control-plane
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        listenAddress: "0.0.0.0"
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        listenAddress: "0.0.0.0"
+        protocol: TCP
+  # Worker 1
+  - role: worker
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77
+  # Worker 2
+  - role: worker
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77
+  # Worker 3
+  - role: worker
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77
+
+
+$ yamllint manifestos/kind-config.yaml 
+manifestos/kind-config.yaml
+  15:81     error    line too long (103 > 80 characters)  (line-length)
+  33:81     error    line too long (103 > 80 characters)  (line-length)
+  36:81     error    line too long (103 > 80 characters)  (line-length)
+  39:81     error    line too long (103 > 80 characters)  (line-length)
+
+
+$ kind create cluster --config manifestos/kind-config.yaml
+Creating cluster "kind-cilium" ...
+ ✓ Ensuring node image (kindest/node:v1.33.1) 🖼
+ ✓ Preparing nodes 📦 📦 📦 📦  
+ ✓ Writing configuration 📜 
+ ✓ Starting control-plane 🕹️ 
+ ✓ Installing StorageClass 💾 
+ ✓ Joining worker nodes 🚜 
+Set kubectl context to "kind-kind-cilium"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-kind-cilium
+
+Have a nice day! 👋
+
+
+$ kind get clusters
+kind-cilium
+
+
+$ kubectl cluster-info --context kind-kind-cilium
+Kubernetes control plane is running at https://127.0.0.1:43775
+CoreDNS is running at https://127.0.0.1:43775/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+
+$ kubectl get nodes -o wide
+NAME                        STATUS     ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION     CONTAINER-RUNTIME
+kind-cilium-control-plane   NotReady   control-plane   63s   v1.33.1   172.18.0.3    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+kind-cilium-worker          NotReady   <none>          47s   v1.33.1   172.18.0.4    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+kind-cilium-worker2         NotReady   <none>          47s   v1.33.1   172.18.0.2    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+kind-cilium-worker3         NotReady   <none>          47s   v1.33.1   172.18.0.5    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+
+
+$ docker ps --filter "label=io.x-k8s.kind.cluster=kind-cilium" \
+  --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+NAMES                       STATUS              PORTS
+kind-cilium-worker          Up About a minute   
+kind-cilium-control-plane   Up About a minute   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 127.0.0.1:43775->6443/tcp
+kind-cilium-worker2         Up About a minute   
+kind-cilium-worker3         Up About a minute   
+
+
+$ cat scripts/set-node-limits.sh 
+#!/usr/bin/env bash
+set -euo pipefail
+
+CLUSTER="kind-cilium"
+
+# Control-plane: cpu=1000m (1 vCPU) / memory=1024Mi
+docker update \
+  --cpus="1" \
+  --memory="1024m" --memory-swap="1024m" \
+  "${CLUSTER}-control-plane"
+
+# Workers: cpu=2000m (2 vCPU) / memory=4096Mi cada
+for node in $(docker ps --filter "label=io.x-k8s.kind.cluster=${CLUSTER}" \
+              --format "{{.Names}}" | grep worker); do
+  docker update \
+    --cpus="2" \
+    --memory="4096m" --memory-swap="4096m" \
+    "${node}"
+done
+
+echo "Limites aplicados. Reiniciando containers para que o kubelet/cAdvisor releia o cgroup..."
+docker restart "${CLUSTER}-control-plane" $(docker ps --filter "label=io.x-k8s.kind.cluster=${CLUSTER}" --format "{{.Names}}" | grep worker)
+
+
+$ ./scripts/set-node-limits.sh 
+kind-cilium-control-plane
+kind-cilium-worker
+kind-cilium-worker2
+kind-cilium-worker3
+Limites aplicados. Reiniciando containers para que o kubelet/cAdvisor releia o cgroup...
+kind-cilium-control-plane
+kind-cilium-worker
+kind-cilium-worker2
+kind-cilium-worker3
+
+
+$ for c in kind-cilium-control-plane kind-cilium-worker kind-cilium-worker2 kind-cilium-worker3; do
+  echo "== $c =="
+  docker inspect "$c" --format 'CPUs(NanoCPUs)={{.HostConfig.NanoCpus}}  Memory={{.HostConfig.Memory}}'
+done
+== kind-cilium-control-plane ==
+CPUs(NanoCPUs)=1000000000  Memory=1073741824
+== kind-cilium-worker ==
+CPUs(NanoCPUs)=2000000000  Memory=4294967296
+== kind-cilium-worker2 ==
+CPUs(NanoCPUs)=2000000000  Memory=4294967296
+== kind-cilium-worker3 ==
+CPUs(NanoCPUs)=2000000000  Memory=4294967296
+
+
+$ kubectl wait --for=condition=Ready=false node --all --timeout=60s || true
+node/kind-cilium-control-plane condition met
+node/kind-cilium-worker condition met
+node/kind-cilium-worker2 condition met
+node/kind-cilium-worker3 condition met
+
+
+$ kubectl describe node kind-cilium-control-plane | grep -A6 "Capacity:"
+Capacity:
+  cpu:                8
+  ephemeral-storage:  245020956Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             32262376Ki
+  pods:               110
+
+
+$ kubectl describe node kind-cilium-worker | grep -A6 "Capacity:"
+Capacity:
+  cpu:                8
+  ephemeral-storage:  245020956Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             32262376Ki
+  pods:               110
+
+
+$ GWAPI_VERSION=v1.6.1
+for crd in gatewayclasses gateways httproutes referencegrants grpcroutes backendtlspolicies tlsroutes; do
+  kubectl apply --server-side -f \
+    "https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${GWAPI_VERSION}/config/crd/standard/gateway.networking.k8s.io_${crd}.yaml"
+done
+customresourcedefinition.apiextensions.k8s.io/gatewayclasses.gateway.networking.k8s.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/gateways.gateway.networking.k8s.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/httproutes.gateway.networking.k8s.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/referencegrants.gateway.networking.k8s.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/grpcroutes.gateway.networking.k8s.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/backendtlspolicies.gateway.networking.k8s.io serverside-applied
+customresourcedefinition.apiextensions.k8s.io/tlsroutes.gateway.networking.k8s.io serverside-applied
+
+
+$ kubectl get crds | grep gateway.networking.k8s.io
+backendtlspolicies.gateway.networking.k8s.io   2026-09-18T14:34:54Z
+gatewayclasses.gateway.networking.k8s.io       2026-09-18T14:34:52Z
+gateways.gateway.networking.k8s.io             2026-09-18T14:34:52Z
+grpcroutes.gateway.networking.k8s.io           2026-09-18T14:34:54Z
+httproutes.gateway.networking.k8s.io           2026-09-18T14:34:53Z
+referencegrants.gateway.networking.k8s.io      2026-09-18T14:34:53Z
+tlsroutes.gateway.networking.k8s.io            2026-09-18T14:34:54Z
+
+
+$ API_SERVER_IP=$(docker inspect kind-cilium-control-plane \
+  --format '{{ .NetworkSettings.Networks.kind.IPAddress }}')
+echo "$API_SERVER_IP"
+172.18.0.3
+
+
+$ cat manifestos/cilium-values.yaml 
+kubeProxyReplacement: true
+k8sServiceHost: "__API_SERVER_IP__"   # substituído dinamicamente abaixo
+k8sServicePort: 6443
+
+ipam:
+  mode: kubernetes
+
+l7Proxy: true
+
+envoy:
+  enabled: true
+  securityContext:
+    capabilities:
+      keepCapNetBindService: true
+      # IMPORTANTE: esta lista SUBSTITUI a lista padrão de capabilities do
+      # container cilium-envoy — nunca a reduza para conter só NET_BIND_SERVICE,
+      # ou o Envoy falha ao iniciar em todos os nós (ver Seção 13).
+      # NET_ADMIN + BPF + PERFMON cobrem kernels >= 5.8 com containerd >= 1.5 / CRI-O >= 1.22
+      # (troque BPF/PERFMON por SYS_ADMIN em kernels mais antigos).
+      envoy:
+        - NET_ADMIN
+        - PERFMON
+        - BPF
+        - NET_BIND_SERVICE
+
+gatewayAPI:
+  enabled: true
+  hostNetwork:
+    enabled: true
+    nodes:
+      matchLabels:
+        ingress-ready: "true"   # só roda o Envoy do Gateway no control-plane
+
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+operator:
+  replicas: 1
+
+
+$ helm repo add cilium https://helm.cilium.io/
+helm repo update
+"cilium" already exists with the same configuration, skipping
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "secrets-store-csi-driver" chart repository
+...Successfully got an update from the "hashicorp" chart repository
+...Successfully got an update from the "artifact-hub" chart repository
+...Successfully got an update from the "tarepo" chart repository
+...Successfully got an update from the "redis-official" chart repository
+...Successfully got an update from the "komodorio" chart repository
+...Successfully got an update from the "cilium" chart repository
+...Successfully got an update from the "community-charts" chart repository
+...Successfully got an update from the "external-secrets" chart repository
+...Successfully got an update from the "bitnami" chart repository
+Update Complete. ⎈Happy Helming!⎈
+
+
+$ API_SERVER_IP=$(docker inspect kind-cilium-control-plane \
+  --format '{{ .NetworkSettings.Networks.kind.IPAddress }}')
+
+
+$ helm install cilium cilium/cilium --version 1.20.1 \
+  --namespace kube-system \
+  -f ./manifestos/cilium-values.yaml \
+  --set k8sServiceHost="${API_SERVER_IP}" \
+  --set k8sServicePort=6443
+NAME: cilium
+LAST DEPLOYED: Fri Sep 18 11:37:11 2026
+NAMESPACE: kube-system
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+TEST SUITE: None
+NOTES:
+You have successfully installed Cilium with Hubble Relay and Hubble UI.
+
+WARNINGS:
+- WARNING: TLS is not enabled for the Hubble Relay server (hubble.relay.tls.server.enabled=false).
+  This means Hubble Relay communications may not be encrypted. For more information about the security
+  implications and suggested controls, please see: https://docs.cilium.io/en/stable/security/threat-model/#hubble-data-attacker
+
+Your release version is 1.20.1.
+
+For any further help, visit https://docs.cilium.io/en/v1.20/gettinghelp
+
+
+$ cilium status --wait
+    /¯¯\
+ /¯¯\__/¯¯\    Cilium:             OK
+ \__/¯¯\__/    Operator:           OK
+ /¯¯\__/¯¯\    Envoy DaemonSet:    OK
+ \__/¯¯\__/    Hubble Relay:       OK
+    \__/       ClusterMesh:        disabled
+
+DaemonSet              cilium                   Desired: 4, Ready: 4/4, Available: 4/4
+DaemonSet              cilium-envoy             Desired: 4, Ready: 4/4, Available: 4/4
+Deployment             cilium-operator          Desired: 1, Ready: 1/1, Available: 1/1
+Deployment             hubble-relay             Desired: 1, Ready: 1/1, Available: 1/1
+Deployment             hubble-ui                Desired: 1, Ready: 1/1, Available: 1/1
+Containers:            cilium                   Running: 4
+                       cilium-envoy             Running: 4
+                       cilium-operator          Running: 1
+                       clustermesh-apiserver    
+                       hubble-relay             Running: 1
+                       hubble-ui                Running: 1
+Cluster Pods:          5/5 managed by Cilium
+Helm chart version:    1.20.1
+Image versions         cilium             quay.io/cilium/cilium:v1.20.1@sha256:ae9ea21f7427fe24bc6ea7247eb552157a1b0a431744045d3f641545ca71d11b: 4
+                       cilium-envoy       quay.io/cilium/cilium-envoy:v1.37.5-1786810558-766ccfb37260a43e9d228837aa84ce3faf9f64e7@sha256:75b8094c7127736a2ffd2dce3945e0931cb6df21b0372ff661940eca26730b91: 4
+                       cilium-operator    quay.io/cilium/operator-generic:v1.20.1@sha256:6c3885fc7b629099fdbe2a5c87869c86feb825fa18fae299eac0f61918d16ecf: 1
+                       hubble-relay       quay.io/cilium/hubble-relay:v1.20.1@sha256:59be0ae7d475ab9011a5e954618c0f27b5778b17140381425b308b55ba4917f4: 1
+                       hubble-ui          quay.io/cilium/hubble-ui-backend:v0.13.5@sha256:fac0c300ae119274edca11fd89b1ad23c788792d8bc4ea2ba631c709e8d3c688: 1
+                       hubble-ui          quay.io/cilium/hubble-ui:v0.13.5@sha256:f7d514fc54d784ed6df9d58cf0e97648b143f92b766dd1780ed3fc845bd4c516: 1
+
+
+$ kubectl get pods -n kube-system -l k8s-app=cilium
+NAME           READY   STATUS    RESTARTS      AGE
+cilium-4724q   1/1     Running   0             5m11s
+cilium-qn8k7   1/1     Running   1 (53s ago)   5m11s
+cilium-w7nlm   1/1     Running   0             5m11s
+cilium-x4vnq   1/1     Running   0             5m10s
+
+
+$ kubectl get pods -n kube-system -l name=cilium-operator
+NAME                              READY   STATUS    RESTARTS   AGE
+cilium-operator-74cd7546d-pbfxh   1/1     Running   0          5m19s
+
+
+$ kubectl get nodes -o wide
+NAME                        STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION     CONTAINER-RUNTIME
+kind-cilium-control-plane   Ready    control-plane   13m   v1.33.1   172.18.0.3    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+kind-cilium-worker          Ready    <none>          13m   v1.33.1   172.18.0.4    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+kind-cilium-worker2         Ready    <none>          13m   v1.33.1   172.18.0.2    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+kind-cilium-worker3         Ready    <none>          13m   v1.33.1   172.18.0.5    <none>        Debian GNU/Linux 12 (bookworm)   7.0.0-31-generic   containerd://2.1.1
+
+
+$ kubectl get gatewayclass
+NAME     CONTROLLER                     ACCEPTED   AGE
+cilium   io.cilium/gateway-controller   True       5m36s
+
+
+$ cilium connectivity test --test '!datapath-tunnel,!pod-to-service-egress-gw'
+ℹ️  Monitor aggregation detected, will skip some flow validation steps
+✨ [kind-kind-cilium] Creating namespace cilium-test-1 for connectivity check...
+✨ [kind-kind-cilium] Deploying echo-same-node service...
+✨ [kind-kind-cilium] Deploying DNS test server configmap...
+✨ [kind-kind-cilium] Deploying same-node deployment...
+✨ [kind-kind-cilium] Deploying client deployment...
+✨ [kind-kind-cilium] Deploying client2 deployment...
+✨ [kind-kind-cilium] Deploying client3 deployment...
+✨ [kind-kind-cilium] Deploying echo-other-node service...
+✨ [kind-kind-cilium] Deploying other-node deployment...
+✨ [host-netns] Deploying kind-kind-cilium daemonset...
+ℹ️  Skipping tests that require a node Without Cilium
+✨ [kind-kind-cilium] Deploying ccnp deployment...
+✨ [kind-kind-cilium] Creating namespace cilium-test-ccnp1 for connectivity check...
+✨ [kind-kind-cilium] Creating namespace cilium-test-ccnp2 for connectivity check...
+✨ [kind-kind-cilium] Deploying same-node deployment...
+✨ [kind-kind-cilium] Deploying l7-lb service...
+✨ [kind-kind-cilium] Deploying l7-lb non-L7 service...
+⌛ [kind-kind-cilium] Waiting for deployment cilium-test-1/client to become ready...
+⌛ [kind-kind-cilium] Waiting for deployment cilium-test-1/client2 to become ready...
+⌛ [kind-kind-cilium] Waiting for deployment cilium-test-1/echo-same-node to become ready...
+⌛ [kind-kind-cilium] Waiting for deployment cilium-test-1/client3 to become ready...
+⌛ [kind-kind-cilium] Waiting for deployment cilium-test-1/echo-other-node to become ready...
+⌛ [kind-kind-cilium] Waiting for deployment cilium-test-ccnp1/client-ccnp to become ready...
+⌛ [kind-kind-cilium] Waiting for deployment cilium-test-ccnp2/client-ccnp to become ready...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client3-795488bf5-mdrkn to reach DNS server on cilium-test-1/echo-same-node-75c59b6d88-rhzw6 pod...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client-645b68dcf7-wznks to reach DNS server on cilium-test-1/echo-same-node-75c59b6d88-rhzw6 pod...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client2-66475877c6-68t6b to reach DNS server on cilium-test-1/echo-same-node-75c59b6d88-rhzw6 pod...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client-645b68dcf7-wznks to reach DNS server on cilium-test-1/echo-other-node-56fc4bd8fd-s7c2b pod...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client2-66475877c6-68t6b to reach DNS server on cilium-test-1/echo-other-node-56fc4bd8fd-s7c2b pod...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client3-795488bf5-mdrkn to reach DNS server on cilium-test-1/echo-other-node-56fc4bd8fd-s7c2b pod...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client-645b68dcf7-wznks to reach default/kubernetes service...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client2-66475877c6-68t6b to reach default/kubernetes service...
+⌛ [kind-kind-cilium] Waiting for pod cilium-test-1/client3-795488bf5-mdrkn to reach default/kubernetes service...
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/echo-other-node to become ready...
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/echo-other-node to be synchronized by Cilium pod kube-system/cilium-x4vnq
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/echo-other-node to be synchronized by Cilium pod kube-system/cilium-w7nlm
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/echo-same-node to become ready...
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/echo-same-node to be synchronized by Cilium pod kube-system/cilium-x4vnq
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/echo-same-node to be synchronized by Cilium pod kube-system/cilium-w7nlm
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.3:30687 (cilium-test-1/echo-same-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.3:32203 (cilium-test-1/echo-other-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.4:32203 (cilium-test-1/echo-other-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.4:30687 (cilium-test-1/echo-same-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.2:32203 (cilium-test-1/echo-other-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.2:30687 (cilium-test-1/echo-same-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.5:32203 (cilium-test-1/echo-other-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for NodePort 172.18.0.5:30687 (cilium-test-1/echo-same-node) to become ready...
+⌛ [kind-kind-cilium] Waiting for DaemonSet cilium-test-1/host-netns to become ready...
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/l7-lb to become ready...
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/l7-lb-non-l7 to become ready...
+⌛ [kind-kind-cilium] Waiting for Service cilium-test-1/l7-lb-non-l7 to become ready...
+🔭 Enabling Hubble telescope...
+⚠️  Unable to contact Hubble Relay, disabling Hubble telescope and flow validation: rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:4245: connect: connection refused"
+ℹ️  Expose Relay locally with:
+   cilium hubble enable
+   cilium hubble port-forward&
+ℹ️  Cilium version: 1.20.1
+🏃[cilium-test-1] Running 137 tests ...
+[=] [cilium-test-1] Test [no-policies] [1/137]
+.........................................................
+[=] [cilium-test-1] Skipping test [no-policies-from-outside] [2/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Test [no-policies-extra] [3/137]
+........................
+[=] [cilium-test-1] Test [allow-all-except-world] [4/137]
+..............................
+[=] [cilium-test-1] Test [client-ingress] [5/137]
+......
+[=] [cilium-test-1] Test [client-ingress-knp] [6/137]
+......
+[=] [cilium-test-1] Test [allow-all-with-metrics-check] [7/137]
+......
+[=] [cilium-test-1] Test [all-ingress-deny] [8/137]
+............
+[=] [cilium-test-1] Skipping test [all-ingress-deny-from-outside] [9/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Test [all-ingress-deny-knp] [10/137]
+............
+[=] [cilium-test-1] Test [all-egress-deny] [11/137]
+........................
+[=] [cilium-test-1] Test [all-egress-deny-knp] [12/137]
+........................
+[=] [cilium-test-1] Test [all-entities-deny] [13/137]
+............
+[=] [cilium-test-1] Test [cluster-entity] [14/137]
+...
+[=] [cilium-test-1] Skipping test [cluster-entity-multi-cluster] [15/137] (skipped by condition)
+[=] [cilium-test-1] Test [host-entity-egress] [16/137]
+............
+[=] [cilium-test-1] Test [host-entity-ingress] [17/137]
+......
+[=] [cilium-test-1] Test [echo-ingress] [18/137]
+......
+[=] [cilium-test-1] Skipping test [echo-ingress-from-outside] [19/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Test [echo-ingress-knp] [20/137]
+......
+[=] [cilium-test-1] Test [client-ingress-icmp] [21/137]
+......
+[=] [cilium-test-1] Test [client-egress] [22/137]
+......
+[=] [cilium-test-1] Test [client-egress-knp] [23/137]
+......
+[=] [cilium-test-1] Test [client-egress-expression] [24/137]
+......
+[=] [cilium-test-1] Test [client-egress-expression-port-range] [25/137]
+......
+[=] [cilium-test-1] Test [client-egress-expression-knp] [26/137]
+......
+[=] [cilium-test-1] Test [client-egress-expression-knp-port-range] [27/137]
+......
+[=] [cilium-test-1] Test [client-with-service-account-egress-to-echo] [28/137]
+......
+[=] [cilium-test-1] Test [client-with-service-account-egress-to-echo-port-range] [29/137]
+......
+[=] [cilium-test-1] Test [client-egress-to-echo-service-account] [30/137]
+......
+[=] [cilium-test-1] Test [client-egress-to-echo-service-account-port-range] [31/137]
+......
+[=] [cilium-test-1] Test [to-entities-world] [32/137]
+.........
+[=] [cilium-test-1] Test [to-entities-world-port-range] [33/137]
+.........
+[=] [cilium-test-1] Test [to-cidr-external] [34/137]
+......
+[=] [cilium-test-1] Test [to-cidr-external-knp] [35/137]
+......
+[=] [cilium-test-1] Skipping test [from-cidr-host-netns] [36/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Test [echo-ingress-from-other-client-deny] [37/137]
+..........
+[=] [cilium-test-1] Test [client-ingress-from-other-client-icmp-deny] [38/137]
+............
+[=] [cilium-test-1] Test [client-egress-to-echo-deny] [39/137]
+............
+[=] [cilium-test-1] Test [client-egress-to-echo-deny-port-range] [40/137]
+............
+[=] [cilium-test-1] Test [client-ingress-to-echo-named-port-deny] [41/137]
+....
+[=] [cilium-test-1] Test [client-egress-to-echo-expression-deny] [42/137]
+....
+[=] [cilium-test-1] Test [client-egress-to-echo-expression-deny-port-range] [43/137]
+....
+[=] [cilium-test-1] Test [client-with-service-account-egress-to-echo-deny] [44/137]
+....
+[=] [cilium-test-1] Test [client-with-service-account-egress-to-echo-deny-port-range] [45/137]
+....
+[=] [cilium-test-1] Test [client-egress-to-echo-service-account-deny] [46/137]
+..
+[=] [cilium-test-1] Test [client-egress-to-echo-service-account-deny-port-range] [47/137]
+..
+[=] [cilium-test-1] Test [client-egress-to-cidr-deny] [48/137]
+......
+[=] [cilium-test-1] Test [client-egress-to-cidrgroup-deny] [49/137]
+I0918 11:53:02.905498  799938 warnings.go:107] "Warning: cilium.io/v2alpha1 CiliumCIDRGroup is deprecated; use cilium.io/v2 CiliumCIDRGroup"
+I0918 11:53:02.934355  799938 warnings.go:107] "Warning: cilium.io/v2alpha1 CiliumCIDRGroup is deprecated; use cilium.io/v2 CiliumCIDRGroup"
+......
+I0918 11:53:12.488071  799938 warnings.go:107] "Warning: cilium.io/v2alpha1 CiliumCIDRGroup is deprecated; use cilium.io/v2 CiliumCIDRGroup"
+[=] [cilium-test-1] Test [client-egress-to-cidrgroup-deny-by-label] [50/137]
+I0918 11:53:15.307107  799938 warnings.go:107] "Warning: cilium.io/v2alpha1 CiliumCIDRGroup is deprecated; use cilium.io/v2 CiliumCIDRGroup"
+I0918 11:53:15.320844  799938 warnings.go:107] "Warning: cilium.io/v2alpha1 CiliumCIDRGroup is deprecated; use cilium.io/v2 CiliumCIDRGroup"
+......
+I0918 11:53:22.855485  799938 warnings.go:107] "Warning: cilium.io/v2alpha1 CiliumCIDRGroup is deprecated; use cilium.io/v2 CiliumCIDRGroup"
+[=] [cilium-test-1] Test [client-egress-to-cidr-deny-default] [51/137]
+......
+[=] [cilium-test-1] Skipping test [clustermesh-endpointslice-sync] [52/137] (skipped by condition)
+[=] [cilium-test-1] Skipping test [clustermesh-ns-not-global] [53/137] (skipped by condition)
+[=] [cilium-test-1] Skipping test [clustermesh-ns-not-global-pod-to-pod] [54/137] (skipped by condition)
+[=] [cilium-test-1] Skipping test [clustermesh-ns-not-global-pod-to-pod-denied] [55/137] (skipped by condition)
+[=] [cilium-test-1] Test [health] [56/137]
+....
+[=] [cilium-test-1] Skipping test [north-south-loadbalancing] [57/137] (Feature node-without-cilium is disabled)
+[=] [cilium-test-1] Skipping test [pod-to-pod-encryption] [58/137] (requires Cilium version <1.18.0 but running 1.20.1)
+[=] [cilium-test-1] Skipping test [pod-to-pod-with-l7-policy-encryption] [59/137] (requires Cilium version <1.18.0 but running 1.20.1)
+[=] [cilium-test-1] Test [pod-to-pod-encryption-v2] [60/137]
+.
+[=] [cilium-test-1] Skipping test [pod-to-pod-with-l7-policy-encryption-v2] [61/137] (Feature encryption-pod is disabled)
+[=] [cilium-test-1] Test [node-to-node-encryption] [62/137]
+...
+[=] [cilium-test-1] Skipping test [egress-gateway] [63/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [egress-gateway-multigateway] [64/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [egress-gateway-excluded-cidrs] [65/137] (Feature enable-egress-gateway is disabled)
+[=] [cilium-test-1] Skipping test [egress-gateway-with-l7-policy] [66/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [pod-to-node-cidrpolicy] [67/137] (Feature cidr-match-nodes is disabled)
+[=] [cilium-test-1] Skipping test [north-south-loadbalancing-with-l7-policy] [68/137] (Feature node-without-cilium is disabled)
+[=] [cilium-test-1] Skipping test [north-south-loadbalancing-with-l7-policy-port-range] [69/137] (Feature node-without-cilium is disabled)
+[=] [cilium-test-1] Test [echo-ingress-l7] [70/137]
+..................
+[=] [cilium-test-1] Skipping test [echo-ingress-l7-via-hostport] [71/137] (skipped by condition)
+[=] [cilium-test-1] Skipping test [echo-ingress-from-client-tiered-wildcard-pass-l7] [72/137] (Feature k8s-cluster-network-policy is disabled)
+[=] [cilium-test-1] Test [echo-ingress-l7-named-port] [73/137]
+..................
+[=] [cilium-test-1] Test [client-egress-l7-method] [74/137]
+..................
+[=] [cilium-test-1] Test [client-egress-l7-method-port-range] [75/137]
+..................
+[=] [cilium-test-1] Test [client-egress-l7] [76/137]
+...............
+[=] [cilium-test-1] Test [client-egress-l7-port-range] [77/137]
+...............
+[=] [cilium-test-1] Test [client-egress-l7-named-port] [78/137]
+...............
+[=] [cilium-test-1] Skipping test [client-egress-l7-http-connect] [79/137] (requires Cilium version >=1.21.0 but running 1.20.1)
+[=] [cilium-test-1] Test [client-egress-tls-sni] [80/137]
+.........
+[=] [cilium-test-1] Test [client-egress-tls-sni-denied] [81/137]
+.........
+[=] [cilium-test-1] Test [client-egress-tls-sni-wildcard] [82/137]
+.........
+[=] [cilium-test-1] Test [client-egress-tls-sni-wildcard-denied] [83/137]
+...
+[=] [cilium-test-1] Test [client-egress-tls-sni-random-wildcard] [84/137]
+.........
+[=] [cilium-test-1] Test [client-egress-tls-sni-random-wildcard-denied] [85/137]
+...
+[=] [cilium-test-1] Test [client-egress-tls-sni-double-wildcard] [86/137]
+.........
+[=] [cilium-test-1] Test [client-egress-tls-sni-double-wildcard-denied] [87/137]
+...
+[=] [cilium-test-1] Test [client-egress-l7-tls-headers-sni] [88/137]
+...
+[=] [cilium-test-1] Test [client-egress-l7-tls-headers-other-sni] [89/137]
+...
+[=] [cilium-test-1] Test [client-egress-l7-set-header] [90/137]
+......
+[=] [cilium-test-1] Test [client-egress-l7-set-header-port-range] [91/137]
+......
+[=] [cilium-test-1] Skipping test [echo-ingress-auth-always-fail] [92/137] (Feature mutual-auth-spiffe is disabled)
+[=] [cilium-test-1] Skipping test [echo-ingress-auth-always-fail-port-range] [93/137] (Feature mutual-auth-spiffe is disabled)
+[=] [cilium-test-1] Skipping test [echo-ingress-mutual-auth-spiffe] [94/137] (Feature mutual-auth-spiffe is disabled)
+[=] [cilium-test-1] Skipping test [echo-ingress-mutual-auth-spiffe-port-range] [95/137] (Feature mutual-auth-spiffe is disabled)
+[=] [cilium-test-1] Skipping test [pod-to-ingress-service] [96/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [pod-to-ingress-service-allow-ingress-identity] [97/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [pod-to-ingress-service-deny-all] [98/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [pod-to-ingress-service-deny-backend-service] [99/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [pod-to-ingress-service-deny-ingress-identity] [100/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [pod-to-ingress-service-deny-source-egress-other-node] [101/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [outside-to-ingress-service] [102/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [outside-to-ingress-service-deny-all-ingress] [103/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [outside-to-ingress-service-deny-cidr] [104/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Skipping test [outside-to-ingress-service-deny-world-identity] [105/137] (Feature ingress-controller is disabled)
+[=] [cilium-test-1] Test [pod-to-itself-via-service] [106/137]
+.
+[=] [cilium-test-1] Skipping test [l7-lb] [107/137] (Feature loadbalancer-l7 is disabled)
+[=] [cilium-test-1] Test [dns-only] [108/137]
+...............
+[=] [cilium-test-1] Test [to-fqdns] [109/137]
+............
+[=] [cilium-test-1] Test [to-fqdns-with-proxy] [110/137]
+............
+[=] [cilium-test-1] Test [to-fqdns-with-ccec-listener] [111/137]
+............
+[=] [cilium-test-1] Skipping test [pod-to-controlplane-host] [112/137] (k8s localhost tests excluded)
+[=] [cilium-test-1] Skipping test [pod-to-k8s-on-controlplane] [113/137] (k8s localhost tests excluded)
+[=] [cilium-test-1] Skipping test [pod-to-controlplane-host-cidr] [114/137] (k8s localhost tests excluded)
+[=] [cilium-test-1] Skipping test [pod-to-k8s-on-controlplane-cidr] [115/137] (k8s localhost tests excluded)
+[=] [cilium-test-1] Test [policy-local-cluster-egress] [116/137]
+......
+[=] [cilium-test-1] Skipping test [local-redirect-policy] [117/137] (Feature enable-local-redirect-policy is disabled)
+[=] [cilium-test-1] Skipping test [local-redirect-policy-with-node-dns] [118/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Test [pod-to-pod-no-frag] [119/137]
+.
+[=] [cilium-test-1] Skipping test [bgp-control-plane-v1] [120/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [bgp-control-plane-v2] [121/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [multicast] [122/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [strict-mode-encryption] [123/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [strict-mode-encryption-v2] [124/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [ipsec-key-derivation-validation] [125/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [ztunnel-pod-to-pod-encryption] [126/137] (Feature enable-ztunnel is disabled)
+[=] [cilium-test-1] Skipping test [host-firewall-ingress] [127/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [host-firewall-egress] [128/137] (unsafe test which can modify state of cluster nodes)
+[=] [cilium-test-1] Skipping test [host-firewall-egress-to-fqdns] [129/137] (skipped by condition)
+[=] [cilium-test-1] Test [client-egress-l7-tls-deny-without-headers] [130/137]
+...
+[=] [cilium-test-1] Test [client-egress-l7-tls-headers] [131/137]
+...
+[=] [cilium-test-1] Test [client-egress-l7-extra-tls-headers] [132/137]
+......
+[=] [cilium-test-1] Test [client-egress-l7-tls-headers-port-range] [133/137]
+...
+[=] [cilium-test-1] Test [egress-to-specific-namespace-ccnp] [134/137]
+..
+[=] [cilium-test-1] Test [ingress-from-specific-namespace-ccnp] [135/137]
+..
+[=] [cilium-test-1] Test [no-unexpected-packet-drops] [136/137]
+....
+[=] [cilium-test-1] Test [check-log-errors] [137/137]
+......
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (config)]
+  [-] Scenario [check-log-errors/no-errors-in-logs]
+  ℹ️  Start time for the check: 0001-01-01 00:00:00 +0000 UTC
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (mount-cgroup)]
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (apply-sysctl-overwrites)]
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (mount-bpf-fs)]
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (clean-cilium-state)]
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (install-cni-binaries)]
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (cilium-agent)]
+  ❌ Found 1 logs in kind-kind-cilium/kube-system/cilium-4724q (cilium-agent) matching list of errors that must be investigated:
+time=2026-09-18T14:41:39.53469757Z level=error msg=k8sError error="ciliumcidrgroups.cilium.io is forbidden: User \"system:serviceaccount:kube-system:cilium\" cannot watch resource \"ciliumcidrgroups\" in API group \"cilium.io\" at the cluster scope" (16 occurrences)
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-envoy-kj7qc (cilium-envoy)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-envoy-vwzbp (cilium-envoy)]
+.  ❌ Non-zero (1) restart count of kind-kind-cilium/kube-system/cilium-envoy-vwzbp (cilium-envoy) must be investigated
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-operator-74cd7546d-pbfxh (cilium-operator)]
+.  ❌ Found 2 logs in kind-kind-cilium/kube-system/cilium-operator-74cd7546d-pbfxh (cilium-operator) matching list of errors that must be investigated:
+time=2026-09-18T14:37:30.197895664Z level=warn msg="Gateway API host networking is enabled, externalTrafficPolicy will be ignored." module=operator.operator-controlplane.leader-lifecycle.gateway-api (1 occurrences)
+time=2026-09-18T14:41:39.639024098Z level=error msg=k8sError error="namespaces is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"namespaces\" in API group \"\" at the cluster scope" (23 occurrences)
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (config)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (mount-cgroup)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (apply-sysctl-overwrites)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (mount-bpf-fs)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (clean-cilium-state)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (install-cni-binaries)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (cilium-agent)]
+.  ❌ Found 1 logs in kind-kind-cilium/kube-system/cilium-w7nlm (cilium-agent) matching list of errors that must be investigated:
+time=2026-09-18T14:41:39.438429694Z level=error msg=k8sError error="ciliumidentities.cilium.io is forbidden: User \"system:serviceaccount:kube-system:cilium\" cannot watch resource \"ciliumidentities\" in API group \"cilium.io\" at the cluster scope" (16 occurrences)
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (install-cni-binaries)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (cilium-agent)]
+.  ❌ Found 1 logs in kind-kind-cilium/kube-system/cilium-x4vnq (cilium-agent) matching list of errors that must be investigated:
+time=2026-09-18T14:41:39.634727416Z level=error msg=k8sError error="ciliumcidrgroups.cilium.io is forbidden: User \"system:serviceaccount:kube-system:cilium\" cannot watch resource \"ciliumcidrgroups\" in API group \"cilium.io\" at the cluster scope" (1 occurrences)
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (config)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (mount-cgroup)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (apply-sysctl-overwrites)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (mount-bpf-fs)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (clean-cilium-state)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/hubble-relay-5b89bb78c6-g7q7c (hubble-relay)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-envoy-6n8wr (cilium-envoy)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-envoy-mn6ls (cilium-envoy)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (mount-cgroup)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (apply-sysctl-overwrites)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (mount-bpf-fs)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (clean-cilium-state)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (install-cni-binaries)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (cilium-agent)]
+.  ❌ Non-zero (1) restart count of kind-kind-cilium/kube-system/cilium-qn8k7 (cilium-agent) must be investigated
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (config)]
+.  ❌ Non-zero (1) restart count of kind-kind-cilium/kube-system/cilium-qn8k7 (config) must be investigated
+  ℹ️  Previous container logs unavailable (already garbage-collected): previous terminated container "config" in pod "cilium-qn8k7" not found
+  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/hubble-ui-578b8f9bcb-2g9rh (frontend)]
+.  [.] Action [check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/hubble-ui-578b8f9bcb-2g9rh (backend)]
+.
+📋 Test Report [cilium-test-1]
+❌ 1/83 tests failed (7/751 actions), 54 tests skipped, 0 scenarios skipped:
+Test [check-log-errors]:
+  🟥 check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-4724q (cilium-agent): Found 1 logs in kind-kind-cilium/kube-system/cilium-4724q (cilium-agent) matching list of errors that must be investigated:
+time=2026-09-18T14:41:39.53469757Z level=error msg=k8sError error="ciliumcidrgroups.cilium.io is forbidden: User \"system:serviceaccount:kube-system:cilium\" cannot watch resource \"ciliumcidrgroups\" in API group \"cilium.io\" at the cluster scope" (16 occurrences)
+  🟥 check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-envoy-vwzbp (cilium-envoy): Non-zero (1) restart count of kind-kind-cilium/kube-system/cilium-envoy-vwzbp (cilium-envoy) must be investigated
+  🟥 check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-operator-74cd7546d-pbfxh (cilium-operator): Found 2 logs in kind-kind-cilium/kube-system/cilium-operator-74cd7546d-pbfxh (cilium-operator) matching list of errors that must be investigated:
+time=2026-09-18T14:37:30.197895664Z level=warn msg="Gateway API host networking is enabled, externalTrafficPolicy will be ignored." module=operator.operator-controlplane.leader-lifecycle.gateway-api (1 occurrences)
+time=2026-09-18T14:41:39.639024098Z level=error msg=k8sError error="namespaces is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"namespaces\" in API group \"\" at the cluster scope" (23 occurrences)
+  🟥 check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-w7nlm (cilium-agent): Found 1 logs in kind-kind-cilium/kube-system/cilium-w7nlm (cilium-agent) matching list of errors that must be investigated:
+time=2026-09-18T14:41:39.438429694Z level=error msg=k8sError error="ciliumidentities.cilium.io is forbidden: User \"system:serviceaccount:kube-system:cilium\" cannot watch resource \"ciliumidentities\" in API group \"cilium.io\" at the cluster scope" (16 occurrences)
+  🟥 check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-x4vnq (cilium-agent): Found 1 logs in kind-kind-cilium/kube-system/cilium-x4vnq (cilium-agent) matching list of errors that must be investigated:
+time=2026-09-18T14:41:39.634727416Z level=error msg=k8sError error="ciliumcidrgroups.cilium.io is forbidden: User \"system:serviceaccount:kube-system:cilium\" cannot watch resource \"ciliumcidrgroups\" in API group \"cilium.io\" at the cluster scope" (1 occurrences)
+  🟥 check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (cilium-agent): Non-zero (1) restart count of kind-kind-cilium/kube-system/cilium-qn8k7 (cilium-agent) must be investigated
+  🟥 check-log-errors/no-errors-in-logs:kind-kind-cilium/kube-system/cilium-qn8k7 (config): Non-zero (1) restart count of kind-kind-cilium/kube-system/cilium-qn8k7 (config) must be investigated
+[cilium-test-1] 1 tests failed
+
+
+$ cat scripts/gen-wildcard-cert.sh 
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOMAIN="0a0f122c.nip.io"
+OUT_DIR="./certs"
+mkdir -p "$OUT_DIR"
+
+openssl req -x509 -nodes -newkey rsa:2048 \
+  -keyout "${OUT_DIR}/wildcard.key" \
+  -out "${OUT_DIR}/wildcard.crt" \
+  -days 365 \
+  -subj "/CN=*.${DOMAIN}/O=homelab-dev" \
+  -addext "subjectAltName=DNS:*.${DOMAIN},DNS:${DOMAIN}"
+
+kubectl create namespace network --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n network create secret tls wildcard-tls \
+  --cert="${OUT_DIR}/wildcard.crt" \
+  --key="${OUT_DIR}/wildcard.key" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+$ ./scripts/gen-wildcard-cert.sh
+.+........+.+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*.+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*.+..............+.+..................+......+...+..+......+...+.+........+..........+..+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+..+...+...+............+...+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*....+......+..+...+....+..+.+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*...+.........+.+...+......+.....+.............+..+...+...+...............+...+....+...+.....+....+..............+.+........+...+.............+.....+.+.....+.+..+.+.....+......+.+.......................+.......+..+.+...........+...+...+...+....+.....+.+......+...+.....+.......+......+..+...+.......+...+..+......+.+....................+....+..+....+.........+.........+...+............+...+..+.+......+.....+.+...+...........+...+.......+...+...........+......+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+-----
+namespace/network created
+secret/wildcard-tls created
+
+
+$ openssl x509 -in certs/wildcard.crt -noout -subject -ext subjectAltName
+subject=CN = *.0a0f122c.nip.io, O = homelab-dev
+X509v3 Subject Alternative Name: 
+    DNS:*.0a0f122c.nip.io, DNS:0a0f122c.nip.io
+
+
+$ kubectl -n network get secret wildcard-tls
+NAME           TYPE                DATA   AGE
+wildcard-tls   kubernetes.io/tls   2      27s
+
+
+$ cat manifestos/gateway.yaml 
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cilium-gateway
+  namespace: network
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
+
+$ kubectl apply -f manifestos/gateway.yaml
+gateway.gateway.networking.k8s.io/cilium-gateway created
+
+
+$ kubectl get gateway -n network
+NAME             CLASS    ADDRESS      PROGRAMMED   AGE
+cilium-gateway   cilium   172.18.0.2   True         12s
+
+
+$ kubectl describe gateway cilium-gateway -n network
+Name:         cilium-gateway
+Namespace:    network
+Labels:       <none>
+Annotations:  <none>
+API Version:  gateway.networking.k8s.io/v1
+Kind:         Gateway
+Metadata:
+  Creation Timestamp:  2026-09-18T15:05:59Z
+  Generation:          1
+  Resource Version:    6556
+  UID:                 0705758a-bd0f-491b-904a-699d32519526
+Spec:
+  Gateway Class Name:  cilium
+  Listeners:
+    Allowed Routes:
+      Namespaces:
+        From:  All
+    Name:      http
+    Port:      80
+    Protocol:  HTTP
+    Allowed Routes:
+      Namespaces:
+        From:  All
+    Name:      https
+    Port:      443
+    Protocol:  HTTPS
+    Tls:
+      Certificate Refs:
+        Group:  
+        Kind:   Secret
+        Name:   wildcard-tls
+      Mode:     Terminate
+Status:
+  Addresses:
+    Type:   IPAddress
+    Value:  172.18.0.2
+    Type:   IPAddress
+    Value:  172.18.0.3
+    Type:   IPAddress
+    Value:  172.18.0.4
+    Type:   IPAddress
+    Value:  172.18.0.5
+  Conditions:
+    Last Transition Time:  2026-09-18T15:05:59Z
+    Message:               Gateway successfully scheduled
+    Observed Generation:   1
+    Reason:                Accepted
+    Status:                True
+    Type:                  Accepted
+    Last Transition Time:  2026-09-18T15:05:59Z
+    Message:               Gateway Programmed
+    Observed Generation:   1
+    Reason:                Programmed
+    Status:                True
+    Type:                  Programmed
+  Listeners:
+    Attached Routes:  0
+    Conditions:
+      Last Transition Time:  2026-09-18T15:05:59Z
+      Message:               Resolved Refs
+      Observed Generation:   1
+      Reason:                ResolvedRefs
+      Status:                True
+      Type:                  ResolvedRefs
+      Last Transition Time:  2026-09-18T15:05:59Z
+      Message:               Listener Accepted
+      Observed Generation:   1
+      Reason:                Accepted
+      Status:                True
+      Type:                  Accepted
+      Last Transition Time:  2026-09-18T15:05:59Z
+      Message:               Listener Programmed
+      Observed Generation:   1
+      Reason:                Programmed
+      Status:                True
+      Type:                  Programmed
+    Name:                    http
+    Supported Kinds:
+      Group:          gateway.networking.k8s.io
+      Kind:           HTTPRoute
+      Group:          gateway.networking.k8s.io
+      Kind:           GRPCRoute
+    Attached Routes:  0
+    Conditions:
+      Last Transition Time:  2026-09-18T15:05:59Z
+      Message:               Resolved Refs
+      Observed Generation:   1
+      Reason:                ResolvedRefs
+      Status:                True
+      Type:                  ResolvedRefs
+      Last Transition Time:  2026-09-18T15:05:59Z
+      Message:               Listener Accepted
+      Observed Generation:   1
+      Reason:                Accepted
+      Status:                True
+      Type:                  Accepted
+      Last Transition Time:  2026-09-18T15:05:59Z
+      Message:               Listener Programmed
+      Observed Generation:   1
+      Reason:                Programmed
+      Status:                True
+      Type:                  Programmed
+    Name:                    https
+    Supported Kinds:
+      Group:  gateway.networking.k8s.io
+      Kind:   HTTPRoute
+      Group:  gateway.networking.k8s.io
+      Kind:   GRPCRoute
+Events:       <none>
+
+
+$ cat manifestos/httproute-app.yaml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: network
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: demo-app }
+  template:
+    metadata:
+      labels: { app: demo-app }
+    spec:
+      containers:
+        - name: demo-app
+          image: nginxdemos/hello:plain-text
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: network
+spec:
+  selector: { app: demo-app }
+  ports: [{ port: 80, targetPort: 80 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: demo-app
+  namespace: network
+spec:
+  parentRefs:
+    - name: cilium-gateway
+  hostnames:
+    - "app.0a0f122c.nip.io"
+  rules:
+    - backendRefs:
+        - name: demo-app
+          port: 80
+
+
+$ cat manifestos/httproute-api.yaml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-api
+  namespace: network
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: demo-api }
+  template:
+    metadata:
+      labels: { app: demo-api }
+    spec:
+      containers:
+        - name: demo-api
+          image: kennethreitz/httpbin
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-api
+  namespace: network
+spec:
+  selector: { app: demo-api }
+  ports: [{ port: 80, targetPort: 80 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: demo-api
+  namespace: network
+spec:
+  parentRefs:
+    - name: cilium-gateway
+  hostnames:
+    - "api.0a0f122c.nip.io"
+  rules:
+    - backendRefs:
+        - name: demo-api
+          port: 80
+
+
+$ cat manifestos/grpcroute-service.yaml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-grpc
+  namespace: network
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: demo-grpc }
+  template:
+    metadata:
+      labels: { app: demo-grpc }
+    spec:
+      containers:
+        - name: grpcbin
+          image: moul/grpcbin
+          ports: [{ containerPort: 9000 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-grpc
+  namespace: network
+spec:
+  selector: { app: demo-grpc }
+  ports: [{ port: 9000, targetPort: 9000, appProtocol: kubernetes.io/h2c }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: demo-grpc
+  namespace: network
+spec:
+  parentRefs:
+    - name: cilium-gateway
+      sectionName: https
+  hostnames:
+    - "grpc.0a0f122c.nip.io"
+  rules:
+    - backendRefs:
+        - name: demo-grpc
+          port: 9000
+
+
+$ kubectl apply -f manifestos/httproute-app.yaml
+kubectl apply -f manifestos/httproute-api.yaml
+kubectl apply -f manifestos/grpcroute-service.yaml
+deployment.apps/demo-app created
+service/demo-app created
+httproute.gateway.networking.k8s.io/demo-app created
+deployment.apps/demo-api created
+service/demo-api created
+httproute.gateway.networking.k8s.io/demo-api created
+deployment.apps/demo-grpc created
+service/demo-grpc created
+grpcroute.gateway.networking.k8s.io/demo-grpc created
+
+
+$ kubectl get pods -n network -o wide
+NAME                         READY   STATUS              RESTARTS   AGE   IP             NODE                  NOMINATED NODE   READINESS GATES
+demo-api-57867b7885-qdsfj    0/1     ContainerCreating   0          10s   <none>         kind-cilium-worker2   <none>           <none>
+demo-api-57867b7885-sdhn9    0/1     ContainerCreating   0          10s   <none>         kind-cilium-worker3   <none>           <none>
+demo-app-74c8cc897f-gsz5t    1/1     Running             0          11s   10.244.3.67    kind-cilium-worker3   <none>           <none>
+demo-app-74c8cc897f-hglnp    1/1     Running             0          11s   10.244.1.212   kind-cilium-worker2   <none>           <none>
+demo-grpc-679f9dd995-cddzs   0/1     ContainerCreating   0          10s   <none>         kind-cilium-worker3   <none>           <none>
+demo-grpc-679f9dd995-vxwzt   0/1     ContainerCreating   0          10s   <none>         kind-cilium-worker2   <none>           <none>
+
+
+$ kubectl get httproute,grpcroute -n network
+NAME                                           HOSTNAMES                 AGE
+httproute.gateway.networking.k8s.io/demo-api   ["api.0a0f122c.nip.io"]   17s
+httproute.gateway.networking.k8s.io/demo-app   ["app.0a0f122c.nip.io"]   18s
+
+NAME                                            HOSTNAMES                  AGE
+grpcroute.gateway.networking.k8s.io/demo-grpc   ["grpc.0a0f122c.nip.io"]   17s
+
+
+$ kubectl describe httproute demo-app -n network | grep -A3 Conditions
+    Conditions:
+      Last Transition Time:  2026-09-18T15:08:46Z
+      Message:               Accepted HTTPRoute
+      Observed Generation:   1
+
+
+$ kubectl describe httproute demo-api -n network | grep -A3 Conditions
+    Conditions:
+      Last Transition Time:  2026-09-18T15:08:46Z
+      Message:               Accepted HTTPRoute
+      Observed Generation:   1
+
+
+$ kubectl describe grpcroute demo-grpc -n network | grep -A3 Conditions
+    Conditions:
+      Last Transition Time:  2026-09-18T15:08:46Z
+      Message:               Accepted GRPCRoute
+      Observed Generation:   1
+
+
+$ dig +short app.0a0f122c.nip.io
+dig +short api.0a0f122c.nip.io
+dig +short grpc.0a0f122c.nip.io
+10.15.18.44
+10.15.18.44
+10.15.18.44
+
+
+$ curl -v http://app.0a0f122c.nip.io/
+* Host app.0a0f122c.nip.io:80 was resolved.
+* IPv6: (none)
+* IPv4: 10.15.18.44
+*   Trying 10.15.18.44:80...
+* Connected to app.0a0f122c.nip.io (10.15.18.44) port 80
+> GET / HTTP/1.1
+> Host: app.0a0f122c.nip.io
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< server: envoy
+< date: Fri, 18 Sep 2026 15:11:40 GMT
+< content-type: text/plain
+< content-length: 155
+< expires: Fri, 18 Sep 2026 15:11:39 GMT
+< cache-control: no-cache
+< x-envoy-upstream-service-time: 1
+< 
+Server address: 10.244.3.67:80
+Server name: demo-app-74c8cc897f-gsz5t
+Date: 18/Sep/2026:15:11:40 +0000
+URI: /
+Request ID: 0352529ae26955cacff19f2ee56951af
+* Connection #0 to host app.0a0f122c.nip.io left intact
+
+
+$ curl -vk https://app.0a0f122c.nip.io/
+* Host app.0a0f122c.nip.io:443 was resolved.
+* IPv6: (none)
+* IPv4: 10.15.18.44
+*   Trying 10.15.18.44:443...
+* Connected to app.0a0f122c.nip.io (10.15.18.44) port 443
+* ALPN: curl offers h2,http/1.1
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / X25519 / RSASSA-PSS
+* ALPN: server did not agree on a protocol. Uses default.
+* Server certificate:
+*  subject: CN=*.0a0f122c.nip.io; O=homelab-dev
+*  start date: Sep 18 15:04:00 2026 GMT
+*  expire date: Sep 18 15:04:00 2027 GMT
+*  issuer: CN=*.0a0f122c.nip.io; O=homelab-dev
+*  SSL certificate verify result: self-signed certificate (18), continuing anyway.
+*   Certificate level 0: Public key type RSA (2048/112 Bits/secBits), signed using sha256WithRSAEncryption
+* using HTTP/1.x
+> GET / HTTP/1.1
+> Host: app.0a0f122c.nip.io
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* old SSL session ID is stale, removing
+< HTTP/1.1 200 OK
+< server: envoy
+< date: Fri, 18 Sep 2026 15:11:50 GMT
+< content-type: text/plain
+< content-length: 155
+< expires: Fri, 18 Sep 2026 15:11:49 GMT
+< cache-control: no-cache
+< x-envoy-upstream-service-time: 0
+< 
+Server address: 10.244.3.67:80
+Server name: demo-app-74c8cc897f-gsz5t
+Date: 18/Sep/2026:15:11:50 +0000
+URI: /
+Request ID: f108946ec17b9e24b12e039684e638ba
+* Connection #0 to host app.0a0f122c.nip.io left intact
+
+
+$ curl -vk https://api.0a0f122c.nip.io/get
+* Host api.0a0f122c.nip.io:443 was resolved.
+* IPv6: (none)
+* IPv4: 10.15.18.44
+*   Trying 10.15.18.44:443...
+* Connected to api.0a0f122c.nip.io (10.15.18.44) port 443
+* ALPN: curl offers h2,http/1.1
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / X25519 / RSASSA-PSS
+* ALPN: server did not agree on a protocol. Uses default.
+* Server certificate:
+*  subject: CN=*.0a0f122c.nip.io; O=homelab-dev
+*  start date: Sep 18 15:04:00 2026 GMT
+*  expire date: Sep 18 15:04:00 2027 GMT
+*  issuer: CN=*.0a0f122c.nip.io; O=homelab-dev
+*  SSL certificate verify result: self-signed certificate (18), continuing anyway.
+*   Certificate level 0: Public key type RSA (2048/112 Bits/secBits), signed using sha256WithRSAEncryption
+* using HTTP/1.x
+> GET /get HTTP/1.1
+> Host: api.0a0f122c.nip.io
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* old SSL session ID is stale, removing
+< HTTP/1.1 200 OK
+< server: envoy
+< date: Fri, 18 Sep 2026 15:11:58 GMT
+< content-type: application/json
+< content-length: 233
+< access-control-allow-origin: *
+< access-control-allow-credentials: true
+< x-envoy-upstream-service-time: 4
+< 
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "api.0a0f122c.nip.io", 
+    "User-Agent": "curl/8.5.0", 
+    "X-Envoy-Internal": "true"
+  }, 
+  "origin": "10.15.18.44", 
+  "url": "https://api.0a0f122c.nip.io/get"
+}
+* Connection #0 to host api.0a0f122c.nip.io left intact
+
+
+$ grpcurl -insecure grpc.0a0f122c.nip.io:443 list
+addsvc.Add
+grpc.gateway.examples.examplepb.ABitOfEverythingService
+grpc.reflection.v1alpha.ServerReflection
+grpcbin.GRPCBin
+hello.HelloService
+
+
+$ grpcurl -insecure grpc.0a0f122c.nip.io:443 grpcbin.GRPCBin/Empty
+{}
+
+
+$ cilium status
+    /¯¯\
+ /¯¯\__/¯¯\    Cilium:             OK
+ \__/¯¯\__/    Operator:           OK
+ /¯¯\__/¯¯\    Envoy DaemonSet:    OK
+ \__/¯¯\__/    Hubble Relay:       OK
+    \__/       ClusterMesh:        disabled
+
+DaemonSet              cilium                   Desired: 4, Ready: 4/4, Available: 4/4
+DaemonSet              cilium-envoy             Desired: 4, Ready: 4/4, Available: 4/4
+Deployment             cilium-operator          Desired: 1, Ready: 1/1, Available: 1/1
+Deployment             hubble-relay             Desired: 1, Ready: 1/1, Available: 1/1
+Deployment             hubble-ui                Desired: 1, Ready: 1/1, Available: 1/1
+Containers:            cilium                   Running: 4
+                       cilium-envoy             Running: 4
+                       cilium-operator          Running: 1
+                       clustermesh-apiserver    
+                       hubble-relay             Running: 1
+                       hubble-ui                Running: 1
+Cluster Pods:          19/19 managed by Cilium
+Helm chart version:    1.20.1
+Image versions         cilium             quay.io/cilium/cilium:v1.20.1@sha256:ae9ea21f7427fe24bc6ea7247eb552157a1b0a431744045d3f641545ca71d11b: 4
+                       cilium-envoy       quay.io/cilium/cilium-envoy:v1.37.5-1786810558-766ccfb37260a43e9d228837aa84ce3faf9f64e7@sha256:75b8094c7127736a2ffd2dce3945e0931cb6df21b0372ff661940eca26730b91: 4
+                       cilium-operator    quay.io/cilium/operator-generic:v1.20.1@sha256:6c3885fc7b629099fdbe2a5c87869c86feb825fa18fae299eac0f61918d16ecf: 1
+                       hubble-relay       quay.io/cilium/hubble-relay:v1.20.1@sha256:59be0ae7d475ab9011a5e954618c0f27b5778b17140381425b308b55ba4917f4: 1
+                       hubble-ui          quay.io/cilium/hubble-ui-backend:v0.13.5@sha256:fac0c300ae119274edca11fd89b1ad23c788792d8bc4ea2ba631c709e8d3c688: 1
+                       hubble-ui          quay.io/cilium/hubble-ui:v0.13.5@sha256:f7d514fc54d784ed6df9d58cf0e97648b143f92b766dd1780ed3fc845bd4c516: 1
+
+
+$ kubectl -n kube-system logs deploy/cilium-operator | grep -i gateway
+time=2026-09-18T14:37:30.156732074Z level=info msg="  --egress-gateway-reconciliation-trigger-interval='1s'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.156834248Z level=info msg="  --enable-egress-gateway='false'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.156856164Z level=info msg="  --enable-gateway-api='true'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.156861671Z level=info msg="  --enable-gateway-api-alpn='false'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.156867416Z level=info msg="  --enable-gateway-api-app-protocol='false'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.156873186Z level=info msg="  --enable-gateway-api-proxy-protocol='false'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.156878795Z level=info msg="  --enable-gateway-api-secrets-sync='true'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.15719544Z level=info msg="  --gateway-api-hostnetwork-enabled='true'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.157201376Z level=info msg="  --gateway-api-hostnetwork-nodelabelselector='ingress-ready=true'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.157214793Z level=info msg="  --gateway-api-secrets-namespace='cilium-secrets'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.157221145Z level=info msg="  --gateway-api-service-externaltrafficpolicy='Cluster'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.157226916Z level=info msg="  --gateway-api-use-remote-address='true'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.157232514Z level=info msg="  --gateway-api-xff-num-trusted-hops='0'" subsys=cilium-operator-generic
+time=2026-09-18T14:37:30.197895664Z level=warn msg="Gateway API host networking is enabled, externalTrafficPolicy will be ignored." module=operator.operator-controlplane.leader-lifecycle.gateway-api
+time=2026-09-18T14:37:30.197940538Z level=info msg="Checking for required and optional GatewayAPI resources" module=operator.operator-controlplane.leader-lifecycle.gateway-api requiredGVK="[gateway.networking.k8s.io/v1, Kind=gatewayclasses gateway.networking.k8s.io/v1, Kind=gateways gateway.networking.k8s.io/v1, Kind=httproutes gateway.networking.k8s.io/v1, Kind=grpcroutes gateway.networking.k8s.io/v1, Kind=tlsroutes gateway.networking.k8s.io/v1, Kind=referencegrants gateway.networking.k8s.io/v1, Kind=backendtlspolicies]" optionalGVK="[gateway.networking.k8s.io/v1, Kind=listenersets multicluster.x-k8s.io/v1beta1, Kind=serviceimports gateway.networking.k8s.io/v1, Kind=tcproutes gateway.networking.k8s.io/v1, Kind=udproutes]"
+time=2026-09-18T14:37:30.276699066Z level=info msg="Setting up Secret synchronization" module=operator.operator-controlplane.leader-lifecycle.secret-sync registrations="[*v2.CiliumClusterwideNetworkPolicy -> \"cilium-secrets\" *v1.Gateway -> \"cilium-secrets\" *v2.CiliumNetworkPolicy -> \"cilium-secrets\"]"
+time=2026-09-18T14:37:46.894040484Z level=info msg="Creating CRD (CustomResourceDefinition)..." module=operator.operator-controlplane.leader-lifecycle.create-crds name=ciliumgatewayclassconfigs.cilium.io
+time=2026-09-18T14:37:50.730356612Z level=info msg="CRD (CustomResourceDefinition) is installed and up-to-date" module=operator.operator-controlplane.leader-lifecycle.create-crds name=ciliumgatewayclassconfigs.cilium.io
+time=2026-09-18T14:37:52.317881821Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gatewayclass controllerGroup=gateway.networking.k8s.io controllerKind=GatewayClass source="kind source: *v2alpha1.CiliumGatewayClassConfig"
+time=2026-09-18T14:37:52.318068288Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gatewayclass controllerGroup=gateway.networking.k8s.io controllerKind=GatewayClass source="kind source: *v1.GatewayClass"
+time=2026-09-18T14:37:52.31822752Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.Node"
+time=2026-09-18T14:37:52.318275903Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.Gateway"
+time=2026-09-18T14:37:52.318300012Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v2.CiliumEnvoyConfig"
+time=2026-09-18T14:37:52.318364841Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.Service"
+time=2026-09-18T14:37:52.318387521Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.EndpointSlice"
+time=2026-09-18T14:37:52.31845383Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.Service"
+time=2026-09-18T14:37:52.318490041Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.HTTPRoute"
+time=2026-09-18T14:37:52.318518106Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.GRPCRoute"
+time=2026-09-18T14:37:52.318528294Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=ciliumgatewayclassconfig controllerGroup=cilium.io controllerKind=CiliumGatewayClassConfig source="kind source: *v2alpha1.CiliumGatewayClassConfig"
+time=2026-09-18T14:37:52.318536141Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.TLSRoute"
+time=2026-09-18T14:37:52.318550628Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.Secret"
+time=2026-09-18T14:37:52.318568652Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.Namespace"
+time=2026-09-18T14:37:52.31858932Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.ReferenceGrant"
+time=2026-09-18T14:37:52.318605782Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.BackendTLSPolicy"
+time=2026-09-18T14:37:52.31862101Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.ConfigMap"
+time=2026-09-18T14:37:52.318434467Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway source="kind source: *v1.GatewayClass"
+time=2026-09-18T14:37:52.318929623Z level=info msg="Starting EventSource" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=secret controllerGroup="" controllerKind=Secret source="kind source: *v1.Gateway"
+time=2026-09-18T14:37:56.92107638Z level=info msg="Starting Controller" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=ciliumgatewayclassconfig controllerGroup=cilium.io controllerKind=CiliumGatewayClassConfig
+time=2026-09-18T14:37:56.921099392Z level=info msg="Starting workers" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=ciliumgatewayclassconfig controllerGroup=cilium.io controllerKind=CiliumGatewayClassConfig "worker count"=1
+time=2026-09-18T14:37:56.921121286Z level=info msg="Starting Controller" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gatewayclass controllerGroup=gateway.networking.k8s.io controllerKind=GatewayClass
+time=2026-09-18T14:37:56.921133489Z level=info msg="Starting workers" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gatewayclass controllerGroup=gateway.networking.k8s.io controllerKind=GatewayClass "worker count"=1
+time=2026-09-18T14:37:56.921238504Z level=info msg="Reconciling GatewayClass" module=operator.operator-controlplane.leader-lifecycle.gateway-api resource=/cilium
+time=2026-09-18T14:37:57.02600054Z level=info msg="Starting Controller" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway
+time=2026-09-18T14:37:57.026023327Z level=info msg="Starting workers" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway "worker count"=1
+time=2026-09-18T14:37:57.026130541Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/kube-dns
+time=2026-09-18T14:37:57.026219316Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=default/kubernetes
+time=2026-09-18T14:37:57.026296838Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/cilium-envoy
+time=2026-09-18T14:37:57.026356596Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/hubble-peer
+time=2026-09-18T14:37:57.02639766Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/hubble-relay
+time=2026-09-18T14:37:57.026435171Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/hubble-ui
+time=2026-09-18T14:38:02.014431651Z level=info msg="Successfully reconciled GatewayClass" module=operator.operator-controlplane.leader-lifecycle.gateway-api resource=/cilium
+time=2026-09-18T14:38:02.015431844Z level=info msg="Reconciling GatewayClass" module=operator.operator-controlplane.leader-lifecycle.gateway-api resource=/cilium
+time=2026-09-18T14:38:06.156912209Z level=info msg="Successfully reconciled GatewayClass" module=operator.operator-controlplane.leader-lifecycle.gateway-api resource=/cilium
+time=2026-09-18T14:41:39.542617363Z level=error msg=k8sError error="backendtlspolicies.gateway.networking.k8s.io is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"backendtlspolicies\" in API group \"gateway.networking.k8s.io\" at the cluster scope"
+time=2026-09-18T14:41:39.635995163Z level=error msg=k8sError error="httproutes.gateway.networking.k8s.io is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"httproutes\" in API group \"gateway.networking.k8s.io\" at the cluster scope"
+time=2026-09-18T14:41:39.63611807Z level=error msg=k8sError error="grpcroutes.gateway.networking.k8s.io is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"grpcroutes\" in API group \"gateway.networking.k8s.io\" at the cluster scope"
+time=2026-09-18T14:41:39.636112303Z level=error msg=k8sError error="ciliumgatewayclassconfigs.cilium.io is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"ciliumgatewayclassconfigs\" in API group \"cilium.io\" at the cluster scope"
+time=2026-09-18T14:41:39.636137696Z level=error msg=k8sError error="tlsroutes.gateway.networking.k8s.io is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"tlsroutes\" in API group \"gateway.networking.k8s.io\" at the cluster scope"
+time=2026-09-18T14:41:39.636187835Z level=error msg=k8sError error="gatewayclasses.gateway.networking.k8s.io is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"gatewayclasses\" in API group \"gateway.networking.k8s.io\" at the cluster scope"
+time=2026-09-18T14:41:39.63628089Z level=error msg=k8sError error="gateways.gateway.networking.k8s.io is forbidden: User \"system:serviceaccount:kube-system:cilium-operator\" cannot watch resource \"gateways\" in API group \"gateway.networking.k8s.io\" at the cluster scope"
+time=2026-09-18T14:41:47.512401474Z level=info msg="Reconciling GatewayClass" module=operator.operator-controlplane.leader-lifecycle.gateway-api resource=/cilium
+time=2026-09-18T14:41:47.512416907Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=default/kubernetes
+time=2026-09-18T14:41:47.643397982Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/cilium-envoy
+time=2026-09-18T14:41:47.643491022Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/hubble-peer
+time=2026-09-18T14:41:47.643555037Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/hubble-relay
+time=2026-09-18T14:41:47.643608785Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/hubble-ui
+time=2026-09-18T14:41:47.64367378Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=kube-system/kube-dns
+time=2026-09-18T14:41:47.6532202Z level=info msg="Successfully reconciled GatewayClass" module=operator.operator-controlplane.leader-lifecycle.gateway-api resource=/cilium
+time=2026-09-18T14:43:57.180685202Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=cilium-test-1/echo-same-node
+time=2026-09-18T14:43:57.639418625Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=cilium-test-1/echo-other-node
+time=2026-09-18T14:43:59.572220217Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=cilium-test-1/l7-lb
+time=2026-09-18T14:43:59.966687524Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=cilium-test-1/l7-lb-non-l7
+time=2026-09-18T15:05:59.768709855Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:05:59.837813762Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=network/cilium-gateway-cilium-gateway
+time=2026-09-18T15:05:59.864633496Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:05:59.864735297Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:05:59.879996251Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:05:59.880123594Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:05:59.892629863Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:05:59.892761994Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:05:59.893133403Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:45.943102733Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=network/demo-app
+time=2026-09-18T15:08:46.032214956Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-app k8sNamespace=network parentResource=cilium-gateway route=demo-app
+time=2026-09-18T15:08:46.032327777Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.055602759Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-app k8sNamespace=network parentResource=cilium-gateway route=demo-app
+time=2026-09-18T15:08:46.055653477Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-app k8sNamespace=network parentResource=cilium-gateway route=demo-app
+time=2026-09-18T15:08:46.095395417Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.095500962Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.10782614Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.107894852Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.115549824Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.115693009Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.116030555Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.116112434Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.124227539Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.124345603Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.124589871Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.245557018Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=network/demo-api
+time=2026-09-18T15:08:46.309149706Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-api k8sNamespace=network parentResource=cilium-gateway route=demo-api
+time=2026-09-18T15:08:46.309222973Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.340859788Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-api k8sNamespace=network parentResource=cilium-gateway route=demo-api
+time=2026-09-18T15:08:46.340915366Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-api k8sNamespace=network parentResource=cilium-gateway route=demo-api
+time=2026-09-18T15:08:46.396368347Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.396539802Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.410336363Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.410423874Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.434326515Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.434460299Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.43463829Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.817235583Z level=info msg="Reconciling GAMMA service" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gamma resource=network/demo-grpc
+time=2026-09-18T15:08:46.902958137Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-grpc k8sNamespace=network parentResource=cilium-gateway route=demo-grpc
+time=2026-09-18T15:08:46.903033393Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.916121763Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-grpc k8sNamespace=network parentResource=cilium-gateway route=demo-grpc
+time=2026-09-18T15:08:46.916176309Z level=info msg="Enqueued gateway for Route" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/demo-grpc k8sNamespace=network parentResource=cilium-gateway route=demo-grpc
+time=2026-09-18T15:08:46.959620856Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.959763768Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.980027586Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:46.980116003Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:47.000239578Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:47.00041909Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:47.007265949Z level=info msg="Reconciler error" module=operator.operator-controlplane.leader-lifecycle.controller-runtime controller=gateway controllerGroup=gateway.networking.k8s.io controllerKind=Gateway Gateway.name=cilium-gateway Gateway.namespace=network namespace=network name=cilium-gateway reconcileID=0b512052-2eba-4892-82c4-22031d54cf29 error="failed to update Gateway status: Operation cannot be fulfilled on gateways.gateway.networking.k8s.io \"cilium-gateway\": the object has been modified; please apply your changes to the latest version and try again"
+time=2026-09-18T15:08:47.007416174Z level=info msg="Reconciling Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:47.020027985Z level=info msg="Checking address status for Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:47.020237988Z level=info msg="At least one valid address, marking gateway programmed" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+time=2026-09-18T15:08:47.020716175Z level=info msg="Successfully reconciled Gateway" module=operator.operator-controlplane.leader-lifecycle.gateway-api controller=gateway resource=network/cilium-gateway
+
+
+
+
+
+
+
+
+
+
+
+
+
+

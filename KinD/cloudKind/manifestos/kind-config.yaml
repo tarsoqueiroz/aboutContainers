@@ -1,0 +1,39 @@
+---
+kind: Cluster
+
+apiVersion: kind.x-k8s.io/v1alpha4
+
+name: kind-cilium
+
+networking:
+  disableDefaultCNI: true   # Cilium substitui o kindnet
+  kubeProxyMode: "none"     # Cilium substitui o kube-proxy (eBPF)
+
+nodes:
+  # Controle Plane
+  - role: control-plane
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        listenAddress: "0.0.0.0"
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        listenAddress: "0.0.0.0"
+        protocol: TCP
+  # Worker 1
+  - role: worker
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77
+  # Worker 2
+  - role: worker
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77
+  # Worker 3
+  - role: worker
+    image: kindest/node:v1.33.1@sha256:14ffd6ee8a3daa20cc934ba786626b181e1797268c5465f2c299a7cf54494c77

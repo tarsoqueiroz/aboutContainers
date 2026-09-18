@@ -30,12 +30,6 @@
     - [Problemas comuns](#problemas-comuns)
   - [14. Cleanup](#14-cleanup)
   - [15. Anexos — arquivos completos](#15-anexos--arquivos-completos)
-  - [16. Lições aprendidas da execução real (validação ponta a ponta)](#16-lições-aprendidas-da-execução-real-validação-ponta-a-ponta)
-    - [16.1 O que funcionou perfeitamente](#161-o-que-funcionou-perfeitamente)
-    - [16.2 Achado: rajada de erros `forbidden` (RBAC) durante o `cilium connectivity test`](#162-achado-rajada-de-erros-forbidden-rbac-durante-o-cilium-connectivity-test)
-    - [16.3 Recomendação: aliviar a pressão sobre o control-plane sem violar o limite de 1000m/1024Mi](#163-recomendação-aliviar-a-pressão-sobre-o-control-plane-sem-violar-o-limite-de-1000m1024mi)
-    - [16.4 Cleanup dos recursos de teste](#164-cleanup-dos-recursos-de-teste)
-    - [16.5 Veredito final](#165-veredito-final)
 
 ---
 
@@ -55,7 +49,7 @@
 | Cilium | 1.20.1 |
 | Gateway API | v1.6.1 |
 
-```
+```text
                       Rede local (10.15.18.0/24)
                                 │
                                 │  :80 / :443
@@ -75,11 +69,13 @@
   (app / API / gRPC)      (app / API / gRPC)      (app / API / gRPC)
 ```
 
-**Por que Cilium também como Gateway?** O Cilium implementa a *Gateway API* nativamente (sem precisar de um Ingress Controller separado como o NGINX). O Envoy embarcado no Cilium roda em `hostNetwork` apenas no nó control-plane (único nó com as portas 80/443 mapeadas para o host), recebendo o tráfego HTTP, HTTPS e gRPC e roteando via `HTTPRoute` / `GRPCRoute` para os serviços internos.
+**Por que Cilium também como Gateway?** 
 
-> **Nota sobre limites de recurso (comportamento real confirmado em teste):** o Kind não possui um campo nativo em `kind-config.yaml` para limitar CPU/memória por nó — cada nó Kind é, na prática, um container Docker. Os limites são aplicados via `docker update --cpus --memory` logo após a criação do cluster (Seção 6), e a *aplicação do limite no cgroup é real* (o container é de fato limitado a 1 vCPU/1Gi ou 2 vCPU/4Gi e será *throttled*/`OOMKilled` se ultrapassar isso). **Porém**, em teste real, `kubectl describe node` continuou reportando `Capacity: cpu: 8, memory: ~30Gi` (os totais do host) em **todos** os nós, mesmo após o `docker restart` — o kubelet/cAdvisor lê `/proc/cpuinfo` e `/proc/meminfo`, que o Docker não mascara por padrão, então ele não sabe que está confinado a um cgroup menor.
+O Cilium implementa a *Gateway API* nativamente (sem precisar de um Ingress Controller separado como o NGINX). O Envoy embarcado no Cilium roda em `hostNetwork` apenas no nó control-plane (único nó com as portas 80/443 mapeadas para o host), recebendo o tráfego HTTP, HTTPS e gRPC e roteando via `HTTPRoute` / `GRPCRoute` para os serviços internos.
+
+> **Nota sobre limites de recurso:**
 > 
-> **Implicação prática:** o Kubernetes vai *agendar* pods nesse nó como se houvesse 8 vCPU/30Gi disponíveis, mesmo o limite real sendo de 1 vCPU/1Gi (CP) ou 2 vCPU/4Gi (workers). Isso pode causar *throttling* de CPU silencioso ou `OOMKill`/reinício de containers sob carga — exatamente o que observamos na Seção 16 (restarts do `cilium-agent`/`cilium-envoy` durante o pico de carga do `cilium connectivity test`). Não há correção nativa simples para isso no Kind; se for necessário que o Kubernetes *veja* a capacidade reduzida, seria preciso um passo adicional fora do escopo deste guia (ex.: patch do kubelet com `--system-reserved`/`--kube-reserved` calculado manualmente, ou LXCFS para mascarar `/proc`). Para o propósito deste laboratório, a aplicação real do limite via cgroup (que impede o nó de consumir mais do que o Docker permite) já atende ao requisito — só não é refletida na UI do `kubectl`.
+> O Kind não possui um campo nativo em `kind-config.yaml` para limitar CPU/memória por nó — cada nó Kind é, na prática, um container Docker. Os limites são aplicados via `docker update --cpus --memory` logo após a criação do cluster (Seção 6). O `kubelet`/cAdvisor dentro do nó lê o cgroup do próprio container, então `kubectl describe node` deve refletir a Capacity/Allocatable corretas — validaremos isso na própria seção.
 
 ---
 
@@ -108,12 +104,18 @@ Instalação do `cilium-cli` (Linux amd64/arm64):
 
 ```bash
 CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+
 CLI_ARCH=amd64
+
 if [ "$(uname -m)" = "aarch64" ]; then CLI_ARCH=arm64; fi
 curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
+
 sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
+
 sudo tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
+
 rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
+
 cilium version --client
 ```
 
@@ -122,10 +124,11 @@ cilium version --client
 ## 3. Estrutura de diretórios
 
 ```
-kind-cilium-cluster/
-├── kind-config.yaml
-├── cilium-values.yaml
+cloudKind/
+├── README.md
 ├── manifestos/
+│   ├── kind-config.yaml
+│   ├── cilium-values.yaml
 │   ├── gateway.yaml
 │   ├── httproute-app.yaml
 │   ├── httproute-api.yaml
@@ -133,17 +136,17 @@ kind-cilium-cluster/
 ├── certs/
 │   ├── wildcard.key
 │   └── wildcard.crt
-├── scripts/
-│   ├── set-node-limits.sh
-│   └── gen-wildcard-cert.sh
-└── docs/
-    └── README.md   (este arquivo)
+└── scripts/
+    ├── set-node-limits.sh
+    └── gen-wildcard-cert.sh
 ```
 
 ### Validação da etapa
 
+Dentro do diretório `cloudKind` execute:
+
 ```bash
-find kind-cilium-cluster -maxdepth 3 -type d
+find . -maxdepth 3 -type d
 ```
 
 ---
@@ -197,9 +200,10 @@ nodes:
 
 ```bash
 # valida sintaticamente o YAML antes de criar o cluster
-kind create cluster --config kind-config.yaml --name kind-cilium --dry-run 2>/dev/null || \
+kind create cluster --config ./manifestos/kind-config.yaml --name kind-cilium --dry-run 2>/dev/null || \
   echo "kind não suporta --dry-run nativo; validar com um linter YAML:"
-python3 -c "import yaml,sys; yaml.safe_load(open('kind-config.yaml')); print('YAML válido')"
+
+python3 -c "import yaml,sys; yaml.safe_load(open('./manifestos/kind-config.yaml')); print('YAML válido')"
 ```
 
 ---
@@ -264,7 +268,7 @@ chmod +x scripts/set-node-limits.sh
 ./scripts/set-node-limits.sh
 ```
 
-> **Por que reiniciar o container mesmo assim?** Não é para corrigir o `kubectl describe node` (confirmado em teste real que ele **continua** mostrando a Capacity total do host mesmo após o restart — ver nota na Seção 1). O restart aqui serve para garantir que os processos internos do nó (kubelet, containerd) iniciem já sob o novo teto de cgroup, evitando estados intermediários inconsistentes de contabilização de CPU/memória herdados de antes do `docker update`.
+> **Por que reiniciar o container?** O `kubelet` calcula a *Capacity* do nó lendo o cgroup no momento em que sobe. Ajustar o limite via `docker update` depois que o kubelet já está rodando pode não refletir imediatamente em `kubectl describe node`; reiniciar o container garante que o kubelet suba já enxergando o novo limite.
 
 ### Validação da etapa
 
@@ -278,11 +282,14 @@ done
 # Aguarda os nós voltarem (Cilium ainda não instalado -> continuam NotReady, mas devem responder)
 kubectl wait --for=condition=Ready=false node --all --timeout=60s || true
 
-# Confere Capacity/Allocatable no Kubernetes (após instalar o Cilium na Seção 8)
+# Confere Capacity/Allocatable refletidos no Kubernetes (após instalar o Cilium na Seção 8)
 kubectl describe node kind-cilium-control-plane | grep -A6 "Capacity:"
 kubectl describe node kind-cilium-worker | grep -A6 "Capacity:"
 ```
-**Resultado real esperado (confirmado em teste): `cpu: 8`, `memory: ~30Gi` em TODOS os nós** — o kubelet reporta os totais do host, não o limite do cgroup do container. O limite continua sendo aplicado de fato (verificável via `docker inspect`, comando acima), só não aparece nessa saída. Não trate um valor de 8 vCPU/30Gi aqui como falha da Seção 6 — é o comportamento esperado do Kind.
+
+Esperado (aproximado, pode variar por overhead do SO dentro do container):
+- `kind-cilium-control-plane` → `cpu: 1`, `memory: ~1Gi`
+- `kind-cilium-worker*` → `cpu: 2`, `memory: ~4Gi`
 
 ---
 
@@ -318,6 +325,7 @@ echo "$API_SERVER_IP"
 ```
 
 `cilium-values.yaml`:
+
 ```yaml
 kubeProxyReplacement: true
 k8sServiceHost: "__API_SERVER_IP__"   # substituído dinamicamente abaixo
@@ -386,8 +394,6 @@ cilium status --wait
 
 kubectl get pods -n kube-system -l k8s-app=cilium
 kubectl get pods -n kube-system -l name=cilium-operator
-kubectl get pods -n kube-system -l k8s-app=cilium-envoy
-# esperado: DaemonSet cilium-envoy com Desired == Ready == Available (4/4)
 
 kubectl get nodes -o wide
 # esperado: todos os 4 nós em STATUS = Ready
@@ -396,30 +402,6 @@ kubectl get gatewayclass
 # esperado: gatewayclass "cilium" com ACCEPTED=True
 
 cilium connectivity test --test '!datapath-tunnel,!pod-to-service-egress-gw' # opcional, teste mais completo
-```
-
-> **Erro comum: `cilium-envoy` DaemonSet com `Unavailable: 4/4` e dezenas de `endpoint-XXXX-regeneration-recovery is failing` no `cilium status --wait`.**
->
-> Causa: a lista em `envoy.securityContext.capabilities.envoy` **substitui** (não complementa) a lista padrão de capabilities do container Envoy. Se ela contiver só `NET_BIND_SERVICE`, faltam `NET_ADMIN`/`BPF`/`PERFMON` (ou `SYS_ADMIN` em kernels antigos) e o Envoy não sobe em nenhum nó — o que por sua vez trava a reprogramação eBPF de todos os endpoints que dependem dele (Ingress/Gateway API). O `cilium-values.yaml` acima já está correto; se você aplicou uma versão anterior, corrija com:
-
-```bash
-helm upgrade cilium cilium/cilium --version 1.20.1 \
-  --namespace kube-system \
-  -f cilium-values.yaml \
-  --set k8sServiceHost="${API_SERVER_IP}" \
-  --set k8sServicePort=6443
-
-kubectl -n kube-system rollout restart daemonset/cilium-envoy
-kubectl -n kube-system rollout status daemonset/cilium-envoy --timeout=120s
-
-cilium status --wait
-```
-
-Confirme a causa antes/depois com:
-
-```bash
-kubectl -n kube-system describe pod -l k8s-app=cilium-envoy | grep -A5 "Last State\|Events"
-kubectl -n kube-system logs -l k8s-app=cilium-envoy --previous --tail=50
 ```
 
 ---
@@ -467,7 +449,7 @@ kubectl -n network get secret wildcard-tls
 
 ## 10. Gateway API — Gateway (porta 80/443)
 
-`manifests/gateway.yaml`:
+`manifestos/gateway.yaml`:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -497,7 +479,7 @@ spec:
 ```
 
 ```bash
-kubectl apply -f manifests/gateway.yaml
+kubectl apply -f manifestos/gateway.yaml
 ```
 
 ### Validação da etapa
@@ -516,7 +498,7 @@ kubectl describe gateway cilium-gateway -n network
 
 Deploys de exemplo (substitua pelas imagens reais das suas aplicações).
 
-`manifests/httproute-app.yaml`:
+`manifestos/httproute-app.yaml`:
 
 ```yaml
 apiVersion: apps/v1
@@ -562,7 +544,7 @@ spec:
           port: 80
 ```
 
-`manifests/httproute-api.yaml`:
+`manifestos/httproute-api.yaml`:
 
 ```yaml
 apiVersion: apps/v1
@@ -608,7 +590,7 @@ spec:
           port: 80
 ```
 
-`manifests/grpcroute-service.yaml`:
+`manifestos/grpcroute-service.yaml`:
 
 ```yaml
 apiVersion: apps/v1
@@ -656,9 +638,9 @@ spec:
 ```
 
 ```bash
-kubectl apply -f manifests/httproute-app.yaml
-kubectl apply -f manifests/httproute-api.yaml
-kubectl apply -f manifests/grpcroute-service.yaml
+kubectl apply -f manifestos/httproute-app.yaml
+kubectl apply -f manifestos/httproute-api.yaml
+kubectl apply -f manifestos/grpcroute-service.yaml
 ```
 
 ### Validação da etapa
@@ -748,95 +730,3 @@ kind delete cluster --name kind-cilium
 ## 15. Anexos — arquivos completos
 
 Os arquivos completos (`kind-config.yaml`, `cilium-values.yaml`, scripts e manifestos) estão nos respectivos caminhos descritos na Seção 3, prontos para uso — basta copiar a estrutura de diretórios e seguir as seções 4 a 12 em ordem.
-
----
-
-## 16. Lições aprendidas da execução real (validação ponta a ponta)
-
-Esta seção documenta o que foi confirmado ao executar o guia do zero, incluindo um achado de contenção de recursos não previsto originalmente.
-
-### 16.1 O que funcionou perfeitamente
-
-- `curl http://app.0a0f122c.nip.io/` → `200 OK`
-- `curl -k https://app.0a0f122c.nip.io/` e `https://api.0a0f122c.nip.io/get` → TLS 1.3 completo com o certificado wildcard, `200 OK`
-- `grpcurl -insecure grpc.0a0f122c.nip.io:443 list` e chamada unária → funcionando via `GRPCRoute`
-- `cilium-envoy` DaemonSet `4/4 Ready` desde a primeira instalação, confirmando que a correção das capabilities (Seção 8) é a configuração definitiva
-
-> Detalhe curioso: `0a0f122c` é o IP `10.15.18.44` codificado em hexadecimal (`0A.0F.12.2C`) — por isso o `nip.io` resolve os três hostnames direto para o host, sem qualquer configuração de DNS.
-
-### 16.2 Achado: rajada de erros `forbidden` (RBAC) durante o `cilium connectivity test`
-
-Durante os testes `client-egress-to-cidrgroup-deny*` (que criam/removem `CiliumCIDRGroup` repetidamente), houve uma rajada única e simultânea de erros do tipo:
-
-```
-... is forbidden: User "system:serviceaccount:kube-system:cilium" cannot watch resource "ciliumcidrgroups" ...
-... is forbidden: User "system:serviceaccount:kube-system:cilium-operator" cannot watch resource "namespaces" ...
-```
-
-em **múltiplos recursos diferentes ao mesmo tempo** (`ciliumcidrgroups`, `ciliumidentities`, `namespaces`, `gatewayclasses`, `httproutes`, `grpcroutes`, `tlsroutes`, `backendtlspolicies`...), acompanhada de 1 restart no `cilium-agent`/`cilium-envoy` em um dos nós.
-
-**Não é um problema de RBAC real** — os `ClusterRole`s do Cilium já continham essas permissões (os *watches* desses mesmos recursos foram abertos com sucesso minutos antes, no log do operator, e voltaram a funcionar normalmente segundos depois). O padrão (muitos recursos de controladores diferentes falhando no mesmo instante, uma única vez, sob rajada de carga) é característico de **contenção momentânea no `kube-apiserver`** — que roda no mesmo container do control-plane limitado a `cpu=1000m`/`memory=1024Mi` junto com `etcd`, `kube-scheduler`, `kube-controller-manager`, `kubelet`, `containerd`, `cilium-agent` e `cilium-envoy`.
-
-Isso é uma consequência **real e esperada** do requisito de CP com apenas 1 vCPU/1Gi hospedando todo o control plane + Cilium: sob picos de carga (como um teste de conectividade criando/removendo recursos rapidamente), o `kube-apiserver` pode sofrer *hiccups* momentâneos que se manifestam como falhas de autorização/observação transitórias.
-
-### 16.3 Recomendação: aliviar a pressão sobre o control-plane sem violar o limite de 1000m/1024Mi
-
-O `cilium-values.yaml` testado **não** restringe onde `cilium-operator`, `hubble-relay` e `hubble-ui` são agendados — como o Kind não taint-a o nó control-plane por padrão, esses componentes podem ser agendados nele, competindo pelo mesmo orçamento de 1 vCPU/1Gi. Recomenda-se afastá-los do CP (o Envoy do Gateway *precisa* continuar lá, por causa do `hostNetwork`; os demais não):
-
-```yaml
-operator:
-  replicas: 1
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: node-role.kubernetes.io/control-plane
-                operator: DoesNotExist
-
-hubble:
-  enabled: true
-  relay:
-    enabled: true
-    affinity:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: node-role.kubernetes.io/control-plane
-                  operator: DoesNotExist
-  ui:
-    enabled: true
-    affinity:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: node-role.kubernetes.io/control-plane
-                  operator: DoesNotExist
-```
-
-Aplicar com:
-
-```bash
-helm upgrade cilium cilium/cilium --version 1.20.1 \
-  --namespace kube-system \
-  -f cilium-values.yaml \
-  --set k8sServiceHost="${API_SERVER_IP}" \
-  --set k8sServicePort=6443
-
-kubectl -n kube-system get pods -o wide | grep -E "operator|hubble"
-# confirmar que operator/hubble-relay/hubble-ui NÃO estão no control-plane
-```
-
-### 16.4 Cleanup dos recursos de teste
-
-O `cilium connectivity test` cria namespaces que não são removidos automaticamente:
-
-```bash
-kubectl delete ns cilium-test-1 cilium-test-ccnp1 cilium-test-ccnp2 --ignore-not-found
-```
-
-### 16.5 Veredito final
-
-A arquitetura proposta (Kind + Cilium como CNI/kube-proxy replacement + Gateway API em `hostNetwork` no CP + limites de recurso via `docker update`) está **validada e funcional de ponta a ponta** para os três tipos de tráfego exigidos (app HTTP, API HTTPS, gRPC). O único ponto de atenção real é a tolerância a picos de carga no control-plane sob o limite de 1 vCPU/1Gi — mitigável (não eliminável) com o ajuste de afinidade da Seção 16.3.

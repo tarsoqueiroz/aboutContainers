@@ -1,0 +1,42 @@
+kubeProxyReplacement: true
+k8sServiceHost: "__API_SERVER_IP__"   # substituído dinamicamente abaixo
+k8sServicePort: 6443
+
+ipam:
+  mode: kubernetes
+
+l7Proxy: true
+
+envoy:
+  enabled: true
+  securityContext:
+    capabilities:
+      keepCapNetBindService: true
+      # IMPORTANTE: esta lista SUBSTITUI a lista padrão de capabilities do
+      # container cilium-envoy — nunca a reduza para conter só NET_BIND_SERVICE,
+      # ou o Envoy falha ao iniciar em todos os nós (ver Seção 13).
+      # NET_ADMIN + BPF + PERFMON cobrem kernels >= 5.8 com containerd >= 1.5 / CRI-O >= 1.22
+      # (troque BPF/PERFMON por SYS_ADMIN em kernels mais antigos).
+      envoy:
+        - NET_ADMIN
+        - PERFMON
+        - BPF
+        - NET_BIND_SERVICE
+
+gatewayAPI:
+  enabled: true
+  hostNetwork:
+    enabled: true
+    nodes:
+      matchLabels:
+        ingress-ready: "true"   # só roda o Envoy do Gateway no control-plane
+
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+operator:
+  replicas: 1
