@@ -14,6 +14,13 @@ spec:
       containers:
         - name: demo-api
           image: kennethreitz/httpbin
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+            requests:
+              memory: "64Mi"
+              cpu: "125m"
           ports: [{ containerPort: 80 }]
 ---
 apiVersion: v1

@@ -14,6 +14,13 @@ spec:
       containers:
         - name: grpcbin
           image: moul/grpcbin
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+            requests:
+              memory: "64Mi"
+              cpu: "125m"
           ports: [{ containerPort: 9000 }]
 ---
 apiVersion: v1

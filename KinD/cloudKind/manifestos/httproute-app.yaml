@@ -14,6 +14,13 @@ spec:
       containers:
         - name: demo-app
           image: nginxdemos/hello:plain-text
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+            requests:
+              memory: "64Mi"
+              cpu: "125m"
           ports: [{ containerPort: 80 }]
 ---
 apiVersion: v1
